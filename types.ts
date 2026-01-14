@@ -1,0 +1,297 @@
+export enum AppRole {
+  SUPRIDO = 'SUPRIDO',
+  GESTOR = 'GESTOR',
+  SOSFU = 'SOSFU',
+  SEPLAN = 'SEPLAN',
+  AJSEFIN = 'AJSEFIN',
+  SGP = 'SGP'
+}
+
+// Added Role enum for staff members
+export enum Role {
+  GOVERNANCE = 'GOVERNANCE',
+  CONCESSION = 'CONCESSION',
+  FINANCE = 'FINANCE',
+  AUDIT_CONSUMPTION = 'AUDIT_CONSUMPTION',
+  TAX_ANALYSIS = 'TAX_ANALYSIS'
+}
+
+export enum ProcessType {
+  CONCESSION = 'CONCESSION',
+  ACCOUNTABILITY = 'ACCOUNTABILITY',
+  SPECIAL_ACCOUNT = 'SPECIAL_ACCOUNT', // Tomada de Contas Especial
+  BATCH_PROGRAMMING = 'BATCH_PROGRAMMING' // Programação de Pagamento (Ofício)
+}
+
+// Categoria de Suprimento (Novo Fluxo)
+export type SupplyCategory = 'ORDINARY' | 'EXTRAORDINARY';
+
+// Categoria da Unidade Organizacional (Novo)
+export type UnitCategory = 'JURISDICTIONAL' | 'ADMINISTRATIVE';
+
+// --- Dados Bancários (Novo) ---
+export interface BankData {
+  bankName: string;
+  bankCode: string;
+  agency: string;
+  account: string;
+}
+
+// --- NOVO: Estrutura da Matriz de Execução Orçamentária ---
+
+export interface BudgetAction {
+  code: string; // Ex: 8193, 8163
+  description: string; // Ex: Manutenção das Comarcas
+  balance: number; // Saldo específico desta ação
+}
+
+export interface Allocation {
+  code: string; // Ex: 170, 180 (Fonte/Dotação)
+  description: string; // Ex: Tesouro do Estado
+}
+
+// Regra de Mapeamento (De/Para)
+export interface BudgetRule {
+  id: string;
+  unitCategory: UnitCategory | 'ALL'; // Quem pede
+  supplyCategory: SupplyCategory;     // O que pede (Finalidade)
+  elementPrefix: string;              // Elemento (Ex: 33.90.30)
+  targetActionCode: string;           // Ação Vinculada
+  targetAllocationCode: string;       // Dotação Vinculada
+}
+
+// ----------------------------------------------------
+
+// Estrutura do Teto Orçamentário Global
+export interface AnnualBudget {
+  year: number;
+  totalCap: number;
+  executedOrdinary: number;
+  executedExtraordinary: number;
+  lastBatchDate?: string;
+  actions: BudgetAction[]; // Lista de Ações com seus saldos
+}
+
+export interface ExpenseSplit {
+  consumption: number; // 3.3.90.30.01 (%)
+  fuel: number;        // 3.3.90.30.02 (%)
+  transport: number;   // 3.3.90.33 (%)
+  servicePF: number;   // 3.3.90.36 (%)
+  servicePJ: number;   // 3.3.90.39 (%)
+}
+
+// Configuração para Comarcas (Jurisdicional)
+export interface BudgetDistribution {
+  comarcaId: string;
+  comarcaName: string;
+  annualValue: number;
+  split: ExpenseSplit;
+  bankData?: BankData; // Dados bancários da comarca
+}
+
+// Configuração para Unidades Administrativas (Novo)
+export interface AdminBudget {
+  unitId: string;
+  unitName: string;
+  annualCap: number;
+  executed: number; // Controle de saldo para Extra-Emergencial
+}
+
+// Added ConcessionStatus enum for workflow steps
+export enum ConcessionStatus {
+  TRIAGE = 'Triagem',
+  ANALYSIS = 'Análise Técnica',
+  SIGNATURE = 'Assinaturas',
+  FINANCE = 'Empenho/Financeiro',
+  GRANTED = 'Concedido'
+}
+
+// Added AccountStatus enum for accountability steps
+export enum AccountStatus {
+  RECEIVED = 'Recebido',
+  AUDIT = 'Em Auditoria / Tributário',
+  PENDING = 'Pendência Solicitada',
+  APPROVED_CAVEATS = 'Aprovado com Ressalvas',
+  ARCHIVED = 'Arquivado',
+  // Novos Status de Tomada de Contas
+  INSTRUCAO_TCE = 'Instrução TCE',
+  PRAZO_RECURSAL = 'Aguardando Prazo Recursal',
+  AVERBACAO_SGP = 'Averbação SGP',
+  // Novo Status SIAFE
+  SIAFE_DONE = 'Baixado no SIAFE'
+}
+
+export type ProcessStatus = ConcessionStatus | AccountStatus | string;
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  role: AppRole;
+  matricula: string;
+  avatarUrl?: string;
+}
+
+// Added StaffMember interface for assignment management
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: Role;
+  avatarUrl: string;
+  activeProcessCount: number;
+  // New fields for settings management
+  jobTitle?: string;
+  email?: string;
+}
+
+// Added INSS table related interfaces
+export interface INSSRange {
+  label: string;
+  min: number;
+  max: number;
+  rate: number;
+}
+
+export interface INSSTable {
+  year: number;
+  ceiling: number;
+  active: boolean;
+  ranges: INSSRange[];
+}
+
+// Added TaxData and BalanceData for financial tracking
+export interface TaxData {
+  serviceDate: string;
+  serviceValue: number;
+  inssEmployee: number;
+  inssPatronal: number;
+  effectiveRate: number;
+  gdrInssStatus: 'PAID' | 'PENDING';
+}
+
+export interface BalanceData {
+  amountSpent: number;
+  amountReturned: number;
+  gdrBalanceNumber: string;
+  status: 'PAID' | 'PENDING';
+}
+
+export interface ProcessTimelineStep {
+  label: string;
+  status: 'completed' | 'current' | 'pending' | 'error';
+  date?: string;
+  description?: string;
+}
+
+export interface ProcessItem {
+  element: string;
+  description: string;
+  value: number;
+  locked?: boolean;
+  // Novos campos de execução orçamentária
+  budgetAction?: string;
+  allocation?: string;
+}
+
+// Tipos para Documentos Gerados
+export type DocType = 'PORTARIA' | 'CERTIDAO_REGULARIDADE' | 'NOTA_EMPENHO' | 'LIQUIDACAO' | 'ORDEM_BANCARIA';
+
+export interface ProcessDocument {
+  id: string;
+  type: DocType;
+  title: string;
+  generatedAt: string;
+  content?: string; // HTML/Text representation
+  metadata?: {
+    neNumber?: string;
+    dlNumber?: string;
+    obNumber?: string;
+  };
+}
+
+// Expanded Process interface with optional fields used across different modules
+export interface Process {
+  id: string;
+  protocolNumber: string;
+  supridoId?: string;
+  interestedParty?: string;
+  providerCpf?: string;
+  providerPis?: string;
+  city?: string;
+  type: ProcessType;
+  supplyCategory?: SupplyCategory; // New field for budget tracking
+  unitCategory?: UnitCategory; // Identifica se é Comarca ou ADM
+  status: ProcessStatus;
+  value: number;
+  items?: ProcessItem[]; // Detalhamento dos itens (Obrigatório para Ordinário Gerado)
+  purpose?: string;
+  createdAt: string;
+  applicationDeadline?: string;
+  accountabilityDeadline?: string;
+  slaDeadline?: string;
+  
+  // Controle de origem automática
+  isBatchGenerated?: boolean; // Se true, o suprido não pode editar valores, apenas prestar contas
+  
+  // Controle de Prazos Legais (TCE)
+  decisionSignedAt?: string; // Data da assinatura do Ordenador
+  legalDeadline?: string;    // Data fim do prazo recursal
+  
+  // Controle SIAFE
+  siafeNl?: string; // Número da Nota de Lançamento de Baixa
+  siafeDate?: string; // Data da Baixa
+  
+  // Controle Financeiro (Concessão)
+  neNumber?: string; // Nota de Empenho
+  dlNumber?: string; // Documento de Liquidação
+  obNumber?: string; // Ordem Bancária
+  generatedDocuments?: ProcessDocument[];
+
+  assignedToId?: string | null;
+  priority: 'NORMAL' | 'HIGH' | 'CRITICAL';
+  
+  // Sentinela Integration (Novo)
+  sentinelaRisk?: 'LOW' | 'MEDIUM' | 'CRITICAL' | 'PENDING';
+  
+  timeline?: ProcessTimelineStep[];
+  requiresTaxReview?: boolean;
+  taxData?: TaxData;
+  hasBalanceReturn?: boolean;
+  balanceData?: BalanceData;
+}
+
+// Expanded ViewMode to include SOSFU internal view modes
+export type ViewMode = 'DASHBOARD' | 'NEW_REQUEST' | 'MY_REQUESTS' | 'ACCOUNTABILITY' | 'KANBAN' | 'LIST';
+
+// Removed 'SENTINELA' from FilterTab as it is now merged into ACCOUNTABILITY
+export type FilterTab = 'ALL' | 'CONCESSION' | 'ACCOUNTABILITY' | 'TAX_INSS' | 'GDR_CONTROL' | 'INSS_TABLES' | 'SUPRIDO_MANAGEMENT' | 'ORDINARY_MANAGEMENT' | 'SIAFE' | 'SETTINGS';
+
+export type SettingsSubTab = 'USERS' | 'DEPARTMENTS' | 'MUNICIPALITIES' | 'DISTRICTS' | 'EXPENSES' | 'DOCS';
+
+// Added Sentinela Audit related interfaces
+export interface AuditAlert {
+  id: string;
+  type: 'CRITICAL' | 'WARNING';
+  category: string;
+  message: string;
+  description: string;
+  ruleId: string;
+}
+
+export interface SentinelaAnalysis {
+  confidenceScore: number;
+  status: 'MANUAL_REVIEW' | 'VALIDATED';
+  extractedData: {
+    cnpj: string;
+    invoiceNumber: string;
+    issueDate: string;
+    totalAmount: number;
+    items: Array<{
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      total: number;
+    }>;
+  };
+  alerts: AuditAlert[];
+  suggestedGlosaText: string;
+}
