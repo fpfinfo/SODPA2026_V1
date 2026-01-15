@@ -630,12 +630,12 @@ export const GestorDashboard: React.FC = () => {
                                 <p className="text-sm text-slate-500 font-medium">{p.interested}</p>
                                 
                                 <div className="mt-4 flex gap-2 flex-wrap">
-                                    {p.items && p.items.length > 0 ? p.items.slice(0, 3).map((item: any, i: number) => (
+                                    {Array.isArray(p.items) && p.items.length > 0 ? p.items.slice(0, 3).map((item: any, i: number) => (
                                         <span key={i} className="text-[10px] font-bold bg-slate-50 border border-slate-100 text-slate-500 px-2 py-1 rounded-lg">
                                             {item.element || item.codigo || item.desc || 'Item'}
                                         </span>
                                     )) : null}
-                                    {p.items && p.items.length > 3 && (
+                                    {Array.isArray(p.items) && p.items.length > 3 && (
                                         <span className="text-[10px] font-bold bg-blue-50 border border-blue-100 text-blue-500 px-2 py-1 rounded-lg">
                                             +{p.items.length - 3} mais
                                         </span>
