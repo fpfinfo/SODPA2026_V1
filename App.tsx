@@ -32,16 +32,7 @@ const AppContent: React.FC = () => {
       const currentUserId = user?.id;
       const userEmail = user?.email;
 
-      let query = supabase.from('profiles').select('*');
-      if (currentUserId) {
-          query = query.eq('id', currentUserId);
-      } else {
-           // Fallback for preview: fetch seed user
-          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
-      }
-      const { data: profiles } = await query;
-      
-      // Also fetch from servidores_tj by email for additional data (case-insensitive)
+      // PRIORITY 1: Fetch from servidores_tj by authenticated user's email
       let servidorData = null;
       if (userEmail) {
         const { data: servidores } = await supabase
@@ -53,25 +44,57 @@ const AppContent: React.FC = () => {
         servidorData = servidores?.[0] || null;
       }
       
-      if (profiles?.[0]) {
-           // Merge data: profiles first, then overlay servidores_tj data where available
-           const mergedProfile = {
-             ...profiles[0],
-             avatar_url: servidorData?.avatar_url || profiles[0].avatar_url,
-             telefone: servidorData?.telefone || profiles[0].telefone,
-             banco: servidorData?.banco || profiles[0].banco,
-             agencia: servidorData?.agencia || profiles[0].agencia,
-             conta_corrente: servidorData?.conta_corrente || profiles[0].conta_corrente,
-             gestor_nome: servidorData?.gestor_nome || profiles[0].gestor_nome,
-             gestor_email: servidorData?.gestor_email || profiles[0].gestor_email,
-           };
-           setUserProfile(mergedProfile);
-           
-           // Set activeRole based on user's role from database
-           const dbRole = profiles[0].role?.toUpperCase() as AppRole;
-           if (dbRole && Object.values(AppRole).includes(dbRole)) {
-             setActiveRole(dbRole);
-           }
+      // PRIORITY 2: Fetch from profiles by user ID (if exists)
+      let profileData = null;
+      if (currentUserId) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUserId)
+          .limit(1);
+        profileData = profiles?.[0] || null;
+      }
+      
+      // Build merged profile prioritizing servidores_tj data (since it's authoritative)
+      if (servidorData || profileData) {
+        const mergedProfile = {
+          // Start with profile data if exists
+          ...(profileData || {}),
+          // Override with servidores_tj data (authoritative source for employee info)
+          id: currentUserId || profileData?.id,
+          nome: servidorData?.nome || profileData?.nome || 'Usuário',
+          email: servidorData?.email || userEmail || profileData?.email,
+          cpf: servidorData?.cpf || profileData?.cpf,
+          matricula: servidorData?.matricula || profileData?.matricula,
+          cargo: servidorData?.cargo || profileData?.cargo,
+          lotacao: servidorData?.lotacao || profileData?.lotacao,
+          avatar_url: servidorData?.avatar_url || profileData?.avatar_url,
+          telefone: servidorData?.telefone || profileData?.telefone,
+          banco: servidorData?.banco || profileData?.banco,
+          agencia: servidorData?.agencia || profileData?.agencia,
+          conta_corrente: servidorData?.conta_corrente || profileData?.conta_corrente,
+          gestor_nome: servidorData?.gestor_nome || profileData?.gestor_nome,
+          gestor_email: servidorData?.gestor_email || profileData?.gestor_email,
+          role: profileData?.role || servidorData?.role || 'SUPRIDO',
+          // Track the source for debugging
+          _source: servidorData ? 'servidores_tj' : 'profiles',
+        };
+        setUserProfile(mergedProfile);
+        
+        // Set activeRole based on user's role from database
+        const dbRole = (profileData?.role || servidorData?.role)?.toUpperCase() as AppRole;
+        if (dbRole && Object.values(AppRole).includes(dbRole)) {
+          setActiveRole(dbRole);
+        }
+      } else {
+        // No data found in either table - show minimal profile with auth data
+        console.warn('No profile data found for:', userEmail);
+        setUserProfile({
+          id: currentUserId,
+          email: userEmail,
+          nome: userEmail?.split('@')[0] || 'Usuário',
+          _source: 'auth_only'
+        });
       }
     } catch (e) {
       console.error('Header fetch error:', e);
