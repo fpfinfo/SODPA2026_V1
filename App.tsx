@@ -23,6 +23,7 @@ const AppContent: React.FC = () => {
   const [supridoViewOverride, setSupridoViewOverride] = useState<string | null>(null);
   const [sosfuForceSettings, setSosfuForceSettings] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [previousActiveRole, setPreviousActiveRole] = useState<AppRole | null>(null); // Stores role before profile navigation
   // Shared processes state for cross-module integration (e.g., SOSFU -> SEPLAN)
   const [sharedProcesses, setSharedProcesses] = useState<Process[]>([]);
 
@@ -82,6 +83,10 @@ const AppContent: React.FC = () => {
   }, [user]);
 
   const handleAvatarClick = () => {
+    // Save current role before switching to profile view
+    if (activeRole !== AppRole.SUPRIDO) {
+      setPreviousActiveRole(activeRole);
+    }
     // Switch to SUPRIDO module and show profile from any module
     setActiveRole(AppRole.SUPRIDO);
     setSupridoViewOverride('PROFILE');
@@ -108,7 +113,14 @@ const AppContent: React.FC = () => {
           <img 
             src={BRASAO_TJPA_URL} 
             className="w-12 h-12 object-contain cursor-pointer hover:scale-105 transition-transform"
-            onClick={() => setSupridoViewOverride('DASHBOARD')}
+            onClick={() => {
+              // If we came from another module, restore it
+              if (previousActiveRole && previousActiveRole !== AppRole.SUPRIDO) {
+                setActiveRole(previousActiveRole);
+                setPreviousActiveRole(null);
+              }
+              setSupridoViewOverride('DASHBOARD');
+            }}
             alt="Brasão TJPA"
           />
           <div>
@@ -208,6 +220,13 @@ const AppContent: React.FC = () => {
             forceView={supridoViewOverride} 
             onInternalViewChange={() => setSupridoViewOverride(null)} 
             onProfileUpdate={fetchUser}
+            onRestoreModule={() => {
+              // Restore previous module if user came from another module
+              if (previousActiveRole && previousActiveRole !== AppRole.SUPRIDO) {
+                setActiveRole(previousActiveRole);
+                setPreviousActiveRole(null);
+              }
+            }}
           />
         )}
         {activeRole === AppRole.GESTOR && (

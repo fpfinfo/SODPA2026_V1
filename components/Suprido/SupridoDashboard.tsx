@@ -154,9 +154,10 @@ interface SupridoDashboardProps {
   forceView: string | null;
   onInternalViewChange: () => void;
   onProfileUpdate?: () => void;
+  onRestoreModule?: () => void; // Called when user navigates back from profile to restore previous module
 }
 
-export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, onInternalViewChange, onProfileUpdate }) => {
+export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, onInternalViewChange, onProfileUpdate, onRestoreModule }) => {
   const [currentView, setCurrentView] = useState<SupridoView>('DASHBOARD');
   const [subView, setSubView] = useState<SubViewMode>('DETAILS');
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
@@ -2871,7 +2872,11 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
               : 'Manuais, guias e orientações para servidores supridos.'}
           </p>
         </div>
-        <button onClick={() => setCurrentView('DASHBOARD')} className="flex items-center gap-2 px-8 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 shadow-sm transition-all">
+        <button onClick={() => { 
+          setCurrentView('DASHBOARD'); 
+          // Restore previous module if user came from another module
+          if (onRestoreModule) onRestoreModule();
+        }} className="flex items-center gap-2 px-8 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 shadow-sm transition-all">
           <ArrowLeft size={16} /> Voltar ao Painel
         </button>
       </div>
