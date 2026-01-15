@@ -93,13 +93,16 @@ const AppContent: React.FC = () => {
     setShowUserMenu(false);
   };
 
+  // Check if user is currently viewing the SOSFU module (not just if their role is SOSFU)
+  const isInSosfuModule = ![AppRole.SUPRIDO, AppRole.GESTOR, AppRole.SEPLAN, AppRole.AJSEFIN, AppRole.SGP].includes(activeRole);
+
   const handlePreferences = () => {
     // Se estiver no módulo SUPRIDO, abre as preferências/perfil
     if (activeRole === AppRole.SUPRIDO) {
       setSupridoViewOverride('PROFILE');
     }
-    // Se estiver no módulo SOSFU, abre as configurações do sistema
-    if (activeRole === AppRole.SOSFU) {
+    // Se estiver no módulo SOSFU (qualquer membro da equipe), abre as configurações do sistema
+    if (isInSosfuModule) {
       setSosfuForceSettings(true);
     }
     setShowUserMenu(false);
@@ -198,7 +201,7 @@ const AppContent: React.FC = () => {
                   onClick={handlePreferences}
                   className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-3"
                 >
-                  <SettingsIcon size={16} /> {activeRole === AppRole.SOSFU ? 'Configurações do Sistema' : 'Preferências'}
+                  <SettingsIcon size={16} /> {isInSosfuModule ? 'Configurações do Sistema' : 'Preferências'}
                 </button>
                 <div className="h-px bg-slate-100 my-1"></div>
                 <button 
