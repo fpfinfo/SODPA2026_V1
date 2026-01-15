@@ -40,6 +40,12 @@ const AppContent: React.FC = () => {
       const { data: profiles } = await query;
       if (profiles?.[0]) {
            setUserProfile(profiles[0]);
+           
+           // Set activeRole based on user's role from database
+           const dbRole = profiles[0].role?.toUpperCase() as AppRole;
+           if (dbRole && Object.values(AppRole).includes(dbRole)) {
+             setActiveRole(dbRole);
+           }
       }
     } catch (e) {
       console.error('Header fetch error:', e);
