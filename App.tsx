@@ -57,9 +57,9 @@ const AppContent: React.FC = () => {
   }, [user]);
 
   const handleAvatarClick = () => {
-    if (activeRole === AppRole.SUPRIDO) {
-      setSupridoViewOverride('PROFILE');
-    }
+    // Switch to SUPRIDO module and show profile from any module
+    setActiveRole(AppRole.SUPRIDO);
+    setSupridoViewOverride('PROFILE');
     setShowUserMenu(false);
   };
 
