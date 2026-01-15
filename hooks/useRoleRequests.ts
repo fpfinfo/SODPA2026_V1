@@ -177,11 +177,14 @@ export function useRoleRequests(): UseRoleRequestsReturn {
       
       if (fetchError) throw fetchError;
       
+      // Convert role to lowercase (database constraint expects lowercase)
+      const newRole = userData.requested_role ? userData.requested_role.toLowerCase() : null;
+      
       // Update with approved role
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          role: userData.requested_role,
+          role: newRole,
           requested_role: null,
           role_request_status: 'APPROVED',
           role_approved_by: userId,
