@@ -29,6 +29,7 @@ const AppContent: React.FC = () => {
   const fetchUser = async () => {
     try {
       const currentUserId = user?.id;
+      const userEmail = user?.email;
 
       let query = supabase.from('profiles').select('*');
       if (currentUserId) {
@@ -38,8 +39,31 @@ const AppContent: React.FC = () => {
           query = query.eq('id', '00000000-0000-0000-0000-000000000000');
       }
       const { data: profiles } = await query;
+      
+      // Also fetch from servidores_tj by email for additional data
+      let servidorData = null;
+      if (userEmail) {
+        const { data: servidores } = await supabase
+          .from('servidores_tj')
+          .select('*')
+          .eq('email', userEmail)
+          .eq('ativo', true)
+          .limit(1);
+        servidorData = servidores?.[0] || null;
+      }
+      
       if (profiles?.[0]) {
-           setUserProfile(profiles[0]);
+           // Merge data: profiles first, then overlay servidores_tj data where available
+           const mergedProfile = {
+             ...profiles[0],
+             telefone: servidorData?.telefone || profiles[0].telefone,
+             banco: servidorData?.banco || profiles[0].banco,
+             agencia: servidorData?.agencia || profiles[0].agencia,
+             conta_corrente: servidorData?.conta_corrente || profiles[0].conta_corrente,
+             gestor_nome: servidorData?.gestor_nome || profiles[0].gestor_nome,
+             gestor_email: servidorData?.gestor_email || profiles[0].gestor_email,
+           };
+           setUserProfile(mergedProfile);
            
            // Set activeRole based on user's role from database
            const dbRole = profiles[0].role?.toUpperCase() as AppRole;
