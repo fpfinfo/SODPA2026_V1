@@ -18,6 +18,7 @@ import { SiafeManager } from './SiafeManager';
 import { ConcessionManager } from './ConcessionManager';
 import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
 import { useRoleRequests, ROLE_LABELS, RoleRequest } from '../hooks/useRoleRequests';
+import { useTeamMembers, TeamMember } from '../hooks/useTeamMembers';
 import { 
   LayoutGrid, 
   List as ListIcon, 
@@ -129,16 +130,39 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
       };
   }, [processes]);
 
+  // Fetch real team members from database
+  const { teamMembers: realTeamMembers, isLoading: isLoadingTeam, refresh: refreshTeamMembers } = useTeamMembers();
+
   const teamLoad = useMemo(() => {
     const BASE_CAPACITY = 10;
-    return STAFF_MEMBERS.map(member => {
-      const memberProcesses = processes.filter(p => p.assignedToId === member.id);
+    // Use real team members if available, fallback to mock for backwards compatibility
+    const members = realTeamMembers.length > 0 ? realTeamMembers : STAFF_MEMBERS.map(m => ({
+      id: m.id,
+      servidor_id: m.id,
+      role: m.role as any,
+      ativo: true,
+      nome: m.name,
+      email: null,
+      cargo: m.role,
+      lotacao: null,
+      avatar_url: m.avatarUrl,
+      matricula: null
+    }));
+    return members.map(member => {
+      const memberProcesses = processes.filter(p => p.assignedToId === member.id || p.assignedToId === member.servidor_id);
       const activeCount = memberProcesses.length;
       const utilization = (activeCount / BASE_CAPACITY) * 100;
       const lateCount = memberProcesses.filter(p => p.slaDeadline && new Date(p.slaDeadline) < new Date()).length;
-      return { ...member, activeCount, lateCount, utilization };
+      return { 
+        ...member, 
+        name: member.nome, 
+        avatarUrl: member.avatar_url,
+        activeCount, 
+        lateCount, 
+        utilization 
+      };
     });
-  }, [processes]);
+  }, [processes, realTeamMembers]);
 
   const handleCardClick = (mode: SosfuViewMode, filter?: ListFilterType) => { setViewMode(mode); if (filter) setListFilter(filter); };
   const handleAction = (action: string, id: string) => { if (action === 'assume') setAssigningProcessId(id); else if (action === 'sentinela') { const p = processes.find(pr => pr.id === id); if (p) setAuditProcess(p); } };
@@ -323,7 +347,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     <div className="bg-white rounded-[32px] shadow-lg border border-slate-200 overflow-hidden mb-8">
       <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"><h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-3"><Users size={20} className="text-slate-400"/> Gestão da Equipe Técnica</h3><button onClick={() => setViewMode('KANBAN')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-blue-700 hover:border-blue-200 transition-all shadow-sm"><Layout size={16}/> Ver Quadro Kanban</button></div>
       <table className="w-full text-left border-collapse"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 w-1/3">Analista / Função</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Carga de Trabalho</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Alertas SLA</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th></tr></thead>
-      <tbody className="divide-y divide-slate-100">{teamLoad.map(member => (<tr key={member.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => handleViewMemberQueue(member.id)}><td className="px-8 py-6"><div className="flex items-center gap-4"><div className="relative"><img src={member.avatarUrl} className="w-12 h-12 rounded-2xl border-2 border-white shadow-md group-hover:scale-105 transition-transform" /><div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${member.activeCount > 8 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div></div><div><p className="text-sm font-black text-slate-800">{member.name}</p><p className="text-[11px] font-medium text-slate-500 mt-0.5">{member.role}</p></div></div></td><td className="px-8 py-6"><div className="max-w-xs"><div className="flex justify-between text-xs font-bold mb-2"><span className="text-slate-600">{member.activeCount} Processos</span><span className="text-slate-400">{Math.round(member.utilization)}% Cap.</span></div><div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${member.utilization > 90 ? 'bg-red-500' : member.utilization > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(member.utilization, 100)}%` }}></div></div></div></td><td className="px-8 py-6 text-center">{member.lateCount > 0 ? (<span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wide border border-red-100"><AlertCircle size={12}/> {member.lateCount} Atrasados</span>) : (<span className="text-slate-300 font-bold text-xs">-</span>)}</td><td className="px-8 py-6 text-right"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); handleViewMemberQueue(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-sm" title="Ver Fila"><ListIcon size={16}/></button><button onClick={(e) => { e.stopPropagation(); setRedistributionSourceId(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-purple-600 hover:border-purple-200 rounded-xl transition-all shadow-sm" title="Redistribuir Carga"><ArrowRightLeft size={16}/></button></div></td></tr>))}</tbody></table>
+      <tbody className="divide-y divide-slate-100">{teamLoad.map(member => (<tr key={member.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => handleViewMemberQueue(member.id)}><td className="px-8 py-6"><div className="flex items-center gap-4"><div className="relative"><img src={member.avatarUrl ? `${member.avatarUrl}?t=${Date.now()}` : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(member.name || member.nome)}`} className="w-12 h-12 rounded-2xl border-2 border-white shadow-md group-hover:scale-105 transition-transform bg-slate-100" /><div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${member.activeCount > 8 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div></div><div><p className="text-sm font-black text-slate-800">{member.name || member.nome}</p><p className="text-[11px] font-medium text-slate-500 mt-0.5">{member.role || member.cargo}</p></div></div></td><td className="px-8 py-6"><div className="max-w-xs"><div className="flex justify-between text-xs font-bold mb-2"><span className="text-slate-600">{member.activeCount} Processos</span><span className="text-slate-400">{Math.round(member.utilization)}% Cap.</span></div><div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${member.utilization > 90 ? 'bg-red-500' : member.utilization > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(member.utilization, 100)}%` }}></div></div></div></td><td className="px-8 py-6 text-center">{member.lateCount > 0 ? (<span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wide border border-red-100"><AlertCircle size={12}/> {member.lateCount} Atrasados</span>) : (<span className="text-slate-300 font-bold text-xs">-</span>)}</td><td className="px-8 py-6 text-right"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); handleViewMemberQueue(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-sm" title="Ver Fila"><ListIcon size={16}/></button><button onClick={(e) => { e.stopPropagation(); setRedistributionSourceId(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-purple-600 hover:border-purple-200 rounded-xl transition-all shadow-sm" title="Redistribuir Carga"><ArrowRightLeft size={16}/></button></div></td></tr>))}</tbody></table>
     </div>
   );
 
