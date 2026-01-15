@@ -40,13 +40,13 @@ const AppContent: React.FC = () => {
       }
       const { data: profiles } = await query;
       
-      // Also fetch from servidores_tj by email for additional data
+      // Also fetch from servidores_tj by email for additional data (case-insensitive)
       let servidorData = null;
       if (userEmail) {
         const { data: servidores } = await supabase
           .from('servidores_tj')
           .select('*')
-          .eq('email', userEmail)
+          .ilike('email', userEmail)
           .eq('ativo', true)
           .limit(1);
         servidorData = servidores?.[0] || null;
@@ -56,6 +56,7 @@ const AppContent: React.FC = () => {
            // Merge data: profiles first, then overlay servidores_tj data where available
            const mergedProfile = {
              ...profiles[0],
+             avatar_url: servidorData?.avatar_url || profiles[0].avatar_url,
              telefone: servidorData?.telefone || profiles[0].telefone,
              banco: servidorData?.banco || profiles[0].banco,
              agencia: servidorData?.agencia || profiles[0].agencia,
@@ -166,7 +167,7 @@ const AppContent: React.FC = () => {
                 <p className="text-xs font-bold text-slate-800 leading-none">{userProfile?.nome || 'Carregando...'}</p>
                 <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tighter">Mat. {userProfile?.matricula || '...'}</p>
               </div>
-              <img src={userProfile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile?.nome || 'User'}`} className="w-10 h-10 rounded-xl border-2 border-slate-100 group-hover:border-blue-400 transition-all shadow-sm bg-blue-50" alt="Avatar" />
+              <img src={userProfile?.avatar_url ? `${userProfile.avatar_url}?t=${Date.now()}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile?.nome || 'User'}`} className="w-10 h-10 rounded-xl border-2 border-slate-100 group-hover:border-blue-400 transition-all shadow-sm bg-blue-50" alt="Avatar" />
             </div>
 
             {showUserMenu && (
