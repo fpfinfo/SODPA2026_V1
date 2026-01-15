@@ -16,6 +16,7 @@ import { BudgetMatrixConfig } from './BudgetMatrixConfig';
 import { SupridoManager } from './SupridoManager';
 import { SiafeManager } from './SiafeManager';
 import { ConcessionManager } from './ConcessionManager';
+import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
 import { 
   LayoutGrid, 
   List as ListIcon, 
@@ -275,78 +276,12 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
         ) : isSupridoManagement ? (<div className="h-full overflow-y-auto custom-scrollbar"><SupridoManager /></div>) : isSiafeTab ? (<div className="h-full overflow-y-auto custom-scrollbar"><SiafeManager processes={processes} onUpdateStatus={handleSiafeUpdate} /></div>) : isOrdinaryManagement ? (<div className="h-full overflow-y-auto custom-scrollbar"><BudgetManager budget={budget} onLaunchBatch={handleBatchLaunch} /></div>) : isConcessionTab ? (
           <ConcessionManager processes={processes} onUpdateStatus={handleMoveProcess} budgetCap={budget.totalCap} />
         ) : isBudgetTab ? (
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-white rounded-[32px] shadow-lg border border-slate-200 overflow-hidden">
-                <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-purple-50">
-                  <div className="flex items-center gap-4">
-                    <div className="p-4 bg-violet-600 rounded-2xl text-white shadow-xl shadow-violet-200">
-                      <PiggyBank size={32} />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">Configuração Orçamentária</h2>
-                      <p className="text-sm text-slate-500 mt-1">Gerencie a matriz de valores e regras de execução orçamentária</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <button 
-                      onClick={() => setShowMatrix(true)}
-                      className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-100 rounded-2xl flex flex-col items-start gap-4 hover:border-blue-300 hover:shadow-lg transition-all group"
-                    >
-                      <div className="p-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
-                        <TableIcon size={24} />
-                      </div>
-                      <div className="text-left">
-                        <h3 className="text-lg font-black text-slate-800 group-hover:text-blue-700">Matriz de Valores</h3>
-                        <p className="text-sm text-slate-500 mt-1">Configure os valores anuais por comarca e a distribuição entre elementos de despesa</p>
-                      </div>
-                      <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Abrir Configuração →</span>
-                    </button>
-                    <button 
-                      onClick={() => setShowConfig(true)}
-                      className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-start gap-4 hover:border-indigo-300 hover:shadow-lg transition-all group"
-                    >
-                      <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-                        <Database size={24} />
-                      </div>
-                      <div className="text-left">
-                        <h3 className="text-lg font-black text-slate-800 group-hover:text-indigo-700">Regras de Execução</h3>
-                        <p className="text-sm text-slate-500 mt-1">Defina as regras de atribuição automática de Ação e Dotação orçamentária</p>
-                      </div>
-                      <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Abrir Configuração →</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {showMatrix && (
-              <BudgetDistributionMatrix 
-                distributions={distributions}
-                adminBudgets={adminBudgets}
-                onSave={(newDist, newAdmin) => { 
-                  setDistributions(newDist); 
-                  setAdminBudgets(newAdmin);
-                  setShowMatrix(false); 
-                }}
-                onClose={() => setShowMatrix(false)}
-              />
-            )}
-            {showConfig && (
-              <BudgetMatrixConfig 
-                rules={budgetRules}
-                onSave={(newRules) => {
-                  setBudgetRules(newRules);
-                  setShowConfig(false);
-                }}
-                onClose={() => setShowConfig(false)}
-              />
-            )}
+          <div className="h-full overflow-y-auto custom-scrollbar p-6">
+            <BudgetPlanningDashboard />
           </div>
         ) : activeTab === 'ALL' ? (
           <div className="h-full overflow-y-auto custom-scrollbar">
-            <div className="mb-8"><BudgetManager budget={budget} onLaunchBatch={handleBatchLaunch} /></div>
+            {isOrdinaryManagement && <div className="mb-8"><BudgetManager budget={budget} onLaunchBatch={handleBatchLaunch} /></div>}
             {viewMode === 'DASHBOARD' && (<>{renderDashboardCards()}{renderTeamManagement()}</>)}
             {viewMode === 'LIST' && renderProcessList()}
             {viewMode === 'KANBAN' && (<><div className="mb-4 flex justify-end"><button onClick={() => setViewMode('DASHBOARD')} className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase hover:text-blue-700"><Layout size={16}/> Voltar ao Painel</button></div><div className="h-[600px]"><KanbanBoard processes={getFilteredList()} activeTab={activeTab} onViewDetails={(p) => { setSelectedProcess(p); setDetailsModalTab('DETAILS'); }} onAction={(action, id) => { if(action === 'assume') setAssigningProcessId(id); else handleMoveProcess(id, ConcessionStatus.ANALYSIS); }} staffWorkload={{}} isLoading={isLoading} onMoveProcess={handleMoveProcess}/></div></>)}

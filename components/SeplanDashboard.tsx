@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   PenTool, 
   FileSignature, 
@@ -34,9 +34,11 @@ import {
   X,
   MessageSquare,
   Key,
-  Lock
+  Lock,
+  Loader2
 } from 'lucide-react';
 import { Process, ConcessionStatus } from '../types';
+import { useSeplanTasks, SigningTask as DbSigningTask } from '../hooks/useSeplanTasks';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -106,14 +108,10 @@ const ANALYTICS_DATA = {
   ]
 };
 
-const MOCK_TASKS: SigningTask[] = [
-  { id: '1', protocol: 'TJPA-SOL-2026-0001', type: 'PORTARIA', origin: 'SOSFU', title: 'Portaria de Concessão de Suprimento', description: 'Concessão de suprimento de fundos para Sessão de Júri na Comarca de Mãe do Rio.', value: 1400.00, date: '10/01/2026', priority: 'HIGH', status: 'PENDING', author: 'Jaires Costa Sarraf (Analista SOSFU)', content_preview: 'O SECRETÁRIO DE PLANEJAMENTO, no uso de suas atribuições legais... RESOLVE: CONCEDER suprimento de fundos ao servidor ADEMÁRIO SILVA DE JESUS...', unitCode: '03.01.05.02', unitName: 'Comarca de Mãe do Rio' },
-  { id: '2', protocol: 'TJPA-SOL-2026-0002', type: 'NOTA_EMPENHO', origin: 'SOSFU', title: 'Nota de Empenho 2026NE000123', description: 'Reserva orçamentária para despesas com alimentação (339030).', value: 1250.00, date: '10/01/2026', priority: 'HIGH', status: 'PENDING', author: 'Sistema SIAFE (Automático)', content_preview: 'NOTA DE EMPENHO. Célula Orçamentária: 03.01.01.01... Valor Total: R$ 1.250,00. Favorecido: Ademário Silva de Jesus.', unitCode: '03.01.05.02', unitName: 'Comarca de Mãe do Rio' },
-  { id: '3', protocol: 'TJPA-PROC-2025-8821', type: 'DECISAO', origin: 'AJSEFIN', title: 'Decisão Administrativa - Homologação', description: 'Decisão referente ao processo de prestação de contas anual.', date: '09/01/2026', priority: 'NORMAL', status: 'PENDING', author: 'Dr. Carlos Mendes (Assessor Jurídico)', content_preview: 'Trata-se de processo administrativo... DECIDO: Acolho o parecer da AJSEFIN para APROVAR com RESSALVAS as contas apresentadas...', unitCode: '01.01.01.01', unitName: 'Gabinete da Presidência' },
-  { id: '4', protocol: 'TJPA-SOL-2026-0045', type: 'DESPACHO', origin: 'SOSFU', title: 'Despacho de Devolução de Saldo', description: 'Autorização para recolhimento de saldo não utilizado.', value: 150.00, date: '11/01/2026', priority: 'NORMAL', status: 'PENDING', author: 'Ana Paula (Técnica)', content_preview: 'Autorizo a emissão de Guia de Devolução referente ao saldo remanescente...', unitCode: '03.01.01', unitName: 'Comarca de Ananindeua' }
-];
-
 export const SeplanDashboard: React.FC<SeplanDashboardProps> = ({ processes = [], onSignComplete }) => {
+  // Use Supabase hook for tasks
+  const { tasks: dbTasks, isLoading: loadingTasks, signTask, signMultipleTasks, rejectTask } = useSeplanTasks();
+  
   const [viewMode, setViewMode] = useState<ViewMode>('OPERATIONAL');
   const [activeTab, setActiveTab] = useState<'INBOX' | 'SIGNED'>('INBOX');
   const [originFilter, setOriginFilter] = useState<DocumentOrigin | 'ALL'>('ALL');
@@ -124,6 +122,24 @@ export const SeplanDashboard: React.FC<SeplanDashboardProps> = ({ processes = []
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnReason, setReturnReason] = useState('');
   const [isSigningProcess, setIsSigningProcess] = useState(false);
+
+  // Map DB tasks to UI format
+  const supabaseTasks: SigningTask[] = useMemo(() => {
+    return dbTasks.map(t => ({
+      id: t.id,
+      protocol: `TJPA-${t.tipo}-${t.id.slice(0, 8).toUpperCase()}`,
+      type: t.tipo as DocumentType || 'PORTARIA',
+      origin: t.origem as DocumentOrigin || 'SOSFU',
+      title: t.titulo,
+      description: t.titulo,
+      value: t.valor,
+      date: t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'),
+      priority: 'NORMAL' as const,
+      status: t.status === 'SIGNED' ? 'SIGNED' : t.status === 'REJECTED' ? 'RETURNED' : 'PENDING' as any,
+      author: 'SOSFU - Gestão de Concessão',
+      content_preview: t.titulo,
+    }));
+  }, [dbTasks]);
 
   // Generate SigningTasks from tramited processes (status = SIGNATURE)
   const dynamicTasks: SigningTask[] = useMemo(() => {
@@ -147,8 +163,8 @@ export const SeplanDashboard: React.FC<SeplanDashboardProps> = ({ processes = []
       }));
   }, [processes]);
 
-  // Combine mock tasks with dynamic tasks from tramited processes
-  const allTasks = useMemo(() => [...MOCK_TASKS, ...dynamicTasks], [dynamicTasks]);
+  // Combine Supabase tasks with dynamic tasks from tramited processes
+  const allTasks = useMemo(() => [...supabaseTasks, ...dynamicTasks], [supabaseTasks, dynamicTasks]);
 
   const filteredTasks = allTasks.filter(t => {
     if (activeTab === 'INBOX' && t.status !== 'PENDING') return false;
@@ -163,7 +179,7 @@ export const SeplanDashboard: React.FC<SeplanDashboardProps> = ({ processes = []
   const unitBudgetLimit = 12500000;
   const unitBudgetUsed = 3245000;
   const currentBalance = unitBudgetLimit - unitBudgetUsed;
-  const selectedImpact = useMemo(() => MOCK_TASKS.filter(t => selectedIds.has(t.id) && t.status === 'PENDING').reduce((acc, curr) => acc + (curr.value || 0), 0), [selectedIds]);
+  const selectedImpact = useMemo(() => allTasks.filter(t => selectedIds.has(t.id) && t.status === 'PENDING').reduce((acc, curr) => acc + (curr.value || 0), 0), [selectedIds, allTasks]);
   const projectedBalance = currentBalance - selectedImpact;
 
   const handleBatchSign = () => { setIsSigningProcess(true); setTimeout(() => { setIsSigningProcess(false); setIsSignModalOpen(false); alert(`${selectedIds.size} documentos assinados com sucesso!`); setSelectedIds(new Set()); }, 2000); };
@@ -214,7 +230,7 @@ export const SeplanDashboard: React.FC<SeplanDashboardProps> = ({ processes = []
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">
-        {viewMode === 'OPERATIONAL' && (<div className="w-72 bg-white border-r border-slate-200 p-6 flex flex-col gap-8 z-10 animate-in slide-in-from-left-4"><div className="space-y-2"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3">Fluxo de Assinaturas</p><button onClick={() => { setActiveTab('INBOX'); setOriginFilter('ALL'); }} className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === 'INBOX' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}><span className="text-sm font-bold flex items-center gap-3"><PenTool size={16}/> Pendentes</span><span className={`text-xs font-black px-2 py-0.5 rounded-md ${activeTab === 'INBOX' ? 'bg-white/20' : 'bg-slate-100'}`}>{MOCK_TASKS.filter(t => t.status === 'PENDING').length}</span></button><button onClick={() => setActiveTab('SIGNED')} className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === 'SIGNED' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}><span className="text-sm font-bold flex items-center gap-3"><FileSignature size={16}/> Assinados</span></button></div></div>)}
+        {viewMode === 'OPERATIONAL' && (<div className="w-72 bg-white border-r border-slate-200 p-6 flex flex-col gap-8 z-10 animate-in slide-in-from-left-4"><div className="space-y-2"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3">Fluxo de Assinaturas</p><button onClick={() => { setActiveTab('INBOX'); setOriginFilter('ALL'); }} className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === 'INBOX' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}><span className="text-sm font-bold flex items-center gap-3"><PenTool size={16}/> Pendentes</span><span className={`text-xs font-black px-2 py-0.5 rounded-md ${activeTab === 'INBOX' ? 'bg-white/20' : 'bg-slate-100'}`}>{allTasks.filter(t => t.status === 'PENDING').length}</span></button><button onClick={() => setActiveTab('SIGNED')} className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === 'SIGNED' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}><span className="text-sm font-bold flex items-center gap-3"><FileSignature size={16}/> Assinados</span></button></div></div>)}
         <div className="flex-1 overflow-hidden relative bg-slate-50">{viewMode === 'OPERATIONAL' ? renderOperational() : renderAnalytics()}</div>
 
         {previewTask && (<div className="absolute inset-0 z-40 flex justify-end"><div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setPreviewTask(null)}></div><div className="w-[850px] bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col relative z-50"><div className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm shrink-0"><div className="flex items-center gap-4"><button onClick={() => setPreviewTask(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"><X size={20}/></button><div><h3 className="text-sm font-black text-slate-800 flex items-center gap-2">{previewTask.title}<span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] rounded uppercase tracking-widest">Minuta</span></h3><p className="text-xs text-slate-500 font-mono">{previewTask.protocol}</p></div></div><div className="flex gap-3"><button onClick={() => setIsReturnModalOpen(true)} className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-red-50 flex items-center gap-2"><MessageSquare size={14}/> Devolver</button><button onClick={() => { setSelectedIds(new Set([previewTask.id])); setIsSignModalOpen(true); }} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-md flex items-center gap-2"><PenTool size={14}/> Assinar</button></div></div><div className="flex-1 overflow-y-auto p-12 bg-slate-100 flex justify-center custom-scrollbar"><div className="w-[650px] bg-white shadow-xl min-h-[900px] p-16 text-slate-800 font-serif leading-relaxed relative"><div className="absolute top-0 right-0 p-8 opacity-5"><img src={BRASAO_TJPA_URL} className="w-32 grayscale" /></div><div className="text-center mb-12 space-y-2"><img src={BRASAO_TJPA_URL} className="w-16 mx-auto mb-4" /><h4 className="text-xs font-bold uppercase tracking-widest text-slate-900">Tribunal de Justiça do Estado do Pará</h4><h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Secretaria de Planejamento</h5></div><h2 className="text-lg font-black text-center mb-8 uppercase border-y-2 border-slate-900 py-2">{previewTask.type.replace('_', ' ')}</h2><div className="text-justify space-y-6 text-sm"><p>{previewTask.content_preview}</p><p>Considerando o disposto na Lei Complementar nº... e a disponibilidade orçamentária atestada pela SOSFU.</p><p><strong>DETERMINO</strong> o prosseguimento do feito conforme solicitado, autorizando a despesa no valor de {previewTask.value && formatCurrency(previewTask.value)}.</p></div><div className="mt-24 pt-8 border-t border-slate-300 text-center"><div className="w-48 h-px bg-slate-900 mx-auto mb-2"></div><p className="font-bold text-xs uppercase">Ordenador de Despesas</p><p className="text-[10px] text-slate-400 uppercase">Aguardando Assinatura Digital</p></div></div></div></div></div>)}

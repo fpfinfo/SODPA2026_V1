@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BudgetRule, BudgetAction, Allocation, SupplyCategory, UnitCategory } from '../types';
-import { MOCK_ACTIONS, MOCK_ALLOCATIONS } from '../constants';
-import { Save, Plus, Trash2, ArrowRight, Settings, AlertCircle, Database } from 'lucide-react';
+import { useBudgetData } from '../hooks/useBudgetData';
+import { Save, Plus, Trash2, ArrowRight, Settings, AlertCircle, Database, Loader2 } from 'lucide-react';
 
 interface BudgetMatrixConfigProps {
   rules: BudgetRule[];
@@ -10,6 +10,9 @@ interface BudgetMatrixConfigProps {
 }
 
 export const BudgetMatrixConfig: React.FC<BudgetMatrixConfigProps> = ({ rules, onSave, onClose }) => {
+  // Use Supabase hook instead of mocks
+  const { actions, allocations, isLoading } = useBudgetData();
+  
   const [currentRules, setCurrentRules] = useState<BudgetRule[]>(JSON.parse(JSON.stringify(rules)));
   const [newRule, setNewRule] = useState<Partial<BudgetRule>>({
     unitCategory: 'JURISDICTIONAL',
@@ -37,8 +40,8 @@ export const BudgetMatrixConfig: React.FC<BudgetMatrixConfigProps> = ({ rules, o
     setCurrentRules(currentRules.filter(r => r.id !== id));
   };
 
-  const getActionName = (code: string) => MOCK_ACTIONS.find(a => a.code === code)?.description || code;
-  const getAllocationName = (code: string) => MOCK_ALLOCATIONS.find(a => a.code === code)?.description || code;
+  const getActionName = (code: string) => actions.find(a => a.code === code)?.description || code;
+  const getAllocationName = (code: string) => allocations.find(a => a.code === code)?.description || code;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in">
@@ -167,7 +170,7 @@ export const BudgetMatrixConfig: React.FC<BudgetMatrixConfigProps> = ({ rules, o
                                 onChange={e => setNewRule({...newRule, targetActionCode: e.target.value})}
                             >
                                 <option value="">Selecione...</option>
-                                {MOCK_ACTIONS.map(a => (
+                                {actions.map(a => (
                                     <option key={a.code} value={a.code}>{a.code} - {a.description}</option>
                                 ))}
                             </select>
@@ -180,7 +183,7 @@ export const BudgetMatrixConfig: React.FC<BudgetMatrixConfigProps> = ({ rules, o
                                 onChange={e => setNewRule({...newRule, targetAllocationCode: e.target.value})}
                             >
                                 <option value="">Selecione...</option>
-                                {MOCK_ALLOCATIONS.map(a => (
+                                {allocations.map(a => (
                                     <option key={a.code} value={a.code}>{a.code}</option>
                                 ))}
                             </select>

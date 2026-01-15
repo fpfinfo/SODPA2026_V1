@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { ServiceProviderData, TaxCalculation } from '../types/taxIntegration';
+import { isPFElement, calculateTaxes, validateCPF, formatCPF } from '../lib/taxCalculations';
+import TaxCalculatorWidget from './TaxCalculatorWidget';
+import ServiceProviderForm from './ServiceProviderForm';
 import { 
   PlusCircle, 
   FileText, 
@@ -66,6 +70,10 @@ interface FormItem {
   qty: number;
   val: number;
   element: string;
+  // PF Tax fields (3.3.90.36)
+  providerData?: Partial<ServiceProviderData>;
+  taxes?: TaxCalculation;
+  isPFService?: boolean;
 }
 
 interface JuriParticipants {
@@ -297,7 +305,37 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
   const updateItem = (id: string, field: keyof FormItem, value: any) => {
     setFormState(prev => ({
       ...prev,
-      items: prev.items.map(i => i.id === id ? { ...i, [field]: value } : i)
+      items: prev.items.map(i => {
+        if (i.id !== id) return i;
+        
+        const updated = { ...i, [field]: value };
+        
+        // Detect if element is PF (3.3.90.36) and calculate taxes
+        if (field === 'element') {
+          updated.isPFService = isPFElement(value);
+          if (updated.isPFService && !updated.providerData) {
+            updated.providerData = {};
+          }
+          if (updated.isPFService && updated.val > 0) {
+            updated.taxes = calculateTaxes(updated.val);
+          }
+        }
+        
+        // Recalculate taxes when value changes for PF items
+        if (field === 'val' && updated.isPFService) {
+          updated.taxes = calculateTaxes(value);
+        }
+        
+        return updated;
+      })
+    }));
+  };
+
+  // Update provider data for a PF service item
+  const updateItemProvider = (id: string, providerData: Partial<ServiceProviderData>) => {
+    setFormState(prev => ({
+      ...prev,
+      items: prev.items.map(i => i.id === id ? { ...i, providerData } : i)
     }));
   };
 
@@ -365,6 +403,29 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
              </div>
           </div>
         ))}
+      </div>
+
+      {/* === BATCH NOTIFICATION BANNER === */}
+      <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[32px] p-6 shadow-xl animate-in slide-in-from-top-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+              <Wallet size={28} className="text-white" />
+            </div>
+            <div className="text-white">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100">🎉 Recurso Creditado</p>
+              <h3 className="text-xl font-black">Suprimento Ordinário - 1º Quadrimestre/2026</h3>
+              <p className="text-sm text-emerald-100">Valor disponível para execução: <strong>R$ 16.000,00</strong></p>
+            </div>
+          </div>
+          <button
+            onClick={() => setCurrentView('PROCESS_DETAILS')}
+            className="flex items-center gap-2 px-6 py-3 bg-white text-emerald-700 rounded-xl font-black text-sm hover:bg-emerald-50 transition-colors shadow-lg"
+          >
+            <Eye size={18} />
+            Ver Detalhes
+          </button>
+        </div>
       </div>
 
       <div className="bg-[#0f172a] rounded-[56px] shadow-2xl overflow-hidden relative group">

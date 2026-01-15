@@ -6,12 +6,14 @@ interface ElementoDespesa {
   codigo: string;
   descricao: string;
   valor: number;
+  ptres?: string;      // PTRES code (8193, 8727, 8163)
+  dotacao?: string;    // Dotação code (170, 171, etc)
 }
 
 interface PortariaDocumentProps {
   numeroPortaria: number;
   anoPortaria: number;
-  tipoSuplemento: 'EXTRA-EMERG' | 'SESSÃO DE JÚRI';
+  tipoSuplemento: 'EXTRA-EMERG' | 'SESSÃO DE JÚRI' | 'ORDINÁRIO';
   nomeServidor: string;
   cpfServidor: string;
   lotacao: string;
@@ -25,6 +27,9 @@ interface PortariaDocumentProps {
   dataEmissao: Date;
   ordenadorDespesa: string;
   cargoOrdenador: string;
+  // Budget data
+  ptres?: string;        // PTRES principal do suprimento
+  dotacaoPrincipal?: string; // Dotação principal
 }
 
 export function PortariaDocument({
@@ -43,7 +48,9 @@ export function PortariaDocument({
   prazoPrestacaoContas,
   dataEmissao,
   ordenadorDespesa,
-  cargoOrdenador
+  cargoOrdenador,
+  ptres,
+  dotacaoPrincipal
 }: PortariaDocumentProps) {
 
   // Format number to Brazilian Real with extenso (simplified)
@@ -114,12 +121,18 @@ export function PortariaDocument({
           <p><strong>Banco: {banco} AG: {agencia} C/C: {contaCorrente}</strong></p>
         </div>
 
-        {/* Expense elements */}
+        {/* Expense elements with PTRES/Dotação */}
         <div className="pl-8 space-y-1">
+          {ptres && (
+            <p className="text-xs text-slate-500 mb-2">
+              <strong>PTRES:</strong> {ptres} | <strong>Dotação:</strong> {dotacaoPrincipal || '---'}
+            </p>
+          )}
           {elementosDespesa.map((el, i) => (
             <p key={i}>
               {el.codigo} - {el.descricao} {'.'
                 .repeat(Math.max(0, 50 - el.descricao.length - el.codigo.length))} {formatCurrency(el.valor)}
+              {el.dotacao && <span className="text-xs text-slate-400 ml-2">(Dot: {el.dotacao})</span>}
             </p>
           ))}
         </div>

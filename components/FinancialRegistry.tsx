@@ -156,41 +156,88 @@ export const FinancialRegistry: React.FC<FinancialRegistryProps> = ({ processes,
           <table className="w-full text-[11px] text-left">
             <thead className="bg-slate-50 text-slate-400 font-bold uppercase border-b border-slate-100">
               <tr>
-                <th className="px-6 py-3">Data Ref.</th>
-                <th className="px-6 py-3">{isTax ? 'Prestador (Pessoa Física)' : 'Suprido (Responsável)'}</th>
-                {isTax && (
+                {isTax ? (
                   <>
-                    <th className="px-6 py-3">CPF / NIT</th>
-                    <th className="px-6 py-3">Município</th>
+                    {/* 12 Columns for INSS DataGrid */}
+                    <th className="px-4 py-3 whitespace-nowrap">CPF</th>
+                    <th className="px-4 py-3">Nome Completo</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Data Nasc.</th>
+                    <th className="px-4 py-3 whitespace-nowrap">PIS/NIT</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Valor Bruto</th>
+                    <th className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">INSS Retido (11%)</th>
+                    <th className="px-4 py-3 text-right text-emerald-600 whitespace-nowrap">INSS Patronal (20%)</th>
+                    <th className="px-4 py-3">Nº Processo</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Portaria SF</th>
+                    <th className="px-4 py-3">Comarca</th>
+                    <th className="px-4 py-3">Atividade</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Data Prestação</th>
                   </>
-                )}
-                {!isTax && (
+                ) : (
                   <>
+                    <th className="px-6 py-3">Data Ref.</th>
+                    <th className="px-6 py-3">Suprido (Responsável)</th>
                     <th className="px-6 py-3">Nº GDR</th>
                     <th className="px-6 py-3">Elemento Despesa</th>
+                    <th className="px-6 py-3 text-right">Valor Concedido</th>
+                    <th className="px-6 py-3 text-right text-blue-600">Valor Gasto</th>
+                    <th className="px-6 py-3 text-right text-emerald-600">Devolução (Saldo)</th>
+                    <th className="px-6 py-3 text-center">Status GDR</th>
                   </>
                 )}
-                <th className="px-6 py-3 text-right">Valor {isTax ? 'Bruto' : 'Concedido'}</th>
-                <th className="px-6 py-3 text-right text-blue-600">{isTax ? 'INSS Retido' : 'Valor Gasto'}</th>
-                <th className="px-6 py-3 text-right text-emerald-600">{isTax ? 'INSS Patronal' : 'Devolução (Saldo)'}</th>
-                <th className="px-6 py-3 text-center">Status GDR</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {processes.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-500">
-                    {p.taxData?.serviceDate ? new Date(p.taxData.serviceDate).toLocaleDateString('pt-BR') : new Date(p.createdAt).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-slate-700">{p.interestedParty}</td>
-                  {isTax && (
+                  {isTax ? (
                     <>
-                      <td className="px-6 py-4 text-slate-500 font-mono">{p.providerCpf || '---'}</td>
-                      <td className="px-6 py-4 text-slate-500">{p.city || '---'}</td>
+                      {/* 12 Columns Data for INSS */}
+                      <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap">
+                        {p.providerCpf ? p.providerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '---'}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-slate-700 max-w-[180px] truncate" title={p.providerName || p.interestedParty}>
+                        {p.providerName || p.interestedParty || '---'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {p.providerBirthDate ? new Date(p.providerBirthDate).toLocaleDateString('pt-BR') : '---'}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">
+                        {p.providerPisNit || '---'}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-600 whitespace-nowrap">
+                        {formatBRL(p.taxData?.serviceValue || p.value || 0)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-blue-600 whitespace-nowrap">
+                        {formatBRL(p.taxData?.inssEmployee || 0)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-emerald-600 whitespace-nowrap">
+                        {formatBRL(p.taxData?.inssPatronal || 0)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <a href="#" className="text-blue-600 hover:underline font-medium" onClick={(e) => { e.preventDefault(); alert(`Abrir processo: ${p.nup}`); }}>
+                          {p.nup || '---'}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap font-mono text-[10px]">
+                        {p.portariaSf || '---'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 max-w-[100px] truncate" title={p.city}>
+                        {p.city || '---'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 max-w-[120px] truncate" title={p.serviceDescription || p.subject}>
+                        {p.serviceDescription || p.subject || '---'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {p.taxData?.serviceDate ? new Date(p.taxData.serviceDate).toLocaleDateString('pt-BR') : p.createdAt ? new Date(p.createdAt).toLocaleDateString('pt-BR') : '---'}
+                      </td>
                     </>
-                  )}
-                  {!isTax && (
+                  ) : (
                     <>
+                      {/* GDR Control Columns (unchanged) */}
+                      <td className="px-6 py-4 whitespace-nowrap text-slate-500">
+                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString('pt-BR') : '---'}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-slate-700">{p.interestedParty}</td>
                       <td className="px-6 py-4 text-slate-500 font-mono">{p.balanceData?.gdrBalanceNumber || '---'}</td>
                       <td className="px-6 py-4 text-slate-500">
                         {p.items && p.items.length > 0 
@@ -198,32 +245,32 @@ export const FinancialRegistry: React.FC<FinancialRegistryProps> = ({ processes,
                           : <span className="text-slate-300 text-[10px]">3.3.90.30.99</span>
                         }
                       </td>
+                      <td className="px-6 py-4 text-right font-medium text-slate-600">
+                        {formatBRL(p.value)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-blue-600">
+                        {formatBRL(p.balanceData?.amountSpent || 0)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-emerald-600">
+                        {formatBRL(p.balanceData?.amountReturned || 0)}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-extrabold ${
+                            p.balanceData?.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {p.balanceData?.status || 'Pendente'}
+                          </span>
+                      </td>
                     </>
                   )}
-                  <td className="px-6 py-4 text-right font-medium text-slate-600">
-                    {formatBRL(isTax ? (p.taxData?.serviceValue || 0) : p.value)}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-blue-600">
-                    {formatBRL(isTax ? (p.taxData?.inssEmployee || 0) : (p.balanceData?.amountSpent || 0))}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-emerald-600">
-                    {formatBRL(isTax ? (p.taxData?.inssPatronal || 0) : (p.balanceData?.amountReturned || 0))}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-extrabold ${
-                        (isTax ? p.taxData?.gdrInssStatus : p.balanceData?.status) === 'PAID' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {(isTax ? p.taxData?.gdrInssStatus : p.balanceData?.status) || 'Pendente'}
-                      </span>
-                  </td>
                 </tr>
               ))}
               <tr className="bg-slate-50 font-extrabold border-t-2 border-slate-200">
-                <td colSpan={isTax ? 4 : 4} className="px-6 py-4 uppercase text-slate-800 tracking-wider">Totais Consolidados</td>
-                <td className="px-6 py-4 text-right text-slate-800">{formatBRL(totals.base)}</td>
-                <td className="px-6 py-4 text-right text-blue-700">{formatBRL(totals.employee)}</td>
-                <td className="px-6 py-4 text-right text-emerald-700">{formatBRL(totals.patronal)}</td>
-                <td></td>
+                <td colSpan={isTax ? 4 : 4} className="px-4 py-4 uppercase text-slate-800 tracking-wider">Totais Consolidados</td>
+                <td className="px-4 py-4 text-right text-slate-800">{formatBRL(totals.base)}</td>
+                <td className="px-4 py-4 text-right text-blue-700">{formatBRL(totals.employee)}</td>
+                <td className="px-4 py-4 text-right text-emerald-700">{formatBRL(totals.patronal)}</td>
+                <td colSpan={isTax ? 5 : 1}></td>
               </tr>
             </tbody>
           </table>

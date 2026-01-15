@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MOCK_COMARCAS } from '../constants';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocations } from '../hooks/useLocations';
 import { 
   Users, 
   Search, 
@@ -20,7 +20,8 @@ import {
   X,
   ArrowRightLeft,
   Printer,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
@@ -46,31 +47,41 @@ interface ChangeLogEntry {
   user: string;
 }
 
-const MOCK_REQUESTS: SupridoChangeRequest[] = [
-  {
-    id: 'REQ-001',
-    unitId: 'C003',
-    unitName: 'Comarca de Marabá',
-    currentHolder: 'Ana Beatriz Lima',
-    newHolder: 'Carlos Eduardo Souza',
-    requestDate: new Date().toISOString(),
-    reason: 'Férias regulamentares do titular (30 dias).',
-    status: 'PENDING'
-  }
-];
+interface ComarcaUnit {
+  id: string;
+  name: string;
+  code: string;
+  holder: string;
+}
 
 export const SupridoManager: React.FC = () => {
-  const [requests, setRequests] = useState<SupridoChangeRequest[]>(MOCK_REQUESTS);
-  const [units, setUnits] = useState(MOCK_COMARCAS);
+  // Use Supabase hook for comarcas
+  const { comarcas, isLoading: loadingComarcas } = useLocations();
+  
+  const [requests, setRequests] = useState<SupridoChangeRequest[]>([]);
+  const [units, setUnits] = useState<ComarcaUnit[]>([]);
   const [logs, setLogs] = useState<ChangeLogEntry[]>([]);
   
   const [searchUnit, setSearchUnit] = useState('');
   const [activeTab, setActiveTab] = useState<'REQUESTS' | 'UNITS' | 'HISTORY'>('REQUESTS');
   
   // Edit & View Modal States
-  const [editingUnit, setEditingUnit] = useState<any | null>(null);
+  const [editingUnit, setEditingUnit] = useState<ComarcaUnit | null>(null);
   const [viewingDoc, setViewingDoc] = useState<SupridoChangeRequest | null>(null);
   const [newHolderName, setNewHolderName] = useState('');
+
+  // Sync from Supabase comarcas
+  useEffect(() => {
+    if (comarcas.length > 0) {
+      const mapped: ComarcaUnit[] = comarcas.map(c => ({
+        id: c.id,
+        name: c.nome,
+        code: c.codigo || '',
+        holder: c.suprido?.nome || 'Não designado',
+      }));
+      setUnits(mapped);
+    }
+  }, [comarcas]);
 
   // --- Actions ---
 

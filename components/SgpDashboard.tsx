@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, 
   Banknote, 
@@ -27,29 +27,15 @@ import {
   FileSearch,
   MoreHorizontal,
   Briefcase,
-  ScrollText
+  ScrollText,
+  Loader2
 } from 'lucide-react';
+import { useSgpTasks, DeductionTask } from '../hooks/useSgpTasks';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
 type SgpView = 'DASHBOARD' | 'LIST' | 'WORKSTATION';
 type ListFilterType = 'INBOX' | 'MY_TASKS' | 'PROCESSED' | 'TEAM_MEMBER';
-
-interface DeductionTask {
-  id: string;
-  protocol: string;
-  serverName: string;
-  matricula: string;
-  lotacao: string;
-  type: 'GLOSA' | 'ALCANCE';
-  origin: 'SEPLAN' | 'AJSEFIN';
-  value: number;
-  decisionDate: string;
-  decisionNumber: string;
-  status: 'PENDING' | 'PROCESSED';
-  assignedTo: string | null;
-  dueDate?: string;
-}
 
 const SGP_TEAM = [
   { id: '1', name: 'Marta Rocha', role: 'Gerente de Folha', avatar: 'https://i.pravatar.cc/150?u=marta', capacity: 15 },
@@ -59,14 +45,11 @@ const SGP_TEAM = [
 
 const CURRENT_USER_ID = '1';
 
-const MOCK_TASKS: DeductionTask[] = [
-  { id: 'P-TCE-SGP-REAL', protocol: 'TCE-2026-999', serverName: 'Carlos Alberto (Ex-Suprido)', matricula: '55021', lotacao: 'Comarca de Marabá', type: 'GLOSA', origin: 'SEPLAN', value: 2500.00, decisionDate: '28/01/2026', decisionNumber: 'DEC-SEPLAN-050/2026', status: 'PENDING', assignedTo: '1', dueDate: '2026-02-15' },
-  { id: '1', protocol: 'TJPA-PROC-2025-8821', serverName: 'Ademário Silva De Jesus', matricula: '10001', lotacao: 'Central de Mandados - Mãe do Rio', type: 'GLOSA', origin: 'SEPLAN', value: 450.00, decisionDate: '12/01/2026', decisionNumber: 'DEC-SEPLAN-004/2026', status: 'PENDING', assignedTo: '1', dueDate: '2026-02-15' },
-  { id: '3', protocol: 'TJPA-PROC-2025-7711', serverName: 'Maria Antonieta', matricula: '55210', lotacao: 'Gabinete da Presidência', type: 'GLOSA', origin: 'AJSEFIN', value: 120.00, decisionDate: '14/01/2026', decisionNumber: 'DEC-AJ-055/2026', status: 'PROCESSED', assignedTo: '2', dueDate: '2026-02-01' }
-];
-
 export const SgpDashboard: React.FC = () => {
-  const [tasks, setTasks] = useState<DeductionTask[]>(MOCK_TASKS);
+  // Use Supabase hook
+  const { tasks: supabaseTasks, isLoading, assignTask: hookAssignTask, processTask: hookProcessTask, redistributeTasks } = useSgpTasks();
+  
+  const [tasks, setTasks] = useState<DeductionTask[]>([]);
   const [viewMode, setViewMode] = useState<SgpView>('DASHBOARD');
   const [listFilter, setListFilter] = useState<ListFilterType>('INBOX');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -76,6 +59,13 @@ export const SgpDashboard: React.FC = () => {
   const [deductionForm, setDeductionForm] = useState({ rubrica: '9201 - RESTITUIÇÃO AO ERÁRIO', refMonth: '03/2026', installments: 1 });
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [redistributionSourceId, setRedistributionSourceId] = useState<string | null>(null);
+
+  // Sync from Supabase
+  useEffect(() => {
+    if (supabaseTasks.length > 0) {
+      setTasks(supabaseTasks);
+    }
+  }, [supabaseTasks]);
 
   const stats = useMemo(() => ({ inbox: tasks.filter(t => t.status === 'PENDING' && !t.assignedTo).length, myTasks: tasks.filter(t => t.assignedTo === CURRENT_USER_ID && t.status === 'PENDING').length, processed: tasks.filter(t => t.status === 'PROCESSED').length, totalRecovery: tasks.filter(t => t.status === 'PENDING').reduce((acc, curr) => acc + curr.value, 0) }), [tasks]);
   const teamLoad = useMemo(() => SGP_TEAM.map(member => { const memberTasks = tasks.filter(t => t.assignedTo === member.id && t.status === 'PENDING'); return { ...member, activeCount: memberTasks.length, utilization: (memberTasks.length / member.capacity) * 100 }; }), [tasks]);

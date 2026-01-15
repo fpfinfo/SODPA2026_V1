@@ -1,0 +1,161 @@
+/**
+ * useSeplanTasks Hook
+ * Supabase CRUD for SEPLAN signing tasks
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabaseClient';
+
+export interface SigningTask {
+  id: string;
+  solicitacao_id?: string;
+  documento_id?: string;
+  tipo: string;
+  titulo: string;
+  origem: string;
+  valor?: number;
+  status: 'PENDING' | 'SIGNED' | 'REJECTED';
+  ordenador_id?: string;
+  assinado_em?: string;
+  created_at?: string;
+}
+
+interface UseSeplanTasksReturn {
+  tasks: SigningTask[];
+  isLoading: boolean;
+  error: string | null;
+  
+  // Actions
+  signTask: (id: string) => Promise<boolean>;
+  signMultipleTasks: (ids: string[]) => Promise<boolean>;
+  rejectTask: (id: string, motivo: string) => Promise<boolean>;
+  
+  // Refresh
+  refresh: () => Promise<void>;
+}
+
+export function useSeplanTasks(): UseSeplanTasksReturn {
+  const [tasks, setTasks] = useState<SigningTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('seplan_tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      setTasks((data || []).map(t => ({
+        id: t.id,
+        solicitacao_id: t.solicitacao_id,
+        documento_id: t.documento_id,
+        tipo: t.tipo,
+        titulo: t.titulo,
+        origem: t.origem,
+        valor: parseFloat(t.valor) || 0,
+        status: t.status as any,
+        ordenador_id: t.ordenador_id,
+        assinado_em: t.assinado_em,
+        created_at: t.created_at,
+      })));
+    } catch (err: any) {
+      console.error('Error fetching seplan tasks:', err);
+      setError(err.message || 'Erro ao carregar tarefas');
+      
+      // Fallback to mock data
+      setTasks(FALLBACK_TASKS);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const signTask = async (id: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('seplan_tasks')
+        .update({ 
+          status: 'SIGNED', 
+          assinado_em: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      await fetchData();
+      return true;
+    } catch (err: any) {
+      console.error('Error signing task:', err);
+      setError(err.message);
+      return false;
+    }
+  };
+
+  const signMultipleTasks = async (ids: string[]): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('seplan_tasks')
+        .update({ 
+          status: 'SIGNED', 
+          assinado_em: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .in('id', ids);
+      
+      if (error) throw error;
+      await fetchData();
+      return true;
+    } catch (err: any) {
+      console.error('Error signing multiple tasks:', err);
+      setError(err.message);
+      return false;
+    }
+  };
+
+  const rejectTask = async (id: string, motivo: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('seplan_tasks')
+        .update({ 
+          status: 'REJECTED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      await fetchData();
+      return true;
+    } catch (err: any) {
+      console.error('Error rejecting task:', err);
+      setError(err.message);
+      return false;
+    }
+  };
+
+  return {
+    tasks,
+    isLoading,
+    error,
+    signTask,
+    signMultipleTasks,
+    rejectTask,
+    refresh: fetchData,
+  };
+}
+
+// Fallback mock data
+const FALLBACK_TASKS: SigningTask[] = [
+  { id: '1', tipo: 'PORTARIA', titulo: 'Portaria nº 001/2026 - Comarca de Belém', origem: 'SOSFU', valor: 20000, status: 'PENDING' },
+  { id: '2', tipo: 'PORTARIA', titulo: 'Portaria nº 002/2026 - Comarca de Ananindeua', origem: 'SOSFU', valor: 16000, status: 'PENDING' },
+  { id: '3', tipo: 'NOTA_EMPENHO', titulo: 'NE nº 2026NE00001 - Suprimento Ordinário', origem: 'SOSFU', valor: 36000, status: 'PENDING' },
+  { id: '4', tipo: 'PORTARIA', titulo: 'Portaria nº 003/2026 - Comarca de Santarém', origem: 'SOSFU', valor: 16000, status: 'SIGNED', assinado_em: '2026-01-10T14:30:00Z' },
+];

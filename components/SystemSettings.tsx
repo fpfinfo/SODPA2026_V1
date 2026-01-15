@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { SettingsSubTab, StaffMember, Role } from '../types';
 import { STAFF_MEMBERS } from '../constants';
+import { useLocations } from '../hooks/useLocations';
+import { Comarca, Municipio, Lotacao, getComarcaStatusBadge } from '../types/locations';
 import { 
   Users, 
   Building2, 
@@ -27,7 +29,8 @@ import {
   History,
   X,
   UserCheck,
-  Briefcase
+  Briefcase,
+  Loader2
 } from 'lucide-react';
 
 interface SystemSettingsProps {
@@ -43,12 +46,17 @@ const SQL_SCHEMA = `-- ==========================================
 `;
 
 export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
+  // Use Supabase hook for locations
+  const { comarcas, municipios, lotacoes, isLoading, error, updateComarca, deleteComarca, deleteMunicipio, deleteLotacao, refresh } = useLocations();
+  
   const [activeTab, setActiveTab] = useState<SettingsSubTab | 'DATABASE'>('USERS');
   const [teamMembers, setTeamMembers] = useState<StaffMember[]>(STAFF_MEMBERS);
   const [searchUserQuery, setSearchUserQuery] = useState('');
+  const [searchLocationQuery, setSearchLocationQuery] = useState('');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<StaffMember | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<StaffMember>>({ name: '', role: Role.CONCESSION, jobTitle: '', email: '', avatarUrl: 'https://i.pravatar.cc/150?u=new' });
+
 
   const handleOpenUserModal = (member?: StaffMember) => {
     if (member) { setEditingMember(member); setUserFormData({ ...member }); } 
@@ -114,73 +122,136 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
     );
   };
 
-  const renderDepartments = () => (
-    <div className="space-y-4"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-bold text-slate-800">Gestão de Lotações</h3><p className="text-sm text-slate-500">Configure as lotações/unidades do sistema</p></div></div>{[{ code: 'CMCMR', name: 'Central De Mandados Da Comarca De Mae Do Rio' }, { code: 'SGP', name: 'Secretaria de Gestão de Pessoas' }, { code: 'AJ SEPLAN', name: 'Assessoria Jurídica da SEPLAN' }, { code: 'SEPLAN', name: 'Secretaria de Planejamento, Coordenação e Finanças' }, { code: 'SOSFU', name: 'Serviço de Suprimento de Fundos' }].map((lot, i) => (<div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group"><div className="flex items-center gap-4"><div className="p-2 bg-slate-50 rounded-lg border border-slate-100 text-slate-400"><Building2 size={18} /></div><div><h4 className="font-bold text-slate-800 text-sm">{lot.code}</h4><p className="text-xs text-slate-500">{lot.name}</p></div></div><div className="flex gap-2"><button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit3 size={16} /></button><button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button></div></div>))}</div>
-  );
-
-
-  const renderMunicipalities = () => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <div><h3 className="text-lg font-bold text-slate-800">Gestão de Municípios</h3><p className="text-sm text-slate-500">Configure os municípios atendidos pelo sistema</p></div>
-      </div>
-      {[
-        { code: 'BEL', name: 'Belém', comarca: 'Belém', population: '1.499.641' },
-        { code: 'ANA', name: 'Ananindeua', comarca: 'Ananindeua', population: '535.547' },
-        { code: 'SAN', name: 'Santarém', comarca: 'Santarém', population: '306.480' },
-        { code: 'MAR', name: 'Marabá', comarca: 'Marabá', population: '283.542' },
-        { code: 'PAR', name: 'Parauapebas', comarca: 'Parauapebas', population: '212.749' },
-        { code: 'CAS', name: 'Castanhal', comarca: 'Castanhal', population: '200.793' },
-        { code: 'MDR', name: 'Mãe do Rio', comarca: 'Mãe do Rio', population: '30.896' },
-      ].map((mun, i) => (
-        <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
-          <div className="flex items-center gap-4">
-            <div className="p-2 bg-blue-50 rounded-lg border border-blue-100 text-blue-500"><MapPin size={18} /></div>
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">{mun.name}</h4>
-              <p className="text-xs text-slate-500">Comarca: {mun.comarca} • Pop: {mun.population}</p>
-            </div>
-          </div>
-          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit3 size={16} /></button>
-            <button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+  const renderDepartments = () => {
+    const filteredLotacoes = lotacoes.filter(l => 
+      l.nome.toLowerCase().includes(searchLocationQuery.toLowerCase()) || 
+      l.codigo.toLowerCase().includes(searchLocationQuery.toLowerCase())
+    );
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <div><h3 className="text-lg font-bold text-slate-800">Gestão de Lotações</h3><p className="text-sm text-slate-500">Configure as lotações/unidades do sistema</p></div>
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+            <input type="text" placeholder="Buscar lotação..." className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl" value={searchLocationQuery} onChange={e => setSearchLocationQuery(e.target.value)} />
           </div>
         </div>
-      ))}
-    </div>
-  );
-
-  const renderDistricts = () => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <div><h3 className="text-lg font-bold text-slate-800">Gestão de Comarcas</h3><p className="text-sm text-slate-500">Configure as comarcas jurisdicionais</p></div>
-      </div>
-      {[
-        { code: 'BEL', name: 'Comarca de Belém', entrancia: '3ª Entrância', varas: 45 },
-        { code: 'ANA', name: 'Comarca de Ananindeua', entrancia: '3ª Entrância', varas: 8 },
-        { code: 'SAN', name: 'Comarca de Santarém', entrancia: '3ª Entrância', varas: 12 },
-        { code: 'MAR', name: 'Comarca de Marabá', entrancia: '3ª Entrância', varas: 10 },
-        { code: 'PAR', name: 'Comarca de Parauapebas', entrancia: '2ª Entrância', varas: 6 },
-        { code: 'CAS', name: 'Comarca de Castanhal', entrancia: '2ª Entrância', varas: 5 },
-        { code: 'MDR', name: 'Comarca de Mãe do Rio', entrancia: '1ª Entrância', varas: 2 },
-        { code: 'TUC', name: 'Comarca de Tucuruí', entrancia: '2ª Entrância', varas: 4 },
-      ].map((com, i) => (
-        <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-purple-200 transition-all">
-          <div className="flex items-center gap-4">
-            <div className="p-2 bg-purple-50 rounded-lg border border-purple-100 text-purple-500"><University size={18} /></div>
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">{com.name}</h4>
-              <p className="text-xs text-slate-500">{com.entrancia} • {com.varas} Varas</p>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12"><Loader2 size={32} className="animate-spin text-slate-400" /></div>
+        ) : (
+          filteredLotacoes.map((lot) => (
+            <div key={lot.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group">
+              <div className="flex items-center gap-4">
+                <div className={`p-2 rounded-lg border ${lot.tipo === 'JURISDICIONAL' ? 'bg-purple-50 border-purple-100 text-purple-500' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                  <Building2 size={18} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">{lot.codigo}</h4>
+                  <p className="text-xs text-slate-500">{lot.nome}</p>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${lot.tipo === 'JURISDICIONAL' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}>{lot.tipo}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit3 size={16} /></button>
+                <button onClick={() => deleteLotacao(lot.id)} className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit3 size={16} /></button>
-            <button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+          ))
+        )}
+        <div className="text-xs text-slate-400 text-center pt-4">{filteredLotacoes.length} lotações encontradas</div>
+      </div>
+    );
+  };
+
+
+  const renderMunicipalities = () => {
+    const filteredMunicipios = municipios.filter(m => 
+      m.nome.toLowerCase().includes(searchLocationQuery.toLowerCase()) || 
+      m.codigo_ibge.includes(searchLocationQuery)
+    );
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <div><h3 className="text-lg font-bold text-slate-800">Gestão de Municípios</h3><p className="text-sm text-slate-500">Configure os municípios atendidos pelo sistema</p></div>
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+            <input type="text" placeholder="Buscar município..." className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl" value={searchLocationQuery} onChange={e => setSearchLocationQuery(e.target.value)} />
           </div>
         </div>
-      ))}
-    </div>
-  );
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12"><Loader2 size={32} className="animate-spin text-slate-400" /></div>
+        ) : (
+          filteredMunicipios.map((mun) => (
+            <div key={mun.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-blue-50 rounded-lg border border-blue-100 text-blue-500"><MapPin size={18} /></div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">{mun.nome}</h4>
+                  <p className="text-xs text-slate-500">
+                    IBGE: {mun.codigo_ibge} • Pop: {mun.populacao?.toLocaleString('pt-BR') || 'N/A'}
+                    {mun.comarca && <span> • Comarca: {(mun.comarca as any).nome || 'Sem comarca'}</span>}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit3 size={16} /></button>
+                <button onClick={() => deleteMunicipio(mun.id)} className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+              </div>
+            </div>
+          ))
+        )}
+        <div className="text-xs text-slate-400 text-center pt-4">{filteredMunicipios.length} municípios encontrados</div>
+      </div>
+    );
+  };
+
+  const renderDistricts = () => {
+    const filteredComarcas = comarcas.filter(c => 
+      c.nome.toLowerCase().includes(searchLocationQuery.toLowerCase()) || 
+      c.codigo.toLowerCase().includes(searchLocationQuery.toLowerCase())
+    );
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <div><h3 className="text-lg font-bold text-slate-800">Gestão de Comarcas</h3><p className="text-sm text-slate-500">Configure as comarcas jurisdicionais vinculadas ao suprimento ordinário</p></div>
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+            <input type="text" placeholder="Buscar comarca..." className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl" value={searchLocationQuery} onChange={e => setSearchLocationQuery(e.target.value)} />
+          </div>
+        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12"><Loader2 size={32} className="animate-spin text-slate-400" /></div>
+        ) : (
+          filteredComarcas.map((com) => {
+            const badge = getComarcaStatusBadge(com.status);
+            return (
+              <div key={com.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-purple-200 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-purple-50 rounded-lg border border-purple-100 text-purple-500"><University size={18} /></div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-slate-800 text-sm">{com.nome}</h4>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-${badge.color}-100 text-${badge.color}-600`}>{badge.label}</span>
+                    </div>
+                    <p className="text-xs text-slate-500">{com.entrancia} • {com.varas} Varas • Teto: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(com.teto_anual)}</p>
+                    {com.suprido && <p className="text-xs text-emerald-600 font-medium">Suprido: {(com.suprido as any).nome}</p>}
+                  </div>
+                </div>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Edit3 size={16} /></button>
+                  <button onClick={() => deleteComarca(com.id)} className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div className="text-xs text-slate-400 text-center pt-4">{filteredComarcas.length} comarcas encontradas</div>
+      </div>
+    );
+  };
 
   const renderExpenses = () => (<div className="space-y-4"><p className="text-slate-400 italic p-10 text-center">Gestão de Despesas (Placeholder)</p></div>);
 

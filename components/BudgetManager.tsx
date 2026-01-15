@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { AnnualBudget, Process, ProcessType, ConcessionStatus, BudgetDistribution, ProcessItem, AdminBudget, BudgetRule } from '../types';
-import { MOCK_COMARCAS, MOCK_BUDGET_MATRIX, MOCK_ADMIN_BUDGETS, MOCK_BUDGET_RULES } from '../constants';
+import { MOCK_BUDGET_MATRIX, MOCK_ADMIN_BUDGETS, MOCK_BUDGET_RULES } from '../constants';
+import { useBudgetData } from '../hooks/useBudgetData';
+import { useComarcasBudget } from '../hooks/useComarcasBudget';
 import { BudgetDistributionMatrix } from './BudgetDistributionMatrix';
 import { BudgetMatrixConfig } from './BudgetMatrixConfig';
+import { ComarcaBudgetMatrix } from './ComarcaBudgetMatrix';
+import { BatchGenerationWizard } from './BatchGenerationWizard';
+import { BatchSigningPanel } from './BatchSigningPanel';
 import { 
   Wallet, 
   TrendingUp, 
@@ -20,7 +25,10 @@ import {
   Settings,
   Database,
   FileSignature,
-  Send
+  Send,
+  MapPin,
+  Package,
+  CalendarRange,
 } from 'lucide-react';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
@@ -31,15 +39,20 @@ interface BudgetManagerProps {
 }
 
 export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBatch }) => {
+  // Use Supabase hooks
+  const { rules: budgetRulesFromDb } = useBudgetData();
+  const { comarcas: comarcasFromDb } = useComarcasBudget();
+  
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [showMatrix, setShowMatrix] = useState(false);
-  const [showConfig, setShowConfig] = useState(false); // State for Config Screen
+  const [showConfig, setShowConfig] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const [subTab, setSubTab] = useState<'OVERVIEW' | 'MATRIZ' | 'GERAR' | 'ASSINATURA'>('OVERVIEW');
   
-  // State for distributions (Comarcas), Admin Budgets, and Rules
+  // State for distributions (Comarcas), Admin Budgets, and Rules - use Supabase data or fallback
   const [distributions, setDistributions] = useState<BudgetDistribution[]>(MOCK_BUDGET_MATRIX);
   const [adminBudgets, setAdminBudgets] = useState<AdminBudget[]>(MOCK_ADMIN_BUDGETS);
-  const [budgetRules, setBudgetRules] = useState<BudgetRule[]>(MOCK_BUDGET_RULES);
+  const [budgetRules, setBudgetRules] = useState<BudgetRule[]>(budgetRulesFromDb.length > 0 ? budgetRulesFromDb : MOCK_BUDGET_RULES);
   
   const [batchConfig, setBatchConfig] = useState({
     period: '1º Quadrimestre/2026',
@@ -54,13 +67,12 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
   const totalExecuted = budget.executedOrdinary + budget.executedExtraordinary;
   const balance = budget.totalCap - totalExecuted;
   
-  // Calculate Batch Total based on the Matrix
+  // Calculate Batch Total based on comarcas from Supabase
+  const comarcasToUse = comarcasFromDb.length > 0 ? comarcasFromDb : [];
   const calculateBatchTotal = () => {
       let total = 0;
-      MOCK_COMARCAS.forEach(comarca => {
-          const dist = distributions.find(d => d.comarcaId === comarca.id);
-          const annual = dist ? dist.annualValue : 6000.00;
-          total += (annual / 3);
+      comarcasToUse.forEach(comarca => {
+          total += (comarca.teto_anual / 3);
       });
       return total;
   };
@@ -81,6 +93,70 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
 
   return (
     <>
+    {/* Sub-Tab Navigation */}
+    <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-2xl w-fit">
+      <button
+        onClick={() => setSubTab('OVERVIEW')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          subTab === 'OVERVIEW' ? 'bg-white shadow-md text-slate-800' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        <CalendarRange size={16} />
+        Visão Geral
+      </button>
+      <button
+        onClick={() => setSubTab('MATRIZ')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          subTab === 'MATRIZ' ? 'bg-white shadow-md text-slate-800' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        <MapPin size={16} />
+        Matriz Comarcas
+      </button>
+      <button
+        onClick={() => setSubTab('GERAR')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          subTab === 'GERAR' ? 'bg-white shadow-md text-slate-800' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        <Package size={16} />
+        Gerar Lote
+      </button>
+      <button
+        onClick={() => setSubTab('ASSINATURA')}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          subTab === 'ASSINATURA' ? 'bg-white shadow-md text-slate-800' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        <FileSignature size={16} />
+        Assinatura Lotes
+      </button>
+    </div>
+
+    {/* Sub-Tab Content */}
+    {subTab === 'MATRIZ' ? (
+      <ComarcaBudgetMatrix />
+    ) : subTab === 'GERAR' ? (
+      <div className="bg-white rounded-2xl border border-slate-200 p-8">
+        <div className="text-center mb-8">
+          <Package size={48} className="mx-auto text-blue-500 mb-4" />
+          <h3 className="text-xl font-black text-slate-800">Gerar Lote Quadrimestral</h3>
+          <p className="text-sm text-slate-500">Inicie o assistente para gerar 144 processos de suprimento ordinário</p>
+        </div>
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowBatchModal(true)}
+            className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-black uppercase tracking-wider shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all"
+          >
+            <Package size={20} />
+            Iniciar Wizard de Geração
+          </button>
+        </div>
+      </div>
+    ) : subTab === 'ASSINATURA' ? (
+      <BatchSigningPanel />
+    ) : (
+      <>
     {/* Matrix Modal */}
     {showMatrix && (
         <BudgetDistributionMatrix 
@@ -147,7 +223,7 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
                                         <div className="space-y-2 text-sm text-blue-900">
                                             <div className="flex justify-between">
                                                 <span>Unidades Beneficiadas:</span>
-                                                <span className="font-bold">{MOCK_COMARCAS.length} Comarcas</span>
+                                                <span className="font-bold">{comarcasToUse.length} Comarcas</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span>Valor Total Previsto:</span>
@@ -183,12 +259,11 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-200">
-                                                {MOCK_COMARCAS.map(c => {
-                                                    const dist = distributions.find(d => d.comarcaId === c.id);
-                                                    const val = dist ? dist.annualValue / 3 : 2000;
+                                                {comarcasToUse.map(c => {
+                                                    const val = c.teto_anual / 3;
                                                     return (
                                                         <tr key={c.id}>
-                                                            <td className="py-2 text-slate-600">{c.name}</td>
+                                                            <td className="py-2 text-slate-600">{c.comarca_nome}</td>
                                                             <td className="py-2 text-right font-medium">{formatCurrency(val)}</td>
                                                         </tr>
                                                     );
@@ -221,7 +296,7 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
                                         Cumprimentando-o cordialmente, encaminho a Vossa Senhoria a <strong>Programação de Pagamento de Suprimento de Fundos Ordinário</strong> referente ao <strong>{batchConfig.period}</strong>, destinada ao custeio de despesas de pequeno vulto das unidades judiciárias deste Tribunal.
                                     </p>
                                     <p className="mb-4 text-justify">
-                                        O montante total a ser descentralizado perfaz o valor de <strong>{formatCurrency(batchTotal)}</strong>, distribuído entre {MOCK_COMARCAS.length} comarcas, conforme detalhamento anexo e saldo orçamentário disponível na Ação 8193.
+                                        O montante total a ser descentralizado perfaz o valor de <strong>{formatCurrency(batchTotal)}</strong>, distribuído entre {comarcasToUse.length} comarcas, conforme detalhamento anexo e saldo orçamentário disponível na Ação 8193.
                                     </p>
                                     <p className="mb-8 text-justify">
                                         Sendo o que se apresenta para o momento, submeto à vossa apreciação para autorização e posterior emissão das Portarias e Notas de Empenho.
@@ -331,6 +406,8 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
         </div>
       </div>
     </div>
+    </>
+    )}
     </>
   );
 };
