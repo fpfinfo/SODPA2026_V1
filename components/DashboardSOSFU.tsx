@@ -66,22 +66,8 @@ type SosfuViewMode = 'DASHBOARD' | 'LIST' | 'KANBAN';
 type ListFilterType = 'INBOX' | 'MY_TASKS' | 'ANALYSIS' | 'FINANCE' | 'TEAM_MEMBER';
 
 export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInternalTabChange, onProcessesChange }) => {
-  const [processes, setProcesses] = useState<Process[]>(() => {
-    const incomingFromGestor: Process = {
-      id: 'P-GESTOR-01',
-      protocolNumber: 'TJPA-SOL-2026-0001',
-      interestedParty: 'ADEMÁRIO SILVA DE JESUS',
-      type: ProcessType.CONCESSION,
-      supplyCategory: 'EXTRAORDINARY',
-      status: 'PENDENTE SOSFU',
-      value: 1400.00,
-      createdAt: new Date().toISOString(),
-      priority: 'HIGH',
-      assignedToId: null,
-      purpose: 'Alimentação para Sessão de Júri na Comarca de Mãe do Rio.'
-    };
-    return [incomingFromGestor, ...MOCK_PROCESSES];
-  });
+  // Real data will be fetched from database - no more mock data
+  const [processes, setProcesses] = useState<Process[]>([]);
 
   // Propagate process changes to parent for cross-module integration (e.g., SEPLAN inbox)
   React.useEffect(() => {
