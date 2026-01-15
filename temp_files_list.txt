@@ -1,0 +1,83 @@
+01° POLO - METROPOLITANA DE BELÉM.csv
+01° REGIÃO JUDICIÁRIA - ANANINDEUA.csv
+02° POLO - TOMÉ AÇÚ.csv
+02° REGIÃO JUDICIÁRIA - TOMÉ AÇÚ.csv
+03° POLO - ABAETETUBA.csv
+03° REGIÃO JUDICIÁRIA - ABAETETUBA.csv
+04° POLO - CASTANHAL.csv
+04° REGIÃO JUDICIÁRIA - CASTANHAL.csv
+05° POLO - CAPANEMA.csv
+05° REGIÃO JUDICIÁRIA - CAPANEMA.csv
+06° POLO - PARAGOMINAS.csv
+06° REGIÃO JUDICIÁRIA -  PARAGOMINAS.csv
+07° POLO - MARAJÓ.csv
+07° REGIÃO JUDICIÁRIA - SOURE.csv
+08° POLO - CAMETÁ.csv
+08° REGIÃO JUDICIÁRIA - BREVES.csv
+09° POLO - MARABÁ.csv
+09° REGIÃO JUDICIÁRIA - CAMETÁ.csv
+1° ENTRÂNCIA.csv
+10° POLO - REDENÇÃO.csv
+10° REGIÃO JUDICIÁRIA - TUCURUÍ.csv
+11° POLO - ALTAMIRA.csv
+11° REGIÃO JUDICIÁRIA -  MARABÁ.csv
+12° POLO - SANTARÉM.csv
+12° REGIÃO JUDICIÁRIA - XINGUARA.csv
+13° REGIÃO JUDICIÁRIA -  REDENÇÃO.csv
+14° REGIÃO JUDICIÁRIA - ALTAMIRA.csv
+15° REGIÃO JUDICIÁRIA - SANTARÉM.csv
+16° REGIÃO JUDICIÁRIA - ITAITUBA.csv
+2° ENTRÂNCIA.csv
+3° ENTRÂNCIA.csv
+Magistrados 01.csv
+Magistrados 02.csv
+Magistrados 03.csv
+Magistrados 04.csv
+POLO CENTRAL.csv
+REGIÃO CENTRAL.csv
+Servidores Apoio Direto - 1° Grau - Cedidos.csv
+Servidores Apoio Direto - 1° Grau - Estagiarios01.csv
+Servidores Apoio Direto - 1° Grau - magistrados01.csv
+Servidores Apoio Direto - 1° Grau - magistrados02.csv
+Servidores Apoio Direto - 1° Grau - magistrados03.csv
+Servidores Apoio Direto - 1° Grau - magistrados04.csv
+Servidores Apoio Direto - 1° Grau - servidores efetivos 01.csv
+Servidores Apoio Direto - 1° Grau - servidores efetivos 02.csv
+Servidores Apoio Direto - 1° Grau - Servidores Exclusivamente Comissionados 02.csv
+Servidores Apoio Direto - 1° Grau - Servidores Requisitados 01.csv
+Servidores Apoio Direto - 1° Grau - Servidores Requisitados 02.csv
+Servidores Apoio Direto - 1° Grau - Servidores Requisitados Prefeitura 01.csv
+Servidores Apoio Direto - 1° Grau - Servidores Requisitados Prefeitura 02.csv
+Servidores Apoio Direto - 1° Grau - servidores01.csv
+Servidores Apoio Direto - 1° Grau - servidores02.csv
+Servidores Apoio Direto - 2° Grau - servidores efetivos 01.csv
+Servidores Apoio Direto - 2° Grau - servidores efetivos 02.csv
+Servidores Apoio Direto - 2° Grau - Servidores Exclusivamente Comissionados 01.csv
+Servidores Apoio Direto - 2° Grau - Servidores Exclusivamente Comissionados 02.csv
+Servidores Apoio Direto - 2° Grau - Servidores Requisitados 01.csv
+Servidores Apoio Direto - 2° Grau - Servidores Requisitados 02.csv
+Servidores Apoio Direto - 2° Grau - Servidores Requisitados Prefeitura 01.csv
+Servidores Apoio Direto - Servidores Exclusivamente Comissionados 01.csv
+Servidores Apoio Indireto - Servidores Efetivos 01.csv
+Servidores Apoio Indireto - Servidores Efetivos 02.csv
+Servidores Apoio Indireto - Servidores Exclusivamente Comissionados 01.csv
+Servidores Apoio Indireto - Servidores Exclusivamente Comissionados 02.csv
+Servidores Apoio Indireto - Servidores Requisitados 01.csv
+Servidores Apoio Indireto - Servidores Requisitados 02.csv
+Servidores Apoio Indireto - Servidores Requisitados Prefeitura 01.csv
+Servidores do 1° Grau - Cedidos.csv
+Servidores do 1° Grau - Estagiarios01.csv
+Servidores do 1° Grau - magistrados01.csv
+Servidores do 1° Grau - magistrados02.csv
+Servidores do 1° Grau - magistrados03.csv
+Servidores do 1° Grau - magistrados04.csv
+Servidores do 1° Grau - servidores efetivos 01.csv
+Servidores do 1° Grau - servidores efetivos 02.csv
+Servidores do 1° Grau - Servidores Exclusivamente Comissionados 01.csv
+Servidores do 1° Grau - Servidores Exclusivamente Comissionados 02.csv
+Servidores do 1° Grau - Servidores Requisitados 01.csv
+Servidores do 1° Grau - Servidores Requisitados 02.csv
+Servidores do 1° Grau - Servidores Requisitados Prefeitura 01.csv
+Servidores do 1° Grau - Servidores Requisitados Prefeitura 02.csv
+Servidores do 1° Grau - servidores01.csv
+Servidores do 1° Grau - servidores02.csv

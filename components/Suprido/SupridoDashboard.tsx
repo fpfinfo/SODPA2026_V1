@@ -61,6 +61,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { DocumentCreationWizard } from '../DocumentCreationWizard';
 import { TramitarModal } from '../TramitarModal';
 import { TimelineHistory } from '../TimelineHistory';
+import { useRoleRequests, ROLE_LABELS, SystemRole } from '../../hooks/useRoleRequests';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -208,6 +209,12 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   
   // Edit mode for returned processes - Suprido can edit when true, blocks after resubmit
   const [isInEditMode, setIsInEditMode] = useState(false);
+  
+  // Role request state
+  const { currentRole, requestedRole, requestStatus, requestRoleChange, cancelRoleRequest } = useRoleRequests();
+  const [selectedNewRole, setSelectedNewRole] = useState<SystemRole>('SUPRIDO');
+  const [roleRequestReason, setRoleRequestReason] = useState('');
+  const [isRequestingRole, setIsRequestingRole] = useState(false);
   
   // Fetch tramitacao history for process
   const fetchTramitacaoHistory = async (processId: string) => {
@@ -438,43 +445,109 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     const fetchData = async () => {
       setIsLoading(true);
       
-      // 1. Fetch Profile
+      // 1. Fetch Profile - First from servidores_tj (matched by email), fallback to profiles
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        let query = supabase.from('profiles').select('*');
-        if (user) {
-            query = query.eq('id', user.id);
-        } else {
-            // For testing/preview: fetch the seed user
-            query = query.eq('id', '00000000-0000-0000-0000-000000000000');
-        }
-
-        const { data: profiles, error: profileError } = await query;
+        const userEmail = user?.email;
         
-        if (profileError) throw profileError;
-
-        const profile = profiles?.[0];
-        
-        if (profile) { 
+        // Try to find servidor by email first
+        if (userEmail) {
+          const { data: servidorData } = await supabase
+            .from('servidores_tj')
+            .select('*')
+            .eq('email', userEmail)
+            .eq('ativo', true)
+            .limit(1)
+            .single();
+          
+          if (servidorData) {
             setProfileData({
+              id: servidorData.id,
+              servidor_id: servidorData.id, // Keep reference to servidores_tj
+              role: 'SUPRIDO',
+              nome: servidorData.nome || 'Servidor',
+              cpf: servidorData.cpf || '',
+              matricula: servidorData.matricula || '',
+              email: servidorData.email || '',
+              telefone: servidorData.telefone || '',
+              cargo: servidorData.cargo || '',
+              lotacao: servidorData.lotacao || '',
+              municipio: servidorData.municipio || '',
+              avatar_url: servidorData.avatar_url || null,
+              banco: servidorData.banco || '',
+              bancoCod: '037',
+              agencia: servidorData.agencia || '',
+              conta: servidorData.conta_corrente || '',
+              gestorNome: servidorData.gestor_nome || '',
+              gestorEmail: servidorData.gestor_email || '',
+              source: 'servidores_tj' // Flag to know which table to update
+            });
+            // Skip to next step
+          } else {
+            // Fallback to profiles table
+            let query = supabase.from('profiles').select('*');
+            if (user) {
+              query = query.eq('id', user.id);
+            } else {
+              query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+            }
+            const { data: profiles, error: profileError } = await query;
+            if (profileError) throw profileError;
+            const profile = profiles?.[0];
+            if (profile) {
+              setProfileData({
                 id: profile.id,
                 role: profile.role,
                 nome: profile.nome || 'Usuário Supabase',
-                cpf: profile.cpf || '000.000.000-00',
-                matricula: profile.matricula || '00000',
-                email: profile.email || 'user@tjpa.jus.br',
-                cargo: profile.cargo || 'Servidor',
-                lotacao: profile.lotacao || 'Tribunal',
-                municipio: 'Belém',
-                banco: profile.banco || 'Banpará',
+                cpf: profile.cpf || '',
+                matricula: profile.matricula || '',
+                email: profile.email || '',
+                telefone: profile.telefone || '',
+                cargo: profile.cargo || '',
+                lotacao: profile.lotacao || '',
+                municipio: '',
+                avatar_url: profile.avatar_url || null,
+                banco: profile.banco || '',
                 bancoCod: '037',
-                agencia: profile.agencia || '0001',
-                conta: profile.conta_corrente || '0000-0',
-                gestorNome: profile.gestor_nome || 'Gestor Responsável',
-                gestorEmail: profile.gestor_email || 'gestor@tjpa.jus.br'
-            });
+                agencia: profile.agencia || '',
+                conta: profile.conta_corrente || '',
+                gestorNome: profile.gestor_nome || '',
+                gestorEmail: profile.gestor_email || '',
+                source: 'profiles'
+              });
+            } else {
+              throw new Error('No profile found');
+            }
+          }
         } else {
+          // No email - fallback to profiles
+          let query = supabase.from('profiles').select('*').eq('id', '00000000-0000-0000-0000-000000000000');
+          const { data: profiles } = await query;
+          const profile = profiles?.[0];
+          if (profile) {
+            setProfileData({
+              id: profile.id,
+              role: profile.role,
+              nome: profile.nome || 'Usuário',
+              cpf: profile.cpf || '',
+              matricula: profile.matricula || '',
+              email: profile.email || '',
+              telefone: profile.telefone || '',
+              cargo: profile.cargo || '',
+              lotacao: profile.lotacao || '',
+              municipio: '',
+              avatar_url: profile.avatar_url || null,
+              banco: profile.banco || '',
+              bancoCod: '037',
+              agencia: profile.agencia || '',
+              conta: profile.conta_corrente || '',
+              gestorNome: profile.gestor_nome || '',
+              gestorEmail: profile.gestor_email || '',
+              source: 'profiles'
+            });
+          } else {
             throw new Error('No profile found');
+          }
         }
       } catch (error: any) {
         console.error("Error fetching profile:", error);
@@ -1750,6 +1823,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
            )}
            {showDocumentWizard && (
                <DocumentCreationWizard 
+                  isOpen={true}
                   processId={p.id}
                   nup={p.nup}
                   currentUser={profileData}
@@ -2672,17 +2746,14 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       setIsUploading(true);
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const targetId = profileData.servidor_id || profileData.id;
+      const fileName = `${targetId}_${Date.now()}.${fileExt}`;
       const filePath = `public/${fileName}`;
-
-      const { data: { user } } = await supabase.auth.getUser();
-      let userId = user?.id;
-      if (!userId) userId = '00000000-0000-0000-0000-000000000000'; // Fallback
 
       // Upload to Supabase
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
+        .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -2693,13 +2764,22 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       
       console.log('Avatar uploaded:', publicUrl);
 
-      // Update Profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl, updated_at: new Date() })
-        .eq('id', userId);
-
-      if (updateError) throw updateError;
+      // Update the correct table based on source
+      if (profileData.source === 'servidores_tj' && profileData.servidor_id) {
+        const { error: updateError } = await supabase
+          .from('servidores_tj')
+          .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+          .eq('id', profileData.servidor_id);
+        if (updateError) throw updateError;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: publicUrl, updated_at: new Date() })
+          .eq('id', userId);
+        if (updateError) throw updateError;
+      }
       
       // Update Local State directly for immediate feedback
       setProfileData({ ...profileData, avatar_url: publicUrl });
@@ -2720,45 +2800,51 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      console.log('DEBUG: handleSaveProfile started');
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('DEBUG: Auth User:', user);
+      console.log('DEBUG: handleSaveProfile started, source:', profileData.source);
       
-      let userId = user?.id;
-      if (!userId) {
-          console.warn('DEBUG: No user found, using fallback ID');
-          // Fallback for preview/testing
-          userId = '00000000-0000-0000-0000-000000000000';
-      }
-      console.log('DEBUG: Target User ID:', userId);
-
       const updates = {
-          telefone: profileData.telefone,
-          banco: profileData.banco,
-          agencia: profileData.agencia,
-          conta_corrente: profileData.conta, // mapped to conta_corrente in DB
-          updated_at: new Date(),
+        email: profileData.email,
+        telefone: profileData.telefone,
+        banco: profileData.banco,
+        agencia: profileData.agencia,
+        conta_corrente: profileData.conta,
+        gestor_nome: profileData.gestorNome,
+        gestor_email: profileData.gestorEmail,
+        updated_at: new Date().toISOString(),
       };
       
       console.log('DEBUG: Updates payload:', updates);
-
-      const { error, count, data } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId)
-        .select(); // Select to see returned data
-
-      console.log('DEBUG: Update Result:', { error, count, data });
-
-      if (error) throw error;
       
-      if (data && data.length === 0) {
-          console.warn('DEBUG: Update succeeded but no rows returned. RLS might be blocking access or ID mismatch.');
-          alert('Atenção: Dados salvos mas não confirmados (RLS?). Recarregue para verificar.');
+      let result;
+      
+      if (profileData.source === 'servidores_tj' && profileData.servidor_id) {
+        // Save to servidores_tj
+        result = await supabase
+          .from('servidores_tj')
+          .update(updates)
+          .eq('id', profileData.servidor_id)
+          .select();
+        console.log('DEBUG: Updated servidores_tj:', result);
       } else {
-          // Notify parent to refresh global state
-          if (onProfileUpdate) onProfileUpdate();
-          alert('Dados atualizados com sucesso!');
+        // Fallback to profiles
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+        result = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId)
+          .select();
+        console.log('DEBUG: Updated profiles:', result);
+      }
+
+      if (result.error) throw result.error;
+      
+      if (result.data && result.data.length === 0) {
+        console.warn('DEBUG: Update succeeded but no rows returned.');
+        alert('Atenção: Dados salvos mas não confirmados. Recarregue para verificar.');
+      } else {
+        if (onProfileUpdate) onProfileUpdate();
+        alert('Dados atualizados com sucesso!');
       }
       
       setIsEditing(false);
@@ -2853,6 +2939,37 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
       {/* DADOS Tab Content */}
       {profileTab === 'DADOS' && (
+      <>
+        {/* First Access Banner - Show when important fields are empty */}
+        {(!profileData?.telefone || !profileData?.banco || !profileData?.agencia || !profileData?.conta || !profileData?.gestorNome) && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 rounded-2xl shadow-lg mb-8 animate-in slide-in-from-top">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-white/20 rounded-xl flex-shrink-0">
+                <AlertTriangle size={28} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-black text-white mb-1">Complete seu Cadastro!</h3>
+                <p className="text-sm text-white/90 mb-3">
+                  Para emitir documentos e realizar solicitações, é necessário preencher todos os seus dados cadastrais. 
+                  Clique no botão <strong>Editar</strong> acima e atualize suas informações.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {!profileData?.telefone && <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full">📱 Telefone</span>}
+                  {!profileData?.banco && <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full">🏦 Banco</span>}
+                  {!profileData?.agencia && <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full">🏢 Agência</span>}
+                  {!profileData?.conta && <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full">💳 Conta</span>}
+                  {!profileData?.gestorNome && <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full">👤 Chefia</span>}
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsEditing(true)} 
+                className="px-6 py-3 bg-white text-orange-600 rounded-xl text-sm font-black uppercase tracking-wider hover:bg-orange-50 transition-all shadow-lg flex-shrink-0"
+              >
+                Atualizar Agora
+              </button>
+            </div>
+          </div>
+        )}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Left Column: Status & Photo */}
         <div className="lg:col-span-4 space-y-8">
@@ -2887,6 +3004,82 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
             <div className="flex items-center gap-4 mb-6"><div className="p-3 bg-white/20 rounded-2xl"><ShieldCheck size={24}/></div><h4 className="text-xs font-black uppercase tracking-widest">Status Cadastral</h4></div>
             <h3 className="text-3xl font-black tracking-tight mb-2">Regular</h3>
             <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Última Validação: {profileData.updated_at ? new Date(profileData.updated_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}</p>
+          </div>
+          
+          {/* Access Type / Role Request */}
+          <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-purple-100 text-purple-600 rounded-2xl"><Users size={20}/></div>
+              <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">Tipo de Acesso</h4>
+            </div>
+            
+            {/* Current Role */}
+            <div className="bg-slate-50 p-4 rounded-2xl">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Perfil Atual</p>
+              <p className="text-lg font-black text-slate-800">{ROLE_LABELS[currentRole || 'SUPRIDO']}</p>
+            </div>
+            
+            {/* Pending Request Status */}
+            {requestStatus === 'PENDING' && requestedRole && (
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Solicitação Pendente</p>
+                    <p className="text-sm font-bold text-amber-800">Aguardando aprovação para <span className="underline">{ROLE_LABELS[requestedRole]}</span></p>
+                  </div>
+                  <button 
+                    onClick={async () => { await cancelRoleRequest(); }}
+                    className="px-4 py-2 bg-white border border-amber-300 text-amber-700 rounded-xl text-xs font-bold hover:bg-amber-100 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Request New Role */}
+            {requestStatus !== 'PENDING' && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Solicitar Mudança de Perfil</p>
+                <select 
+                  value={selectedNewRole} 
+                  onChange={(e) => setSelectedNewRole(e.target.value as SystemRole)}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                    <option key={key} value={key} disabled={key === currentRole}>{label}</option>
+                  ))}
+                </select>
+                <input 
+                  type="text"
+                  value={roleRequestReason}
+                  onChange={(e) => setRoleRequestReason(e.target.value)}
+                  placeholder="Motivo da solicitação (opcional)"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <button 
+                  onClick={async () => {
+                    if (selectedNewRole === currentRole) {
+                      alert('Selecione um perfil diferente do atual.');
+                      return;
+                    }
+                    setIsRequestingRole(true);
+                    const success = await requestRoleChange(selectedNewRole, roleRequestReason);
+                    setIsRequestingRole(false);
+                    if (success) {
+                      alert('Solicitação enviada! Aguarde aprovação da SOSFU.');
+                      setRoleRequestReason('');
+                    } else {
+                      alert('Erro ao enviar solicitação. Tente novamente.');
+                    }
+                  }}
+                  disabled={isRequestingRole || selectedNewRole === currentRole}
+                  className="w-full py-3 bg-purple-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isRequestingRole ? <><Loader2 size={16} className="animate-spin" /> Enviando...</> : 'Solicitar Alteração'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2930,11 +3123,18 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                       <input type="text" readOnly value={profileData.matricula} className="w-full pl-12 pr-4 py-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-500 text-sm focus:outline-none cursor-not-allowed" />
                    </div>
                 </div>
-                <div className="col-span-2 space-y-2 opacity-60">
+                <div className="col-span-2 space-y-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Institucional</label>
                    <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Send size={16} /></div>
-                      <input type="text" readOnly value={profileData.email} className="w-full pl-12 pr-4 py-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-500 text-sm focus:outline-none cursor-not-allowed" />
+                      <input 
+                        type="email" 
+                        readOnly={!isEditing}
+                        value={profileData.email || ''} 
+                        onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                        className={`w-full pl-12 pr-4 py-4 border rounded-2xl font-bold text-sm focus:outline-none transition-all ${isEditing ? 'bg-white border-blue-300 ring-4 ring-blue-50 text-slate-800' : 'bg-slate-50 border-slate-200 text-slate-700'}`} 
+                        placeholder="email@tjpa.jus.br"
+                      />
                    </div>
                 </div>
                 <div className="col-span-2 space-y-2">
@@ -3012,13 +3212,40 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
           {/* Manager Info */}
           <div className="bg-slate-900 p-10 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
-             <div className="relative z-10 flex items-center justify-between">
-                <div>
-                   <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Chefia Imediata</h4>
-                   <h3 className="text-xl font-bold">{profileData.gestorNome}</h3>
-                   <p className="text-sm text-slate-400 mt-1">{profileData.gestorEmail}</p>
+             <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                   <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Chefia Imediata</h4>
+                   <div className="p-4 bg-white/10 rounded-2xl"><UserCheck size={24}/></div>
                 </div>
-                <div className="p-4 bg-white/10 rounded-2xl"><UserCheck size={24}/></div>
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Nome do Gestor</label>
+                      <input 
+                        type="text" 
+                        value={profileData.gestorNome || ''} 
+                        onChange={(e) => setProfileData({...profileData, gestorNome: e.target.value})}
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-500"
+                        placeholder="Nome do gestor/chefe imediato"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email do Gestor</label>
+                      <input 
+                        type="email" 
+                        value={profileData.gestorEmail || ''} 
+                        onChange={(e) => setProfileData({...profileData, gestorEmail: e.target.value})}
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-500"
+                        placeholder="email@tjpa.jus.br"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-xl font-bold">{profileData.gestorNome || 'Não informado'}</h3>
+                    <p className="text-sm text-slate-400 mt-1">{profileData.gestorEmail || 'Email não informado'}</p>
+                  </div>
+                )}
              </div>
           </div>
         </div>
@@ -3030,6 +3257,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         */}
        
       </div>
+      </>
       )}
     </div>
   );

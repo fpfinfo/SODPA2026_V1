@@ -90,7 +90,8 @@ const AppContent: React.FC = () => {
         </div>
 
         <div className="ml-auto flex items-center gap-6">
-          {/* Role Switcher for Dev Only */}
+          {/* Role Switcher - Only for test user (teste@tjpa.jus.br) */}
+          {user?.email === 'teste@tjpa.jus.br' && (
           <div className="relative">
             <button 
               onClick={() => setShowRoleMenu(!showRoleMenu)}
@@ -116,6 +117,7 @@ const AppContent: React.FC = () => {
               </div>
             )}
           </div>
+          )}
 
           <div className="h-8 w-px bg-slate-200"></div>
 

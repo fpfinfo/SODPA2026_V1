@@ -48,54 +48,50 @@ export function useLocations(): UseLocationsReturn {
     setIsLoading(true);
     setError(null);
     
+    // Fetch comarcas (independent)
     try {
-      // Fetch comarcas with suprido join
       const { data: comarcasData, error: comarcasError } = await supabase
         .from('comarcas')
-        .select(`
-          *,
-          suprido:profiles!suprido_id(id, nome, cpf, email)
-        `)
+        .select('*')
         .order('nome');
       
       if (comarcasError) throw comarcasError;
       setComarcas(comarcasData || []);
+    } catch (err: any) {
+      console.error('Error fetching comarcas:', err);
+      setComarcas(MOCK_COMARCAS_FALLBACK);
+    }
 
-      // Fetch municipios with comarca join
+    // Fetch municipios (independent)
+    try {
       const { data: municipiosData, error: municipiosError } = await supabase
         .from('municipios')
-        .select(`
-          *,
-          comarca:comarcas!comarca_id(id, nome, codigo)
-        `)
+        .select('*')
         .order('nome');
       
       if (municipiosError) throw municipiosError;
       setMunicipios(municipiosData || []);
+    } catch (err: any) {
+      console.error('Error fetching municipios:', err);
+      setMunicipios(MOCK_MUNICIPIOS_FALLBACK);
+    }
 
-      // Fetch lotações with comarca join
+    // Fetch lotações (independent)
+    try {
       const { data: lotacoesData, error: lotacoesError } = await supabase
         .from('lotacoes')
-        .select(`
-          *,
-          comarca:comarcas!comarca_id(id, nome, codigo)
-        `)
+        .select('*')
         .order('nome');
       
       if (lotacoesError) throw lotacoesError;
       setLotacoes(lotacoesData || []);
-
     } catch (err: any) {
-      console.error('Error fetching locations:', err);
-      setError(err.message || 'Erro ao carregar dados de localização');
-      
-      // Fallback to mock data if tables don't exist
-      setComarcas(MOCK_COMARCAS_FALLBACK);
-      setMunicipios(MOCK_MUNICIPIOS_FALLBACK);
+      console.error('Error fetching lotacoes:', err);
+      setError(err.message || 'Erro ao carregar lotações');
       setLotacoes(MOCK_LOTACOES_FALLBACK);
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {

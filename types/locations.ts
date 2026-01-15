@@ -27,6 +27,10 @@ export interface Comarca {
   entrancia: Entrancia;
   varas: number;
   
+  // Geographic organization
+  polo?: string;
+  regiao_judiciaria?: string;
+  
   // Linked suprido (optional)
   suprido_id?: string;
   suprido?: {

@@ -15,6 +15,8 @@ import {
   FileCode, 
   FileText,
   History as HistoryIcon,
+  TableOfContents,
+  FileSearch as FileSearchIcon,
   LayoutList,
   Scale,
   Signature,
@@ -94,6 +96,8 @@ export const GestorDashboard: React.FC = () => {
   
   // Document viewer state
   const [viewingDoc, setViewingDoc] = useState<any>(null);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   
   // Toast hook
   const { showToast } = useToast();
@@ -689,42 +693,44 @@ export const GestorDashboard: React.FC = () => {
       </aside>
 
       <main className="flex-1 overflow-hidden flex flex-col relative">
-        <div className="bg-white/80 backdrop-blur-md p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+        <div className="bg-white/80 backdrop-blur-xl p-4 rounded-[32px] shadow-2xl border border-white flex flex-col md:flex-row items-center justify-between sticky top-0 z-[100] gap-4 mx-4 mt-4">
            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20"><Gavel size={24} /></div>
+              <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Gavel size={24} /></div>
               <div>
-                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Protocolo • {selectedProcess.nup}</span>
-                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mt-1">Homologação da Solicitação</h2>
+                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">SCS • {selectedProcess.nup}</span>
+                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mt-1">Painel de Controle</h2>
               </div>
            </div>
 
-           <div className="flex items-center gap-3">
-                 <button 
-                  onClick={() => setShowDocumentWizard(true)}
-                  className="px-4 py-3 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 hover:bg-blue-100 transition-all flex items-center gap-2"
-                >
-                    <Plus size={16}/> NOVO
-                </button>
-                <div className="w-px h-8 bg-slate-200 mx-1"></div>
-                 <button onClick={handleReturnToSuprido} className="px-4 py-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-100 hover:bg-red-100 transition-all flex items-center gap-2">
-                    <ThumbsDown size={16}/> Devolver
-                </button>
-                <div className="w-px h-8 bg-slate-200 mx-2"></div>
-                {hasAtesto ? (
-                    <button onClick={handleForwardToSosfu} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 animate-in zoom-in">
-                        <Send size={18}/> Enviar p/ SOSFU
-                    </button>
-                ) : (
-                    <button 
-                        onClick={handleGenerateAtesto} 
-                        disabled={!isChecklistComplete}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${isChecklistComplete ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                    >
-                        <BadgeCheck size={18}/> Gerar Atesto
-                    </button>
-                )}
+           <div className="flex flex-wrap items-center gap-2 bg-slate-100/50 p-2 rounded-2xl border border-slate-200/50">
+              <button onClick={() => setSubView('DETAILS')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${subView === 'DETAILS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'}`}><FileSearch size={14}/> Detalhes</button>
+              <button 
+                onClick={() => setShowDocumentWizard(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/50 transition-all"
+              >
+                  <Plus size={14}/> Novo
+              </button>
+              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+              <button onClick={handleReturnToSuprido} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-all">
+                  <ThumbsDown size={14}/> Devolver
+              </button>
+              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+              {hasAtesto ? (
+                  <button onClick={handleForwardToSosfu} className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20">
+                      <Send size={14}/> Enviar p/ SOSFU
+                  </button>
+              ) : (
+                  <button 
+                      onClick={handleGenerateAtesto} 
+                      disabled={!isChecklistComplete}
+                      className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isChecklistComplete ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                  >
+                      <BadgeCheck size={14}/> Gerar Atesto
+                  </button>
+              )}
            </div>
         </div>
+
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-10 space-y-8">
            {subView === 'DETAILS' && (
@@ -808,14 +814,37 @@ export const GestorDashboard: React.FC = () => {
            )}
 
            {subView === 'DOSSIER' && (
-              <div className="max-w-5xl mx-auto space-y-6 pb-32">
-                 {/* Existing Dossier Code... */}
-                 <div className="space-y-4">
+              <div className="space-y-8 animate-in slide-in-from-bottom-6 duration-500 pb-32">
+                 <div className="bg-[#0f172a] rounded-[48px] p-10 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden group gap-6">
+                    <div className="relative z-10">
+                       <h3 className="text-3xl font-black tracking-tighter">Inventário de Peças Processuais</h3>
+                       <p className="text-slate-400 text-sm font-medium mt-1">Volume consolidado para auditoria e prestação de contas.</p>
+                    </div>
+                    <div className="relative z-10 flex items-center gap-4">
+                       <button 
+                         onClick={() => setShowPdfViewer(true)}
+                         className="flex items-center gap-3 px-8 py-5 bg-white text-slate-900 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl"
+                       >
+                          <FileSearchIcon size={18} />
+                          Visualizar PDF Consolidado
+                       </button>
+                       <button 
+                         onClick={() => { setIsExporting(true); setTimeout(() => { setIsExporting(false); showToast({ type: 'success', title: 'PDF Exportado!', message: 'Documento salvo com sucesso.' }); }, 2000); }}
+                         className="flex items-center gap-3 px-8 py-5 bg-white text-slate-900 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl"
+                       >
+                          {isExporting ? <RefreshCw size={18} className="animate-spin" /> : <FileDown size={18} />}
+                          Exportar PDF Consolidado
+                       </button>
+                    </div>
+                    <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform duration-1000"><TableOfContents size={200}/></div>
+                 </div>
+
+                 <div className="space-y-6">
                     {processPieces.map(piece => (
                        <div key={piece.id} className="group flex items-center gap-8 bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm hover:shadow-2xl hover:border-blue-300 transition-all cursor-pointer">
                           <div className="w-20 h-20 bg-slate-50 rounded-3xl flex flex-col items-center justify-center group-hover:bg-blue-600 group-hover:text-white shadow-inner"><span className="text-[10px] font-black uppercase opacity-40 mb-1">Fls.</span><span className="text-2xl font-black">{piece.num}</span></div>
                           <div className="flex-1">
-                             <h4 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-none mb-1">{piece.title}</h4>
+                             <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{piece.title}</h4>
                              <p className="text-xs text-slate-400 font-medium">{piece.desc}</p>
                              {piece.key === 'CUSTOM' && <span className="inline-block mt-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-full border border-emerald-100 uppercase tracking-widest">Assinado</span>}
                           </div>
@@ -824,11 +853,10 @@ export const GestorDashboard: React.FC = () => {
                               if (piece.key === 'COVER' || piece.key === 'REQUEST') {
                                 setSubView(piece.key as SubViewMode);
                               } else if (piece.content || piece.key === 'DB_DOC') {
-                                // For database documents, open viewer modal
                                 setViewingDoc(piece);
                               }
                             }}
-                            className="p-5 bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-50 hover:text-blue-600 transition-all"
+                            className="p-4 bg-slate-50 text-slate-300 rounded-2xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-all" title="Visualizar"
                           >
                             <Eye size={24}/>
                           </button>
@@ -975,6 +1003,24 @@ export const GestorDashboard: React.FC = () => {
                           <p>DATA DE GERAÇÃO: {new Date().toLocaleDateString('pt-BR')}, {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
                        </div>
                     </div>
+                 </div>
+              </div>
+           )}
+
+           {/* HISTORY SubView - Histórico / Auditoria */}
+           {subView === 'HISTORY' && (
+              <div className="space-y-8 animate-in slide-in-from-bottom-6 duration-500 pb-32">
+                 <div className="bg-slate-900 rounded-[48px] p-10 text-white shadow-2xl flex items-center justify-between relative overflow-hidden group">
+                    <div className="relative z-10">
+                       <h3 className="text-3xl font-black tracking-tighter">Histórico de Tramitação</h3>
+                       <p className="text-slate-400 text-sm font-medium mt-1">Audit log completo das alterações de estado.</p>
+                    </div>
+                    <button className="relative z-10 flex items-center gap-3 px-10 py-5 bg-white text-slate-900 rounded-[24px] text-[10px] font-black uppercase tracking-widest shadow-xl"><Printer size={18} /> Imprimir Relatório</button>
+                    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000"><HistoryIcon size={200}/></div>
+                 </div>
+
+                 <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+                    <TimelineHistory events={tramitacaoHistory} />
                  </div>
               </div>
            )}
@@ -1127,6 +1173,74 @@ export const GestorDashboard: React.FC = () => {
               >
                 Fechar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Viewer Modal */}
+      {showPdfViewer && selectedProcess && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 md:p-10">
+          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl" onClick={() => setShowPdfViewer(false)}></div>
+          <div className="relative bg-[#333] w-full h-full rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95">
+            <div className="p-4 bg-[#2a2a2a] border-b border-white/5 flex items-center justify-between shadow-2xl">
+               <div className="flex items-center gap-4">
+                  <div className="p-2 bg-red-600 text-white rounded-lg shadow-lg"><FileIcon size={18}/></div>
+                  <div>
+                     <h3 className="text-sm font-bold text-white uppercase tracking-tight">Consolidado_{selectedProcess.nup}.pdf</h3>
+                     <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">SISUP - Tribunal de Justiça do Pará</p>
+                  </div>
+               </div>
+               <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => { setIsExporting(true); setTimeout(() => { setIsExporting(false); showToast({ type: 'success', title: 'PDF Exportado!', message: 'Documento salvo com sucesso.' }); }, 2000); }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase rounded-lg transition-all flex items-center gap-2"
+                  >
+                    {isExporting ? <><RefreshCw size={16} className="animate-spin"/> Gerando...</> : <><FileDown size={16}/> Baixar PDF</>}
+                  </button>
+                  <div className="w-px h-6 bg-white/10 mx-2"></div>
+                  <button onClick={() => setShowPdfViewer(false)} className="p-2 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><X size={18}/></button>
+               </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-12 flex flex-col items-center gap-16 custom-scrollbar bg-[#525659]">
+               {/* Cover Page */}
+               <div className="w-[820px] bg-white shadow-2xl p-24 min-h-[1160px] flex flex-col items-center border-t-8 border-slate-900">
+                  <img src={BRASAO_TJPA_URL} alt="Brasão" className="w-32 mb-12 opacity-90" />
+                  <h1 className="text-2xl font-black tracking-[0.3em] uppercase text-slate-900 mb-2">Poder Judiciário</h1>
+                  <p className="text-lg font-bold uppercase tracking-[0.2em] text-slate-500 mb-16 border-b-2 border-slate-100 pb-4">Tribunal de Justiça do Pará</p>
+                  
+                  <div className="w-full bg-slate-50 p-12 rounded-3xl border border-slate-100 text-center mb-16">
+                     <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] mb-4">Número Único de Protocolo</h2>
+                     <p className="text-6xl font-black text-slate-900 font-mono tracking-tighter">{selectedProcess.nup}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-12 w-full text-left border-t border-slate-100 pt-16 mt-auto">
+                     <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interessado</label><p className="text-lg font-black text-slate-800 uppercase">{selectedProcess.interested || 'N/A'}</p></div>
+                     <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modalidade</label><p className="text-lg font-black text-slate-800 uppercase">{selectedProcess.type || 'Suprimento'}</p></div>
+                     <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</label><p className="text-lg font-black text-blue-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedProcess.value || 0)}</p></div>
+                     <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</label><p className="text-lg font-black text-slate-800">{selectedProcess.date || new Date().toLocaleDateString('pt-BR')}</p></div>
+                  </div>
+               </div>
+
+               {/* Document List */}
+               {processPieces.map((piece, idx) => piece.key !== 'COVER' && (
+                  <div key={piece.id} className="w-[820px] bg-white shadow-2xl p-24 min-h-[1160px] flex flex-col border-t-8 border-slate-900">
+                     <div className="flex flex-col items-center justify-center mb-16 space-y-4">
+                        <img src={BRASAO_TJPA_URL} alt="Brasão" className="w-20 opacity-90"/>
+                        <h1 className="text-lg font-bold text-slate-900 uppercase tracking-widest text-center">TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ</h1>
+                     </div>
+                     <h2 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight text-center">{piece.title}</h2>
+                     <div className="flex-1 text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                        {piece.content || piece.desc || 'Conteúdo do documento não disponível para visualização.'}
+                     </div>
+                     <div className="mt-16 pt-8 border-t border-slate-100 flex flex-col items-center">
+                        <div className="w-48 h-px bg-slate-800 mb-4"></div>
+                        <p className="font-bold text-slate-900 uppercase text-sm">{selectedProcess.interested || 'Signatário'}</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-widest">{piece.date || new Date().toLocaleDateString('pt-BR')}</p>
+                     </div>
+                  </div>
+               ))}
             </div>
           </div>
         </div>
