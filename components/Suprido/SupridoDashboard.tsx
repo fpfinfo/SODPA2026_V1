@@ -778,10 +778,76 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     }
   };
 
-  // Check if process is a draft (can be edited/deleted)
-  const isDraftProcess = (status: string) => {
-    const draftStatuses = ['rascunho', 'RASCUNHO', 'draft'];
-    return draftStatuses.includes(status?.toLowerCase?.() || status);
+  // Check if process can be edited (draft or early pending states)
+  const isEditableProcess = (status: string) => {
+    const editableStatuses = [
+      'rascunho', 'RASCUNHO', 'draft',
+      'pendente_atesto', 'PENDENTE ATESTO', 'pendente atesto'
+    ];
+    const normalizedStatus = status?.toLowerCase?.().replace(/_/g, ' ') || '';
+    return editableStatuses.some(s => 
+      s.toLowerCase().replace(/_/g, ' ') === normalizedStatus || s === status
+    );
+  };
+
+  // Check if process can be deleted
+  const isDeletableProcess = (status: string) => {
+    const deletableStatuses = [
+      'rascunho', 'RASCUNHO', 'draft',
+      'pendente_atesto', 'PENDENTE ATESTO', 'pendente atesto'
+    ];
+    const normalizedStatus = status?.toLowerCase?.().replace(/_/g, ' ') || '';
+    return deletableStatuses.some(s => 
+      s.toLowerCase().replace(/_/g, ' ') === normalizedStatus || s === status
+    );
+  };
+
+  // Check if process can be cancelled (in early tramitation stages, not editable but cancellable)
+  const isCancellableProcess = (status: string) => {
+    const cancellableStatuses = [
+      'pendente_analise', 'PENDENTE ANÁLISE', 'pendente análise', 'pendente analise',
+      'em_analise', 'EM ANÁLISE', 'em análise', 'em analise'
+    ];
+    const normalizedStatus = status?.toLowerCase?.().replace(/_/g, ' ').replace(/á/g, 'a') || '';
+    return cancellableStatuses.some(s => 
+      s.toLowerCase().replace(/_/g, ' ').replace(/á/g, 'a') === normalizedStatus || s === status
+    );
+  };
+
+  // Cancel a process in early stages
+  const handleCancelProcess = async () => {
+    if (!selectedProcess) return;
+    
+    try {
+      const { error } = await supabase
+        .from('solicitacoes')
+        .update({
+          status: 'CANCELADO',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedProcess.id);
+      
+      if (error) throw error;
+      
+      // Record in history
+      await supabase.from('historico_tramitacao').insert({
+        solicitacao_id: selectedProcess.id,
+        origem: selectedProcess.destino_atual || 'SUPRIDO',
+        destino: 'CANCELADO',
+        status_anterior: selectedProcess.status,
+        status_novo: 'CANCELADO',
+        observacao: 'Solicitação cancelada pelo suprido',
+        tramitado_por: profileData?.id
+      });
+      
+      setSelectedProcess(null);
+      setCurrentView('DASHBOARD');
+      await refreshHistory();
+      alert('✅ Solicitação cancelada com sucesso!');
+    } catch (error) {
+      console.error('Error cancelling process:', error);
+      alert('❌ Erro ao cancelar solicitação: ' + (error as Error).message);
+    }
   };
 
   useEffect(() => {
@@ -1287,8 +1353,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                  <button onClick={() => setShowDocumentWizard(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/50 transition-all"><Plus size={14}/> Novo</button>
                  <button onClick={() => setShowTramitarModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/50 transition-all"><ArrowUpRight size={14}/> Tramitar</button>
                  
-                 {/* Draft actions - only show for draft/rascunho status */}
-                 {isDraftProcess(selectedProcess?.status) && (
+                 {/* Edit/Delete actions - for editable statuses */}
+                 {isEditableProcess(selectedProcess?.status) && (
                    <>
                      <div className="w-px h-6 bg-slate-200 mx-1"></div>
                      <button 
@@ -1297,11 +1363,26 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                      >
                        <Edit size={14}/> Editar
                      </button>
+                   </>
+                 )}
+                 {isDeletableProcess(selectedProcess?.status) && (
+                   <button 
+                     onClick={() => setShowDeleteDraftConfirm(true)} 
+                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-50 hover:bg-red-100 transition-all border border-red-200"
+                   >
+                     <Trash2 size={14}/> Excluir
+                   </button>
+                 )}
+                 
+                 {/* Cancel action - for processes in early tramitation stages */}
+                 {isCancellableProcess(selectedProcess?.status) && (
+                   <>
+                     <div className="w-px h-6 bg-slate-200 mx-1"></div>
                      <button 
-                       onClick={() => setShowDeleteDraftConfirm(true)} 
-                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-50 hover:bg-red-100 transition-all border border-red-200"
+                       onClick={handleCancelProcess} 
+                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 hover:bg-orange-100 transition-all border border-orange-200"
                      >
-                       <Trash2 size={14}/> Excluir
+                       <X size={14}/> Cancelar
                      </button>
                    </>
                  )}
