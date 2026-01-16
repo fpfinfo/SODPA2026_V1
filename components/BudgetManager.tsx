@@ -82,9 +82,9 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
   const handleGenerateOficio = () => {
     setIsProcessing(true);
     setTimeout(() => {
-        // Na prática, aqui seria criado um objeto Process do tipo "BATCH_PROGRAMMING" enviado à SEPLAN
+        // Na prática, aqui seria criado um objeto Process do tipo "BATCH_PROGRAMMING" enviado à SEFIN
         // Para fins de demo, apenas notificamos
-        alert(`Ofício de Programação de Pagamento gerado com sucesso!\n\nValor Total: ${formatCurrency(batchTotal)}\nDestino: Ordenador de Despesa (SEPLAN)\n\nApós a assinatura do Ordenador, a opção 'Gerar Portarias em Lote' ficará disponível.`);
+        alert(`Ofício de Programação de Pagamento gerado com sucesso!\n\nValor Total: ${formatCurrency(batchTotal)}\nDestino: Ordenador de Despesa (SEFIN)\n\nApós a assinatura do Ordenador, a opção 'Gerar Portarias em Lote' ficará disponível.`);
         setIsProcessing(false);
         setShowBatchModal(false);
         setWizardStep(1);
@@ -333,7 +333,7 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ budget, onLaunchBa
                                 className="px-8 py-3 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center gap-2"
                             >
                                 {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
-                                Enviar para Autorização (SEPLAN)
+                                Enviar para Autorização (SEFIN)
                             </button>
                         </>
                     )}

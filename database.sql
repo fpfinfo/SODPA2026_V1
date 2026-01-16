@@ -51,7 +51,7 @@ create table if not exists public.profiles (
   unidade_id uuid references public.unidades(id),
   municipio_id uuid references public.municipios(id),
   comarca_id uuid references public.comarcas(id),
-  role text check (role in ('suprido', 'gestor', 'ordenador', 'analista_sosfu', 'chefe_sosfu', 'ajsefin', 'sgp', 'sosfu')),
+  role text check (role in ('suprido', 'gestor', 'ordenador', 'analista_sosfu', 'chefe_sosfu', 'ajsefin', 'sgp', 'sosfu', 'sefin', 'SEFIN')),
   avatar_url text,
   cpf text,
   telefone text,
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS public.documentos (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Add columns for Signature Delegation Workflow (AJSEFIN -> SEPLAN)
+-- Add columns for Signature Delegation Workflow (AJSEFIN -> SEFIN)
 DO $$
 BEGIN
     -- Signature workflow columns

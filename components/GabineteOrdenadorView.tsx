@@ -55,7 +55,7 @@ export const GabineteOrdenadorView: React.FC<{
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch documents with pending_signature status assigned to current user or any SEPLAN user
+      // Fetch documents with pending_signature status assigned to current user or any SEFIN user
       const { data, error } = await supabase
         .from('documentos')
         .select(`
@@ -135,7 +135,7 @@ export const GabineteOrdenadorView: React.FC<{
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('historico_tramitacao').insert({
         solicitacao_id: selectedDoc.solicitacao_id,
-        origem: 'SEPLAN',
+        origem: 'SEFIN',
         destino: 'SOSFU',
         status_anterior: 'em_analise_gabinete',
         status_novo: 'aprovado',
@@ -204,7 +204,7 @@ export const GabineteOrdenadorView: React.FC<{
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('historico_tramitacao').insert({
         solicitacao_id: selectedDoc.solicitacao_id,
-        origem: 'SEPLAN',
+        origem: 'SEFIN',
         destino: 'AJSEFIN',
         status_anterior: 'em_analise_gabinete',
         status_novo: 'devolvido_correcao',
@@ -250,7 +250,7 @@ export const GabineteOrdenadorView: React.FC<{
             <h1 className="text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
               Mesa do Ordenador
               <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium tracking-normal border border-amber-200">
-                SEPLAN
+                SEFIN
               </span>
             </h1>
             <p className="text-slate-500 font-medium mt-1 flex items-center gap-2">
@@ -368,7 +368,7 @@ export const GabineteOrdenadorView: React.FC<{
                       TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ
                     </h1>
                     <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">
-                      Secretaria de Planejamento
+                      Secretaria de Finanças
                     </p>
                   </div>
 
@@ -390,7 +390,7 @@ export const GabineteOrdenadorView: React.FC<{
                         [ASSINATURA PENDENTE]
                       </p>
                       <p className="text-xs text-slate-500 uppercase tracking-widest">
-                        Ordenador de Despesa - SEPLAN
+                        Ordenador de Despesa - SEFIN
                       </p>
                     </div>
                   </div>

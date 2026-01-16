@@ -107,7 +107,7 @@ ON CONFLICT DO NOTHING;
 
 -- Unidades (Lotações)
 INSERT INTO public.unidades (nome, sigla, tipo, ativo) VALUES 
-  ('Secretaria de Planejamento e Gestão', 'SEPLAN', 'Secretaria', true),
+  ('Secretaria de Finanças', 'SEFIN', 'Secretaria', true),
   ('Secretaria Judiciária', 'SEJUD', 'Secretaria', true),
   ('Diretoria Judiciária', 'DIJUD', 'Diretoria', true),
   ('Seção de Suprimento de Fundos', 'SOSFU', 'Seção', true),

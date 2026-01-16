@@ -9,7 +9,7 @@ interface TramitarModalProps {
   processId: string;
   processNup: string;
   currentStatus: string;
-  currentModule: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'SEPLAN' | 'AJSEFIN' | 'SGP';
+  currentModule: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'SEFIN' | 'AJSEFIN' | 'SGP';
   onSuccess?: () => void;
 }
 
@@ -23,11 +23,11 @@ const WORKFLOW_DESTINATIONS: Record<string, { value: string; label: string; stat
     { value: 'SUPRIDO', label: 'Devolver ao Suprido (Correção)', status: 'DEVOLVIDO' }
   ],
   'SOSFU': [
-    { value: 'SEPLAN', label: 'SEPLAN - Ordenador de Despesa', status: 'PENDENTE ASSINATURA' },
+    { value: 'SEFIN', label: 'SEFIN - Ordenador de Despesa', status: 'PENDENTE ASSINATURA' },
     { value: 'GESTOR', label: 'Devolver ao Gestor', status: 'DEVOLVIDO' },
     { value: 'AJSEFIN', label: 'AJSEFIN - Parecer Jurídico', status: 'AGUARDANDO PARECER' }
   ],
-  'SEPLAN': [
+  'SEFIN': [
     { value: 'SOSFU', label: 'SOSFU - Empenho/Financeiro', status: 'APROVADO' },
     { value: 'SOSFU', label: 'Devolver à SOSFU (Correção)', status: 'DEVOLVIDO' }
   ],

@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-export type SystemRole = 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'SEPLAN' | 'AJSEFIN' | 'SGP';
+export type SystemRole = 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'SEFIN' | 'AJSEFIN' | 'SGP';
 
 export interface RoleRequest {
   id: string;
@@ -41,7 +41,7 @@ export const ROLE_LABELS: Record<SystemRole, string> = {
   SUPRIDO: 'Suprido',
   GESTOR: 'Gestor',
   SOSFU: 'SOSFU (Administrador)',
-  SEPLAN: 'SEPLAN',
+  SEFIN: 'SEFIN',
   AJSEFIN: 'AJSEFIN',
   SGP: 'SGP',
 };

@@ -14,7 +14,7 @@ export interface DeductionTask {
   matricula: string;
   lotacao: string;
   type: 'GLOSA' | 'ALCANCE';
-  origin: 'SEPLAN' | 'AJSEFIN';
+  origin: 'SEFIN' | 'AJSEFIN';
   value: number;
   decisionDate: string;
   decisionNumber: string;
@@ -47,9 +47,9 @@ export function useSgpTasks(): UseSgpTasksReturn {
     setError(null);
     
     try {
-      // Try to fetch from Supabase seplan_tasks with SGP-related tasks
+      // Try to fetch from Supabase sefin_tasks with SGP-related tasks
       const { data, error: fetchError } = await supabase
-        .from('seplan_tasks')
+        .from('sefin_tasks')
         .select('*')
         .in('tipo', ['GLOSA', 'ALCANCE', 'DEDUCAO'])
         .order('created_at', { ascending: false });
@@ -64,7 +64,7 @@ export function useSgpTasks(): UseSgpTasksReturn {
         matricula: '55XXX',
         lotacao: t.origem || 'Não informado',
         type: (t.tipo === 'ALCANCE' ? 'ALCANCE' : 'GLOSA') as 'GLOSA' | 'ALCANCE',
-        origin: (t.origem === 'AJSEFIN' ? 'AJSEFIN' : 'SEPLAN') as 'SEPLAN' | 'AJSEFIN',
+        origin: (t.origem === 'AJSEFIN' ? 'AJSEFIN' : 'SEFIN') as 'SEFIN' | 'AJSEFIN',
         value: parseFloat(t.valor) || 0,
         decisionDate: t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : '',
         decisionNumber: `DEC-${t.id.slice(0, 4).toUpperCase()}/${new Date().getFullYear()}`,
@@ -127,7 +127,7 @@ export function useSgpTasks(): UseSgpTasksReturn {
 
 // Fallback mock data
 const FALLBACK_TASKS: DeductionTask[] = [
-  { id: 'P-TCE-SGP-REAL', protocol: 'TCE-2026-999', serverName: 'Carlos Alberto (Ex-Suprido)', matricula: '55021', lotacao: 'Comarca de Marabá', type: 'GLOSA', origin: 'SEPLAN', value: 2500.00, decisionDate: '28/01/2026', decisionNumber: 'DEC-SEPLAN-050/2026', status: 'PENDING', assignedTo: '1', dueDate: '2026-02-15' },
-  { id: '1', protocol: 'TJPA-PROC-2025-8821', serverName: 'Ademário Silva De Jesus', matricula: '10001', lotacao: 'Central de Mandados - Mãe do Rio', type: 'GLOSA', origin: 'SEPLAN', value: 450.00, decisionDate: '12/01/2026', decisionNumber: 'DEC-SEPLAN-004/2026', status: 'PENDING', assignedTo: '1', dueDate: '2026-02-15' },
+  { id: 'P-TCE-SGP-REAL', protocol: 'TCE-2026-999', serverName: 'Carlos Alberto (Ex-Suprido)', matricula: '55021', lotacao: 'Comarca de Marabá', type: 'GLOSA', origin: 'SEFIN', value: 2500.00, decisionDate: '28/01/2026', decisionNumber: 'DEC-SEFIN-050/2026', status: 'PENDING', assignedTo: '1', dueDate: '2026-02-15' },
+  { id: '1', protocol: 'TJPA-PROC-2025-8821', serverName: 'Ademário Silva De Jesus', matricula: '10001', lotacao: 'Central de Mandados - Mãe do Rio', type: 'GLOSA', origin: 'SEFIN', value: 450.00, decisionDate: '12/01/2026', decisionNumber: 'DEC-SEFIN-004/2026', status: 'PENDING', assignedTo: '1', dueDate: '2026-02-15' },
   { id: '3', protocol: 'TJPA-PROC-2025-7711', serverName: 'Maria Antonieta', matricula: '55210', lotacao: 'Gabinete da Presidência', type: 'GLOSA', origin: 'AJSEFIN', value: 120.00, decisionDate: '14/01/2026', decisionNumber: 'DEC-AJ-055/2026', status: 'PROCESSED', assignedTo: '2', dueDate: '2026-02-01' },
 ];

@@ -86,13 +86,13 @@ export function PortariaDocument({
         />
         <p className="text-lg font-bold">PODER JUDICIÁRIO</p>
         <p className="text-lg font-bold">TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ</p>
-        <p className="text-sm text-slate-600">Secretaria de Planejamento, Coordenação e Finanças</p>
+        <p className="text-sm text-slate-600">Secretaria de Finanças</p>
         <p className="text-xs text-slate-500">Av. Almirante Barroso, 3089 - CEP 66.613-710 - Fone/Fax (091) 3205-3241</p>
       </div>
 
       {/* Title */}
       <div className="bg-slate-700 text-white text-center py-2 px-4 mb-8 font-bold">
-        PORTARIA DE SUPRIMENTO DE FUNDOS Nº {numeroPortaria}/{anoPortaria}-SEPLAN/TJE
+        PORTARIA DE SUPRIMENTO DE FUNDOS Nº {numeroPortaria}/{anoPortaria}-SEFIN/TJE
       </div>
 
       {/* RESOLVE */}

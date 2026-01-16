@@ -77,11 +77,11 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     getCategory,
     assignToUser,
     updateExecutionNumbers,
-    tramitToSeplan,
+    tramitToSefin,
     completeExecution
   } = useSOSFUProcesses();
 
-  // Propagate process changes to parent for cross-module integration (e.g., SEPLAN inbox)
+  // Propagate process changes to parent for cross-module integration (e.g., SEFIN inbox)
   React.useEffect(() => {
     onProcessesChange?.(processes);
   }, [processes, onProcessesChange]);
@@ -188,7 +188,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     }
   };
   
-  // Handler for ConcessionManager status updates - Updates process state which propagates to SeplanDashboard
+  // Handler for ConcessionManager status updates - Updates process state which propagates to SefinDashboard
   const handleMoveProcess = async (processId: string, newStatus: string) => {
     console.log('[DashboardSOSFU] handleMoveProcess called:', processId, newStatus);
     const { error } = await supabase.from('solicitacoes').update({ status: newStatus }).eq('id', processId);
@@ -315,7 +315,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
           <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform">
             <ShieldCheck size={20}/>
           </div>
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Fluxo SEPLAN</span>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Fluxo SEFIN</span>
         </div>
         <div>
           <h3 className="text-3xl font-black text-slate-800 mb-1">{stats.awaitingSignature}</h3>
@@ -555,7 +555,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
             processes={processes} 
             onUpdateStatus={handleMoveProcess} 
             onUpdateExecutionNumbers={updateExecutionNumbers}
-            onTramitToSeplan={tramitToSeplan}
+            onTramitToSefin={tramitToSefin}
             onCompleteExecution={completeExecution}
             refresh={refreshProcesses}
             budgetCap={budget.totalCap} 

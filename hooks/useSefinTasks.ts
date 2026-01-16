@@ -1,6 +1,6 @@
 /**
- * useSeplanTasks Hook
- * Supabase CRUD for SEPLAN signing tasks
+ * useSefinTasks Hook
+ * Supabase CRUD for SEFIN signing tasks
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,7 +20,7 @@ export interface SigningTask {
   created_at?: string;
 }
 
-interface UseSeplanTasksReturn {
+interface UseSefinTasksReturn {
   tasks: SigningTask[];
   isLoading: boolean;
   error: string | null;
@@ -34,7 +34,7 @@ interface UseSeplanTasksReturn {
   refresh: () => Promise<void>;
 }
 
-export function useSeplanTasks(): UseSeplanTasksReturn {
+export function useSefinTasks(): UseSefinTasksReturn {
   const [tasks, setTasks] = useState<SigningTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function useSeplanTasks(): UseSeplanTasksReturn {
     
     try {
       const { data, error: fetchError } = await supabase
-        .from('seplan_tasks')
+        .from('sefin_tasks')
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -65,7 +65,7 @@ export function useSeplanTasks(): UseSeplanTasksReturn {
         created_at: t.created_at,
       })));
     } catch (err: any) {
-      console.error('Error fetching seplan tasks:', err);
+      console.error('Error fetching sefin tasks:', err);
       setError(err.message || 'Erro ao carregar tarefas');
       
       // Fallback to mock data
@@ -82,7 +82,7 @@ export function useSeplanTasks(): UseSeplanTasksReturn {
   const signTask = async (id: string): Promise<boolean> => {
     try {
       const { error } = await supabase
-        .from('seplan_tasks')
+        .from('sefin_tasks')
         .update({ 
           status: 'SIGNED', 
           assinado_em: new Date().toISOString(),
@@ -103,7 +103,7 @@ export function useSeplanTasks(): UseSeplanTasksReturn {
   const signMultipleTasks = async (ids: string[]): Promise<boolean> => {
     try {
       const { error } = await supabase
-        .from('seplan_tasks')
+        .from('sefin_tasks')
         .update({ 
           status: 'SIGNED', 
           assinado_em: new Date().toISOString(),
@@ -124,7 +124,7 @@ export function useSeplanTasks(): UseSeplanTasksReturn {
   const rejectTask = async (id: string, motivo: string): Promise<boolean> => {
     try {
       const { error } = await supabase
-        .from('seplan_tasks')
+        .from('sefin_tasks')
         .update({ 
           status: 'REJECTED',
           updated_at: new Date().toISOString()

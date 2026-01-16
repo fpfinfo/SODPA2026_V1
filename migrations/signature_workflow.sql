@@ -1,5 +1,5 @@
 -- Migration: Add Signature Delegation Workflow Columns
--- Run this in Supabase SQL Editor to enable AJSEFIN -> SEPLAN signature flow
+-- Run this in Supabase SQL Editor to enable AJSEFIN -> SEFIN signature flow
 
 -- Add signature workflow columns to documentos table
 DO $$
@@ -30,12 +30,12 @@ FOR SELECT USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ajsefin')
 );
 
--- RLS Policy: Ordenador/SEPLAN can view documents assigned to them
+-- RLS Policy: Ordenador/SEFIN can view documents assigned to them
 DROP POLICY IF EXISTS "Ordenador can view assigned documents" ON documentos;
 CREATE POLICY "Ordenador can view assigned documents" ON documentos 
 FOR SELECT USING (
   assigned_signer_id = auth.uid() OR
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('ordenador', 'seplan'))
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('ordenador', 'sefin'))
 );
 
 -- RLS Policy: Ordenador can update documents assigned to them (for signing)
@@ -43,7 +43,7 @@ DROP POLICY IF EXISTS "Ordenador can sign assigned documents" ON documentos;
 CREATE POLICY "Ordenador can sign assigned documents" ON documentos 
 FOR UPDATE USING (
   assigned_signer_id = auth.uid() OR
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('ordenador', 'seplan'))
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('ordenador', 'sefin'))
 );
 
 -- RLS Policy: AJSEFIN can insert documents

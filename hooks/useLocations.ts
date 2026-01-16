@@ -302,8 +302,8 @@ const MOCK_MUNICIPIOS_FALLBACK: Municipio[] = [
 
 const MOCK_LOTACOES_FALLBACK: Lotacao[] = [
   { id: '1', codigo: 'SOSFU', nome: 'Serviço de Suprimento de Fundos', tipo: 'ADMINISTRATIVA' },
-  { id: '2', codigo: 'SEPLAN', nome: 'Secretaria de Planejamento, Coordenação e Finanças', tipo: 'ADMINISTRATIVA' },
+  { id: '2', codigo: 'SEFIN', nome: 'Secretaria de Finanças', tipo: 'ADMINISTRATIVA' },
   { id: '3', codigo: 'SGP', nome: 'Secretaria de Gestão de Pessoas', tipo: 'ADMINISTRATIVA' },
-  { id: '4', codigo: 'AJSEPLAN', nome: 'Assessoria Jurídica da SEPLAN', tipo: 'ADMINISTRATIVA' },
+  { id: '4', codigo: 'AJSEFIN', nome: 'Assessoria Jurídica da SEFIN', tipo: 'ADMINISTRATIVA' },
   { id: '5', codigo: 'CMCBEL', nome: 'Central de Mandados de Belém', tipo: 'JURISDICIONAL', comarca_id: '1' },
 ];

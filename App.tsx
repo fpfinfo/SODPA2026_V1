@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DashboardSOSFU } from './components/DashboardSOSFU';
 import { SupridoDashboard } from './components/Suprido/SupridoDashboard';
 import { GestorDashboard } from './components/Gestor/GestorDashboard';
-import { SeplanDashboard } from './components/SeplanDashboard';
+import { SefinDashboard } from './components/SefinDashboard';
 import { AjsefinDashboard } from './components/AjsefinDashboard';
 import { SgpDashboard } from './components/SgpDashboard';
 import { LoginPage } from './components/LoginPage';
@@ -24,7 +24,7 @@ const AppContent: React.FC = () => {
   const [sosfuForceSettings, setSosfuForceSettings] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [previousActiveRole, setPreviousActiveRole] = useState<AppRole | null>(null); // Stores role before profile navigation
-  // Shared processes state for cross-module integration (e.g., SOSFU -> SEPLAN)
+  // Shared processes state for cross-module integration (e.g., SOSFU -> SEFIN)
   const [sharedProcesses, setSharedProcesses] = useState<Process[]>([]);
 
   const fetchUser = async () => {
@@ -117,7 +117,7 @@ const AppContent: React.FC = () => {
   };
 
   // Check if user is currently viewing the SOSFU module (not just if their role is SOSFU)
-  const isInSosfuModule = ![AppRole.SUPRIDO, AppRole.GESTOR, AppRole.SEPLAN, AppRole.AJSEFIN, AppRole.SGP].includes(activeRole);
+  const isInSosfuModule = ![AppRole.SUPRIDO, AppRole.GESTOR, AppRole.SEFIN, AppRole.AJSEFIN, AppRole.SGP].includes(activeRole);
 
   const handlePreferences = () => {
     // Se estiver no módulo SUPRIDO, abre as preferências/perfil
@@ -258,8 +258,8 @@ const AppContent: React.FC = () => {
         {activeRole === AppRole.GESTOR && (
           <GestorDashboard />
         )}
-        {activeRole === AppRole.SEPLAN && (
-          <SeplanDashboard processes={sharedProcesses} />
+        {activeRole === AppRole.SEFIN && (
+          <SefinDashboard processes={sharedProcesses} />
         )}
         {activeRole === AppRole.AJSEFIN && (
           <AjsefinDashboard />
@@ -267,7 +267,7 @@ const AppContent: React.FC = () => {
         {activeRole === AppRole.SGP && (
           <SgpDashboard />
         )}
-        {![AppRole.SUPRIDO, AppRole.GESTOR, AppRole.SEPLAN, AppRole.AJSEFIN, AppRole.SGP].includes(activeRole) && (
+        {![AppRole.SUPRIDO, AppRole.GESTOR, AppRole.SEFIN, AppRole.AJSEFIN, AppRole.SGP].includes(activeRole) && (
           <DashboardSOSFU 
             forceTab={sosfuForceSettings ? 'SETTINGS' : null}
             onInternalTabChange={() => setSosfuForceSettings(false)}

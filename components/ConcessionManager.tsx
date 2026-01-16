@@ -35,7 +35,7 @@ interface ConcessionManagerProps {
   processes: Process[];
   onUpdateStatus: (processId: string, newStatus: string) => void;
   onUpdateExecutionNumbers: (processId: string, numbers: { ne_numero?: string; dl_numero?: string; ob_numero?: string }) => Promise<void>;
-  onTramitToSeplan: (processId: string) => Promise<void>;
+  onTramitToSefin: (processId: string) => Promise<void>;
   onCompleteExecution: (processId: string) => Promise<void>;
   refresh: () => void;
   budgetCap?: number; // Mocked Total Budget
@@ -47,7 +47,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
     processes, 
     onUpdateStatus, 
     onUpdateExecutionNumbers,
-    onTramitToSeplan,
+    onTramitToSefin,
     onCompleteExecution,
     refresh,
     budgetCap = 500000 
@@ -146,25 +146,25 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
 
   const hasDoc = (type: DocType) => selectedProcess?.generatedDocuments?.some(d => d.type === type);
 
-  const handleTramitarSeplan = async () => {
+  const handleTramitarSefin = async () => {
       if (!hasDoc('PORTARIA') || !hasDoc('CERTIDAO_REGULARIDADE') || !hasDoc('NOTA_EMPENHO')) {
           alert('Gere a Portaria, a Certidão e a NE antes de tramitar.');
           return;
       }
       
       try {
-          await onTramitToSeplan(selectedProcess!.id);
-          setSuccessMessage(`✅ Processo ${selectedProcess!.protocolNumber} tramitado para SEPLAN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
+          await onTramitToSefin(selectedProcess!.id);
+          setSuccessMessage(`✅ Processo ${selectedProcess!.protocolNumber} tramitado para SEFIN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
           setTimeout(() => setSuccessMessage(null), 10000);
           refresh();
       } catch (err) {
-          alert('Erro ao tramitar para SEPLAN: ' + (err as Error).message);
+          alert('Erro ao tramitar para SEFIN: ' + (err as Error).message);
       }
   };
 
-  // Simulates Return from SEPLAN
-  const handleSimulateSeplanReturn = async () => {
-      if(confirm('Simular assinatura e retorno da SEPLAN?')) {
+  // Simulates Return from SEFIN
+  const handleSimulateSefinReturn = async () => {
+      if(confirm('Simular assinatura e retorno da SEFIN?')) {
           const { error } = await supabase.from('solicitacoes').update({ status: ConcessionStatus.FINANCE }).eq('id', selectedProcess!.id);
           if (error) alert('Erro ao simular: ' + error.message);
           else refresh();
@@ -260,7 +260,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                                       <img src={BRASAO_TJPA_URL} className="w-20 mb-2" alt="Brasão TJPA" />
                                       <h1 className="font-bold text-sm uppercase text-slate-900">Poder Judiciário</h1>
                                       <h2 className="font-bold text-sm uppercase text-slate-900">Tribunal de Justiça do Estado do Pará</h2>
-                                      <h3 className="text-xs text-slate-700 font-medium">Secretaria de Planejamento, Coordenação e Finanças</h3>
+                                      <h3 className="text-xs text-slate-700 font-medium">Secretaria de Finanças</h3>
                                       <p className="text-[10px] text-slate-500 font-medium">Av. Almirante Barroso, 3089 - CEP 66.613-710 - Fone/Fax (091) 3205-3241</p>
                                   </div>
                                   
@@ -270,7 +270,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                                   {/* Título da Portaria */}
                                   <div className="text-center mb-10">
                                       <h2 className="text-[#1e40af] font-bold text-lg uppercase tracking-tight">
-                                          PORTARIA DE SUPRIMENTO DE FUNDOS Nº {Math.floor(Math.random()*100)}/2026-SEPLAN/TJE
+                                          PORTARIA DE SUPRIMENTO DE FUNDOS Nº {Math.floor(Math.random()*100)}/2026-SEFIN/TJE
                                       </h2>
                                   </div>
 
@@ -393,7 +393,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                                   <div className="mt-16 pt-8 border-t border-dashed border-slate-300 text-center">
                                       <div className="inline-block bg-amber-50 border border-amber-200 rounded-lg px-6 py-4">
                                           <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">⚠️ Documento Minuta</p>
-                                          <p className="text-[9px] text-amber-600 mt-1">Assinatura será gerada após tramitação para SEPLAN</p>
+                                          <p className="text-[9px] text-amber-600 mt-1">Assinatura será gerada após tramitação para SEFIN</p>
                                       </div>
                                   </div>
                               </>
@@ -452,7 +452,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                                           <div className="flex flex-col items-center text-center space-y-1 mb-8">
                                               <img src={BRASAO_TJPA_URL} className="w-16 mb-2" alt="Brasão TJPA" />
                                               <h1 className="font-bold text-xs uppercase text-slate-900 underline underline-offset-4">Tribunal de Justiça do Pará</h1>
-                                              <h2 className="text-[10px] uppercase text-slate-700">Secretaria de Planejamento, Coordenação e Finanças</h2>
+                                              <h2 className="text-[10px] uppercase text-slate-700">Secretaria de Finanças</h2>
                                           </div>
                                           
                                           <div className="text-center mb-10">
@@ -462,7 +462,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                                           </div>
 
                                           <p>
-                                              A Secretaria de Planejamento, Coordenação e Finanças do Tribunal de Justiça do Estado do Pará, no uso de suas atribuições legais, e considerando a análise técnica realizada pela equipe de Auditoria do SOSFU,
+                                              A Secretaria de Finanças do Tribunal de Justiça do Estado do Pará, no uso de suas atribuições legais, e considerando a análise técnica realizada pela equipe de Auditoria do SOSFU,
                                           </p>
                                           
                                           <p className="font-bold text-slate-800">RESOLVE:</p>
@@ -501,9 +501,9 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
   // Logic to check if ready to tramit - docs must be generated
   const isReadyToTramit = hasDoc('PORTARIA') && hasDoc('CERTIDAO_REGULARIDADE') && hasDoc('NOTA_EMPENHO');
   // Editable if not already sent for signature, in finance phase, or already granted
-  const isEditableStatus = selectedProcess?.status !== ConcessionStatus.SIGNATURE && 
+  const isEditableStatus = selectedProcess?.status !== ConcessionStatus.AWAITING_SIGNATURE && 
                            selectedProcess?.status !== ConcessionStatus.FINANCE && 
-                           selectedProcess?.status !== ConcessionStatus.GRANTED;
+                           selectedProcess?.status !== ConcessionStatus.COMPLETE;
 
   return (
     <div className="h-full flex flex-col bg-slate-50/50 overflow-hidden animate-in fade-in">
@@ -518,7 +518,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                     </div>
                     <div className="flex-1">
                         <p className="font-bold text-sm">{successMessage}</p>
-                        <p className="text-xs text-emerald-100 mt-1">Acesse o módulo SEPLAN para visualizar na caixa de assinaturas.</p>
+                        <p className="text-xs text-emerald-100 mt-1">Acesse o módulo SEFIN para visualizar na caixa de assinaturas.</p>
                     </div>
                     <button 
                         onClick={() => setSuccessMessage(null)} 
@@ -573,9 +573,9 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                         <option value="ALL">Todos os Status</option>
                         <option value={ConcessionStatus.TRIAGE}>Triagem</option>
                         <option value={ConcessionStatus.ANALYSIS}>Análise Técnica</option>
-                        <option value={ConcessionStatus.SIGNATURE}>Assinaturas</option>
+                        <option value={ConcessionStatus.AWAITING_SIGNATURE}>Assinaturas</option>
                         <option value={ConcessionStatus.FINANCE}>Financeiro</option>
-                        <option value={ConcessionStatus.GRANTED}>Concedido</option>
+                        <option value={ConcessionStatus.COMPLETE}>Concedido</option>
                     </select>
                 </div>
                 
@@ -816,36 +816,36 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
                                             </div>
                                         </div>
 
-                                        {/* Send to SEPLAN Action */}
+                                        {/* Send to SEFIN Action */}
                                         <div className="mt-4 flex justify-end">
                                             <button 
-                                                onClick={handleTramitarSeplan}
+                                                onClick={handleTramitarSefin}
                                                 disabled={!isReadyToTramit || !isEditableStatus}
                                                 className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all ${
                                                     !isReadyToTramit || !isEditableStatus
                                                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                                     : 'bg-slate-900 text-white hover:bg-slate-800'
                                                 }`}
-                                                title={!isReadyToTramit ? "Gere os 3 documentos obrigatórios acima para habilitar." : "Enviar para SEPLAN"}
+                                                title={!isReadyToTramit ? "Gere os 3 documentos obrigatórios acima para habilitar." : "Enviar para SEFIN"}
                                                 >
-                                                    <Send size={16}/> Tramitar para SEPLAN (Assinatura Lote)
+                                                    <Send size={16}/> Tramitar para SEFIN (Assinatura Lote)
                                                 </button>
                                         </div>
                                     </>
                                 )}
 
-                                {/* Wait State for SEPLAN */}
-                                {selectedProcess.status === ConcessionStatus.SIGNATURE && (
+                                {/* Wait State for SEFIN */}
+                                {selectedProcess.status === ConcessionStatus.AWAITING_SIGNATURE && (
                                     <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl flex items-center justify-between animate-pulse">
                                         <div className="flex items-center gap-3">
                                             <Lock size={20} className="text-amber-600"/>
                                             <div>
                                                 <h4 className="text-sm font-black text-amber-800 uppercase">Aguardando Assinatura</h4>
-                                                <p className="text-xs text-amber-700">Processo em posse do Ordenador de Despesa (SEPLAN).</p>
+                                                <p className="text-xs text-amber-700">Processo em posse do Ordenador de Despesa (SEFIN).</p>
                                             </div>
                                         </div>
                                         {/* Dev Button to Force Return */}
-                                        <button onClick={handleSimulateSeplanReturn} className="text-[10px] underline text-amber-600 hover:text-amber-800 font-bold">
+                                        <button onClick={handleSimulateSefinReturn} className="text-[10px] underline text-amber-600 hover:text-amber-800 font-bold">
                                             [DEV: Simular Retorno]
                                         </button>
                                     </div>

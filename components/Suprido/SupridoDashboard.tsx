@@ -3859,7 +3859,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                   </li>
                   <li className="flex items-center gap-2 text-sm text-slate-700">
                     <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-                    <strong>Ordenador de Despesa da SEPLAN</strong>
+                    <strong>Ordenador de Despesa da SEFIN</strong>
                   </li>
                 </ul>
               </div>

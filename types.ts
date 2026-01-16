@@ -2,7 +2,7 @@ export enum AppRole {
   SUPRIDO = 'SUPRIDO',
   GESTOR = 'GESTOR',
   SOSFU = 'SOSFU',
-  SEPLAN = 'SEPLAN',
+  SEFIN = 'SEFIN',
   AJSEFIN = 'AJSEFIN',
   SGP = 'SGP'
 }
@@ -101,9 +101,12 @@ export interface AdminBudget {
 export enum ConcessionStatus {
   TRIAGE = 'Triagem',
   ANALYSIS = 'Análise Técnica',
-  SIGNATURE = 'Assinaturas',
-  FINANCE = 'Empenho/Financeiro',
-  GRANTED = 'Concedido'
+  AWAITING_SIGNATURE = 'AGUARDANDO_ASSINATURA', // Novo status para fluxo SEFIN
+  FINANCE = 'FINANCEIRO',
+  COMPLETE = 'CONCLUIDO',
+  // Novos status de tramitação institucional
+  SENT_TO_SEFIN = 'ENVIADO_SEFIN',
+  RETURNED_FROM_SEFIN = 'RETORNADO_SEFIN'
 }
 
 // Added AccountStatus enum for accountability steps

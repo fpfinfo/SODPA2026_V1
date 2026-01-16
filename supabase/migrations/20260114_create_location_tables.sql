@@ -153,9 +153,9 @@ ON CONFLICT (codigo_ibge) DO NOTHING;
 -- Seed Lotações
 INSERT INTO lotacoes (codigo, nome, tipo, comarca_id) VALUES
 ('SOSFU', 'Serviço de Suprimento de Fundos', 'ADMINISTRATIVA', NULL),
-('SEPLAN', 'Secretaria de Planejamento, Coordenação e Finanças', 'ADMINISTRATIVA', NULL),
+('SEFIN', 'Secretaria de Finanças', 'ADMINISTRATIVA', NULL),
 ('SGP', 'Secretaria de Gestão de Pessoas', 'ADMINISTRATIVA', NULL),
-('AJSEPLAN', 'Assessoria Jurídica da SEPLAN', 'ADMINISTRATIVA', NULL)
+('AJSEFIN', 'Assessoria Jurídica da SEFIN', 'ADMINISTRATIVA', NULL)
 ON CONFLICT (codigo) DO NOTHING;
 
 -- Lotações Jurisdicionais vinculadas às comarcas

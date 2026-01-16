@@ -152,13 +152,13 @@ export const useSOSFUProcesses = () => {
     await fetchProcesses();
   };
 
-  // Tramit to SEPLAN for signature
-  const tramitToSeplan = async (processId: string) => {
+  // Tramit to SEFIN for signature
+  const tramitToSefin = async (processId: string) => {
     const { error } = await supabase
       .from('solicitacoes')
       .update({
         status: 'AGUARDANDO ASSINATURA',
-        destino_atual: 'SEPLAN',
+        destino_atual: 'SEFIN',
         updated_at: new Date().toISOString()
       })
       .eq('id', processId);
@@ -169,10 +169,10 @@ export const useSOSFUProcesses = () => {
     await supabase.from('historico_tramitacao').insert({
       solicitacao_id: processId,
       origem: 'SOSFU',
-      destino: 'SEPLAN',
+      destino: 'SEFIN',
       status_anterior: 'EM ANÁLISE',
       status_novo: 'AGUARDANDO ASSINATURA',
-      observacao: 'Enviado para assinatura do Ordenador'
+      observacao: 'Enviado para assinatura do Ordenador (SEFIN)'
     });
     
     await fetchProcesses();
@@ -219,7 +219,7 @@ export const useSOSFUProcesses = () => {
     getInbox,
     assignToUser,
     updateExecutionNumbers,
-    tramitToSeplan,
+    tramitToSefin,
     completeExecution,
     refresh: fetchProcesses
   };

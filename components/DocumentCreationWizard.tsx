@@ -142,7 +142,7 @@ export const DocumentCreationWizard: React.FC<DocumentCreationWizardProps> = ({
     } else if (resolvedUser.role === 'AJSEFIN' && selectedType === 'DECISAO') {
         setSignNow(false);
         // Try to find Ordenador
-        const ord = availableSigners.find(s => s.role === 'ORDENADOR' || s.role === 'SEPLAN');
+        const ord = availableSigners.find(s => s.role === 'ORDENADOR' || s.role === 'SEFIN');
         if (ord) setSignatoryId(ord.id);
     } else {
         setSignNow(true);

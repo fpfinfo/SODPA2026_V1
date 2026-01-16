@@ -41,7 +41,7 @@ const MOCK_ADMIN_UNITS: AdminUnit[] = [
   { id: '1', name: 'Secretaria de Informática', shortName: 'SECIN', annualCap: 150000, executed: 45000 },
   { id: '2', name: 'Secretaria de Engenharia', shortName: 'SECENG', annualCap: 120000, executed: 80000 },
   { id: '3', name: 'Secretaria de Gestão de Pessoas (SGP)', shortName: 'SGP', annualCap: 50000, executed: 12000 },
-  { id: '4', name: 'Gabinete Militar', shortName: 'GABMIL', annualCap: 80000, executed: 25000 },
+  { id: '4', name: 'Coordenadoria Militar', shortName: 'GABMIL', annualCap: 80000, executed: 25000 },
   { id: '5', name: 'Coordenadoria de Cerimonial', shortName: 'CERIM', annualCap: 60000, executed: 55000 },
 ];
 

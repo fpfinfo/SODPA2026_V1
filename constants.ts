@@ -84,7 +84,7 @@ export const MOCK_ADMIN_BUDGETS: AdminBudget[] = [
   { unitId: 'ADM01', unitName: 'Secretaria de Informática', annualCap: 150000.00, executed: 45000.00 },
   { unitId: 'ADM02', unitName: 'Secretaria de Engenharia', annualCap: 120000.00, executed: 80000.00 },
   { unitId: 'ADM03', unitName: 'Secretaria de Gestão de Pessoas (SGP)', annualCap: 50000.00, executed: 12000.00 },
-  { unitId: 'ADM04', unitName: 'Gabinete Militar', annualCap: 80000.00, executed: 25000.00 },
+  { unitId: 'ADM04', unitName: 'Coordenadoria Militar', annualCap: 80000.00, executed: 25000.00 },
   { unitId: 'ADM05', unitName: 'Coordenadoria de Cerimonial', annualCap: 60000.00, executed: 55000.00 },
 ];
 
@@ -239,9 +239,9 @@ export const MOCK_PROCESSES: Process[] = [
     slaDeadline: generateDate(2),
     assignedToId: null, // Na caixa de entrada da SGP (conceitual, pois SGP tem usuários próprios)
     priority: 'CRITICAL',
-    decisionSignedAt: generateDate(-2), // Decisão SEPLAN assinada
+    decisionSignedAt: generateDate(-2), // Decisão SEFIN assinada
     legalDeadline: generateDate(-1), // Prazo recursal expirou
-    purpose: 'Tomada de Contas Especial. Decisão SEPLAN Nº 001/2026 determinando desconto em folha.'
+    purpose: 'Tomada de Contas Especial. Decisão SEFIN Nº 001/2026 determinando desconto em folha.'
   }
 ];
 
