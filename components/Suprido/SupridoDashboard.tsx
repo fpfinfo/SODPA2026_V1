@@ -208,6 +208,17 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const [tramitacaoHistory, setTramitacaoHistory] = useState<any[]>([]);
   const [lastDevolutionReason, setLastDevolutionReason] = useState<string | null>(null);
   
+  // Draft CRUD state - for editing and deleting drafts
+  const [showDeleteDraftConfirm, setShowDeleteDraftConfirm] = useState(false);
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
+  const [draftEditData, setDraftEditData] = useState<{
+    valor: number;
+    descricao: string;
+    dataInicio: string;
+    dataFim: string;
+  } | null>(null);
+  const [isSavingDraftEdit, setIsSavingDraftEdit] = useState(false);
+  
   // Edit mode for returned processes - Suprido can edit when true, blocks after resubmit
   const [isInEditMode, setIsInEditMode] = useState(false);
   
@@ -675,6 +686,102 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     } catch (error) {
       console.error("Error refreshing history:", error);
     }
+  };
+
+  // Draft CRUD Functions
+  const handleOpenDraftEdit = () => {
+    if (!selectedProcess) return;
+    setDraftEditData({
+      valor: selectedProcess.val || selectedProcess.valor_solicitado || 0,
+      descricao: selectedProcess.descricao || selectedProcess.desc || '',
+      dataInicio: selectedProcess.startDate || selectedProcess.data_inicio || '',
+      dataFim: selectedProcess.endDate || selectedProcess.data_fim || ''
+    });
+    setIsEditingDraft(true);
+  };
+
+  const handleSaveDraftEdit = async () => {
+    if (!selectedProcess || !draftEditData) return;
+    
+    // Validation: value must be > 0
+    if (!draftEditData.valor || draftEditData.valor <= 0) {
+      alert('⚠️ O valor da solicitação é obrigatório e deve ser maior que zero!');
+      return;
+    }
+    
+    setIsSavingDraftEdit(true);
+    try {
+      const { error } = await supabase
+        .from('solicitacoes')
+        .update({
+          valor_solicitado: draftEditData.valor,
+          descricao: draftEditData.descricao,
+          data_inicio: draftEditData.dataInicio || null,
+          data_fim: draftEditData.dataFim || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedProcess.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setSelectedProcess({
+        ...selectedProcess,
+        val: draftEditData.valor,
+        valor_solicitado: draftEditData.valor,
+        descricao: draftEditData.descricao,
+        desc: draftEditData.descricao,
+        startDate: draftEditData.dataInicio,
+        data_inicio: draftEditData.dataInicio,
+        endDate: draftEditData.dataFim,
+        data_fim: draftEditData.dataFim
+      });
+      
+      setIsEditingDraft(false);
+      setDraftEditData(null);
+      await refreshHistory();
+      alert('✅ Rascunho atualizado com sucesso!');
+    } catch (error) {
+      console.error('Error updating draft:', error);
+      alert('❌ Erro ao atualizar rascunho: ' + (error as Error).message);
+    } finally {
+      setIsSavingDraftEdit(false);
+    }
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!selectedProcess) return;
+    
+    try {
+      // First delete related documents
+      await supabase
+        .from('documentos')
+        .delete()
+        .eq('solicitacao_id', selectedProcess.id);
+      
+      // Then delete the draft
+      const { error } = await supabase
+        .from('solicitacoes')
+        .delete()
+        .eq('id', selectedProcess.id);
+      
+      if (error) throw error;
+      
+      setShowDeleteDraftConfirm(false);
+      setSelectedProcess(null);
+      setCurrentView('DASHBOARD');
+      await refreshHistory();
+      alert('✅ Rascunho excluído com sucesso!');
+    } catch (error) {
+      console.error('Error deleting draft:', error);
+      alert('❌ Erro ao excluir rascunho: ' + (error as Error).message);
+    }
+  };
+
+  // Check if process is a draft (can be edited/deleted)
+  const isDraftProcess = (status: string) => {
+    const draftStatuses = ['rascunho', 'RASCUNHO', 'draft'];
+    return draftStatuses.includes(status?.toLowerCase?.() || status);
   };
 
   useEffect(() => {
@@ -1179,6 +1286,25 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                  <button onClick={() => setSubView('DETAILS')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${subView === 'DETAILS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'}`}><FileSearchIcon size={14}/> Detalhes</button>
                  <button onClick={() => setShowDocumentWizard(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/50 transition-all"><Plus size={14}/> Novo</button>
                  <button onClick={() => setShowTramitarModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/50 transition-all"><ArrowUpRight size={14}/> Tramitar</button>
+                 
+                 {/* Draft actions - only show for draft/rascunho status */}
+                 {isDraftProcess(selectedProcess?.status) && (
+                   <>
+                     <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                     <button 
+                       onClick={handleOpenDraftEdit} 
+                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 hover:bg-amber-100 transition-all border border-amber-200"
+                     >
+                       <Edit size={14}/> Editar
+                     </button>
+                     <button 
+                       onClick={() => setShowDeleteDraftConfirm(true)} 
+                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-50 hover:bg-red-100 transition-all border border-red-200"
+                     >
+                       <Trash2 size={14}/> Excluir
+                     </button>
+                   </>
+                 )}
               </div>
            </div>
 
@@ -3663,6 +3789,147 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                 className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors"
               >
                 Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draft Edit Modal */}
+      {isEditingDraft && draftEditData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 bg-amber-50 border-b border-amber-100 flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-600 text-white rounded-2xl flex items-center justify-center">
+                <Edit size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight">Editar Rascunho</h3>
+                <p className="text-xs text-amber-600 font-medium">Corrija os dados antes de enviar</p>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Valor */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  Valor da Solicitação <span className="text-red-500">*</span>
+                  {(!draftEditData.valor || draftEditData.valor <= 0) && (
+                    <span className="text-red-500 text-[10px] normal-case font-bold">(obrigatório)</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={draftEditData.valor}
+                    onChange={(e) => setDraftEditData({ ...draftEditData, valor: parseFloat(e.target.value) || 0 })}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl text-lg font-bold focus:ring-2 focus:ring-amber-200 outline-none transition-all ${
+                      !draftEditData.valor || draftEditData.valor <= 0 
+                        ? 'border-red-300 bg-red-50 text-red-700' 
+                        : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+              
+              {/* Descrição */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Descrição / Finalidade</label>
+                <textarea
+                  value={draftEditData.descricao}
+                  onChange={(e) => setDraftEditData({ ...draftEditData, descricao: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-amber-200 focus:border-amber-400 outline-none transition-all resize-none"
+                  placeholder="Descreva a finalidade da solicitação..."
+                />
+              </div>
+              
+              {/* Datas */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Data Início</label>
+                  <input
+                    type="date"
+                    value={draftEditData.dataInicio}
+                    onChange={(e) => setDraftEditData({ ...draftEditData, dataInicio: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-amber-200 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Data Fim</label>
+                  <input
+                    type="date"
+                    value={draftEditData.dataFim}
+                    onChange={(e) => setDraftEditData({ ...draftEditData, dataFim: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-amber-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => { setIsEditingDraft(false); setDraftEditData(null); }}
+                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                disabled={isSavingDraftEdit}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveDraftEdit}
+                disabled={isSavingDraftEdit || !draftEditData.valor || draftEditData.valor <= 0}
+                className="px-8 py-3 bg-amber-600 text-white rounded-xl text-sm font-black uppercase hover:bg-amber-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSavingDraftEdit ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Salvando...</>
+                ) : (
+                  <><Save size={16}/> Salvar Alterações</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Draft Confirmation Modal */}
+      {showDeleteDraftConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 bg-red-50 border-b border-red-100 flex items-center gap-4">
+              <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-red-900 uppercase tracking-tight">Excluir Rascunho</h3>
+                <p className="text-xs text-red-600 font-medium">Esta ação não pode ser desfeita</p>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-slate-600 font-medium">
+                Tem certeza que deseja excluir o rascunho <strong className="text-slate-900">{selectedProcess?.nup}</strong>?
+              </p>
+              <p className="text-sm text-slate-500 mt-2">
+                Todos os documentos associados também serão excluídos.
+              </p>
+            </div>
+            
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteDraftConfirm(false)}
+                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteDraft}
+                className="px-8 py-3 bg-red-600 text-white rounded-xl text-sm font-black uppercase hover:bg-red-700 transition-all flex items-center gap-2"
+              >
+                <Trash2 size={16}/> Excluir Rascunho
               </button>
             </div>
           </div>
