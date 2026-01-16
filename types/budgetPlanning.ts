@@ -31,7 +31,8 @@ export interface DotacaoItem {
   element_code: string;      // "33.90.30", "33.90.33", etc.
   element_name: string;      // "Material de Consumo"
   dotacao_code: string;      // Editable: "170", "180", etc.
-  allocated_value: number;   // R$ value
+  allocated_value: number;   // R$ value (Dotação Atual)
+  committed_value: number;   // R$ value (Valor Empenhado) - New field
 }
 
 // PTRES allocation container
@@ -83,6 +84,7 @@ export function createDefaultBudgetPlan(year: number): BudgetPlanConfig {
       element_name: el.name,
       dotacao_code: String(170 + idx), // Default dotação codes
       allocated_value: 0,
+      committed_value: 0, // Initialize committed value
     })),
   });
 

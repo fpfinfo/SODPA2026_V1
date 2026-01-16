@@ -412,14 +412,20 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-1/3">
+                        <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-1/4">
                           Elemento de Despesa
                         </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">
+                        <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">
                           Nº Dotação
                         </th>
-                        <th className="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-48">
-                          Valor Alocado (R$)
+                        <th className="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">
+                          Dotação Atual
+                        </th>
+                        <th className="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">
+                          Vlr. Empenhado
+                        </th>
+                        <th className="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">
+                          Disponível
                         </th>
                         <th className="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">
                           % PTRES
@@ -430,6 +436,7 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                       {allocation.items.map((item) => {
                         const elementConfig = EXPENSE_ELEMENTS.find(e => e.code === item.element_code);
                         const itemBreakdown = ptresValues?.items_breakdown.find(b => b.element_code === item.element_code);
+                        const available = (item.allocated_value || 0) - (item.committed_value || 0);
 
                         return (
                           <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
@@ -452,7 +459,7 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                                 type="text"
                                 value={item.dotacao_code}
                                 onChange={(e) => handleDotacaoCodeChange(ptresCode, item.element_code, e.target.value)}
-                                className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-20 px-2 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 placeholder="170"
                               />
                             </td>
@@ -463,11 +470,27 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                                   type="number"
                                   value={item.allocated_value || ''}
                                   onChange={(e) => handleValueChange(ptresCode, item.element_code, parseFloat(e.target.value) || 0)}
-                                  className="w-full pl-8 pr-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                   placeholder="0,00"
                                   step="100"
                                 />
                               </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="relative opacity-70 cursor-not-allowed">
+                                <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                  type="number"
+                                  value={item.committed_value || 0}
+                                  disabled
+                                  className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-right text-slate-500"
+                                />
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <span className={`text-sm font-black ${available < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                {formatBRL(available)}
+                              </span>
                             </td>
                             <td className="px-4 py-4 text-right">
                               <span className={`text-sm font-black ${

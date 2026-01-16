@@ -157,13 +157,33 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
     const saved = localStorage.getItem('admin_units_budget');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved) as BudgetLineItem[];
-        // Basic validation to check if it has the new fields, otherwise ignore or migrate
-        // For simplicity, we just load if it looks like an array. 
-        // ideally we should check if 'expenseElement' exists, if not, maybe migrate old data
-        if (parsed.length > 0) setItems(parsed);
+        const parsed = JSON.parse(saved);
+        // Migration: Check if it's the old format (missing expenseElement)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const isOldFormat = !('expenseElement' in parsed[0]);
+          
+          if (isOldFormat) {
+            console.warn('[AdminBudgetTable] Migrating legacy data to new format');
+            const migrated = parsed.map((u: any) => ({
+              id: u.id,
+              unitName: u.name || u.unitName || 'Unidade Sem Nome',
+              shortName: u.shortName || '',
+              // Default new fields
+              expenseElement: '33.90.30',
+              dotationNumber: '000',
+              currentDotation: u.annualCap || u.currentDotation || 0,
+              committedValue: u.executed || u.committedValue || 0,
+            }));
+            setItems(migrated);
+            // Update storage immediately to fix it for next time
+            localStorage.setItem('admin_units_budget', JSON.stringify(migrated));
+          } else {
+            setItems(parsed as BudgetLineItem[]);
+          }
+        }
       } catch (e) {
-        console.warn('[AdminBudgetTable] Failed to parse saved data');
+        console.warn('[AdminBudgetTable] Failed to parse saved data, using default mock');
+        localStorage.removeItem('admin_units_budget'); // Clear corrupt data
       }
     }
   }, []);
