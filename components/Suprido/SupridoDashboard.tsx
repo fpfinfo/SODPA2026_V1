@@ -3437,20 +3437,50 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                         type="text" 
                         value={profileData.gestorNome || ''} 
                         onChange={(e) => setProfileData({...profileData, gestorNome: e.target.value})}
-                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-500"
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="Nome do gestor/chefe imediato"
+                        disabled={currentRole === 'GESTOR' && profileData.gestorNome === profileData.nome && profileData.gestorEmail === profileData.email}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email do Gestor</label>
-                      <input 
-                        type="email" 
-                        value={profileData.gestorEmail || ''} 
-                        onChange={(e) => setProfileData({...profileData, gestorEmail: e.target.value})}
-                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-500"
-                        placeholder="email@tjpa.jus.br"
-                      />
-                    </div>
+                      {currentRole === 'GESTOR' && (
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-xl">
+                          <input 
+                            type="checkbox"
+                            id="selfManager"
+                            checked={profileData.gestorNome === profileData.nome && profileData.gestorEmail === profileData.email}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setProfileData({
+                                  ...profileData,
+                                  gestorNome: profileData.nome,
+                                  gestorEmail: profileData.email
+                                });
+                              } else {
+                                setProfileData({
+                                  ...profileData,
+                                  gestorNome: '',
+                                  gestorEmail: ''
+                                });
+                              }
+                            }}
+                            className="w-4 h-4 rounded text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
+                          />
+                          <label htmlFor="selfManager" className="text-xs font-bold text-blue-200 cursor-pointer select-none">
+                            Sou meu próprio gestor
+                          </label>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Email do Gestor</label>
+                        <input 
+                          type="email" 
+                          value={profileData.gestorEmail || ''} 
+                          onChange={(e) => setProfileData({...profileData, gestorEmail: e.target.value})}
+                          disabled={currentRole === 'GESTOR' && profileData.gestorNome === profileData.nome && profileData.gestorEmail === profileData.email}
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          placeholder="email@tjpa.jus.br"
+                        />
+                      </div>
                   </div>
                 ) : (
                   <div>
