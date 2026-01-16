@@ -64,6 +64,10 @@ export const GestorDashboard: React.FC = () => {
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const [editingDoc, setEditingDoc] = useState<Partial<DocPiece> | null>(null);
   
+  // UX State
+  const [filterType, setFilterType] = useState<'ALL' | 'JURI' | 'EXTRA'>('ALL');
+  const [historyFilter, setHistoryFilter] = useState<'ALL' | 'SOSFU' | 'SUPRIDO'>('ALL');
+  
   // Compliance Checklist State
   const [checklist, setChecklist] = useState({
     budgetAvailable: false,
@@ -446,26 +450,37 @@ export const GestorDashboard: React.FC = () => {
 
   const renderKPIs = () => (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-blue-300 transition-all">
-              <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pendentes de Atesto</p>
-                  <p className="text-3xl font-black text-slate-800">{pendingProcesses.length}</p>
+          <div 
+            onClick={() => { setView('LIST'); setHistoryFilter('ALL'); }}
+            className={`p-6 rounded-[28px] border shadow-sm flex items-center justify-between group transition-all cursor-pointer relative overflow-hidden ${view === 'LIST' ? 'bg-blue-600 border-blue-600 ring-4 ring-blue-100' : 'bg-white border-slate-200 hover:border-blue-300'}`}
+          >
+              <div className="relative z-10">
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${view === 'LIST' ? 'text-blue-200' : 'text-slate-400'}`}>Pendentes de Atesto</p>
+                  <p className={`text-3xl font-black ${view === 'LIST' ? 'text-white' : 'text-slate-800'}`}>{pendingProcesses.length}</p>
               </div>
-              <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform"><Clock size={24}/></div>
+              <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'LIST' ? 'bg-blue-500/30 text-white' : 'bg-blue-50 text-blue-600'}`}><Clock size={24}/></div>
           </div>
-          <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-emerald-300 transition-all">
-              <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Atestados no Mês</p>
-                  <p className="text-3xl font-black text-slate-800">{atestadosNoMes}</p>
+
+          <div 
+            onClick={() => { setView('HISTORY'); setHistoryFilter('SOSFU'); fetchHistory(); }}
+            className={`p-6 rounded-[28px] border shadow-sm flex items-center justify-between group transition-all cursor-pointer relative overflow-hidden ${view === 'HISTORY' && historyFilter === 'SOSFU' ? 'bg-emerald-600 border-emerald-600 ring-4 ring-emerald-100' : 'bg-white border-slate-200 hover:border-emerald-300'}`}
+          >
+              <div className="relative z-10">
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${view === 'HISTORY' && historyFilter === 'SOSFU' ? 'text-emerald-200' : 'text-slate-400'}`}>Atestados no Mês</p>
+                  <p className={`text-3xl font-black ${view === 'HISTORY' && historyFilter === 'SOSFU' ? 'text-white' : 'text-slate-800'}`}>{atestadosNoMes}</p>
               </div>
-              <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl group-hover:scale-110 transition-transform"><BadgeCheck size={24}/></div>
+              <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'HISTORY' && historyFilter === 'SOSFU' ? 'bg-emerald-500/30 text-white' : 'bg-emerald-50 text-emerald-600'}`}><BadgeCheck size={24}/></div>
           </div>
-          <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-red-300 transition-all">
-              <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Devoluções</p>
-                  <p className="text-3xl font-black text-slate-800">{devolucoes}</p>
+
+          <div 
+            onClick={() => { setView('HISTORY'); setHistoryFilter('SUPRIDO'); fetchHistory(); }}
+            className={`p-6 rounded-[28px] border shadow-sm flex items-center justify-between group transition-all cursor-pointer relative overflow-hidden ${view === 'HISTORY' && historyFilter === 'SUPRIDO' ? 'bg-red-600 border-red-600 ring-4 ring-red-100' : 'bg-white border-slate-200 hover:border-red-300'}`}
+          >
+              <div className="relative z-10">
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${view === 'HISTORY' && historyFilter === 'SUPRIDO' ? 'text-red-200' : 'text-slate-400'}`}>Devoluções</p>
+                  <p className={`text-3xl font-black ${view === 'HISTORY' && historyFilter === 'SUPRIDO' ? 'text-white' : 'text-slate-800'}`}>{devolucoes}</p>
               </div>
-              <div className="p-4 bg-red-50 text-red-600 rounded-2xl group-hover:scale-110 transition-transform"><ThumbsDown size={24}/></div>
+              <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'HISTORY' && historyFilter === 'SUPRIDO' ? 'bg-red-500/30 text-white' : 'bg-red-50 text-red-600'}`}><ThumbsDown size={24}/></div>
           </div>
       </div>
   );
@@ -526,7 +541,12 @@ export const GestorDashboard: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {historyData.map(h => (
+            {historyData
+              .filter(h => {
+                if (historyFilter === 'ALL') return true;
+                return h.destino === historyFilter;
+              })
+              .map(h => (
               <div key={h.id} className="p-6 hover:bg-slate-50 transition-all">
                 <div className="flex justify-between items-start">
                   <div className="flex items-start gap-4">
@@ -583,7 +603,15 @@ export const GestorDashboard: React.FC = () => {
     </div>
   );
 
-  const renderList = () => (
+  const renderList = () => {
+    const filteredProcesses = pendingProcesses.filter(p => {
+      if (filterType === 'ALL') return true;
+      if (filterType === 'JURI') return p.type === 'SESSÃO DE JÚRI';
+      if (filterType === 'EXTRA') return p.type === 'EXTRA-EMERGENCIAL';
+      return true;
+    });
+
+    return (
     <div className="p-10 max-w-[1400px] mx-auto space-y-8 animate-in fade-in pb-20">
       <div className="flex justify-between items-end">
         <div>
@@ -593,7 +621,7 @@ export const GestorDashboard: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-3">
-            <button onClick={() => { fetchHistory(); setView('HISTORY'); }} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+            <button onClick={() => { fetchHistory(); setView('HISTORY'); setHistoryFilter('ALL'); }} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
                 <HistoryIcon size={16}/> Histórico
             </button>
             <button onClick={refreshAll} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-200 flex items-center gap-2">
@@ -604,193 +632,315 @@ export const GestorDashboard: React.FC = () => {
 
       {renderKPIs()}
 
-      <div className="space-y-4">
-        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest ml-1">Fila de Homologação</h3>
-        {pendingProcesses.length === 0 ? (
-            <div className="bg-white rounded-[32px] border border-slate-200 p-20 text-center opacity-50">
-                <CheckCircle2 size={64} className="mx-auto text-emerald-500 mb-4" />
-                <p className="text-xl font-black uppercase text-slate-900">Caixa Limpa</p>
-                <p className="text-sm">Todas as solicitações foram analisadas.</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest ml-1">Fila de Homologação</h3>
+          
+          {/* Filter Pills */}
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+             <button 
+                onClick={() => setFilterType('ALL')}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filterType === 'ALL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+             >
+                Todos
+             </button>
+             <button 
+                onClick={() => setFilterType('JURI')}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filterType === 'JURI' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+             >
+                Júri
+             </button>
+             <button 
+                onClick={() => setFilterType('EXTRA')}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filterType === 'EXTRA' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+             >
+                Emergencial
+             </button>
+          </div>
+        </div>
+
+        {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {[1,2,3,4,5,6].map(i => (
+                  <div key={i} className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm h-64 animate-pulse">
+                     <div className="flex justify-between items-start mb-6">
+                        <div className="w-12 h-12 bg-slate-200 rounded-xl"></div>
+                        <div className="w-20 h-6 bg-slate-100 rounded-lg"></div>
+                     </div>
+                     <div className="space-y-3 mb-8">
+                        <div className="w-3/4 h-6 bg-slate-200 rounded-lg"></div>
+                        <div className="w-1/2 h-4 bg-slate-100 rounded-lg"></div>
+                     </div>
+                     <div className="flex gap-2">
+                        <div className="w-16 h-5 bg-slate-100 rounded-md"></div>
+                        <div className="w-16 h-5 bg-slate-100 rounded-md"></div>
+                     </div>
+                  </div>
+               ))}
+            </div>
+        ) : filteredProcesses.length === 0 ? (
+            <div className="bg-white rounded-[32px] border border-slate-200 p-20 text-center opacity-50 border-dashed animate-in zoom-in-95 duration-500">
+                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 size={40} className="text-emerald-500" />
+                </div>
+                <p className="text-xl font-black uppercase text-slate-900">Tudo Limpo!</p>
+                <p className="text-sm text-slate-500 max-w-xs mx-auto mt-2">Você zerou sua fila de homologação. Bom trabalho!</p>
             </div>
         ) : (
-            pendingProcesses.map(p => (
-                <div key={p.id} onClick={() => { setSelectedProcess(p); setView('DETAILS'); }} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all cursor-pointer group relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
-                    <div className="flex justify-between items-start pl-4">
-                        <div className="flex items-start gap-5">
-                            <div className={`p-4 rounded-2xl ${p.type === 'SESSÃO DE JÚRI' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
-                                {p.type === 'SESSÃO DE JÚRI' ? <Gavel size={24}/> : <Clock size={24}/>}
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-3 mb-1">
-                                    <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded uppercase">{p.nup}</span>
-                                    <span className="text-[10px] font-bold text-slate-400">{p.date}</span>
-                                </div>
-                                <h3 className="text-lg font-black text-slate-800 leading-tight">{p.type}</h3>
-                                <p className="text-sm text-slate-500 font-medium">{p.interested}</p>
-                                
-                                <div className="mt-4 flex gap-2 flex-wrap">
-                                    {Array.isArray(p.items) && p.items.length > 0 ? p.items.slice(0, 3).map((item: any, i: number) => (
-                                        <span key={i} className="text-[10px] font-bold bg-slate-50 border border-slate-100 text-slate-500 px-2 py-1 rounded-lg">
-                                            {item.element || item.codigo || item.desc || 'Item'}
-                                        </span>
-                                    )) : null}
-                                    {Array.isArray(p.items) && p.items.length > 3 && (
-                                        <span className="text-[10px] font-bold bg-blue-50 border border-blue-100 text-blue-500 px-2 py-1 rounded-lg">
-                                            +{p.items.length - 3} mais
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+              {filteredProcesses.map(p => (
+                <div key={p.id} onClick={() => { setSelectedProcess(p); setView('DETAILS'); }} className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 hover:-translate-y-1 transition-all cursor-pointer group relative overflow-hidden flex flex-col h-full">
+                    <div className={`absolute top-0 left-0 w-full h-1 ${p.type === 'SESSÃO DE JÚRI' ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
+                    
+                    <div className="flex justify-between items-start mb-4">
+                        <div className={`p-3 rounded-xl ${p.type === 'SESSÃO DE JÚRI' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {p.type === 'SESSÃO DE JÚRI' ? <Gavel size={20}/> : <Clock size={20}/>}
                         </div>
-                        <div className="text-right">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
-                            <p className="text-2xl font-black text-slate-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.val)}</p>
-                            <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">
-                                    Analisar <ArrowLeft className="rotate-180" size={14}/>
+                        <span className="text-[10px] font-black bg-slate-50 text-slate-400 px-2 py-1 rounded-lg border border-slate-100">{p.nup}</span>
+                    </div>
+
+                    <div className="mb-6 flex-1">
+                        <h3 className="text-base font-black text-slate-800 leading-tight mb-1 line-clamp-2">{p.type}</h3>
+                        <p className="text-xs text-slate-500 font-medium mb-3">{p.interested}</p>
+                        
+                        <div className="flex gap-1 flex-wrap">
+                            {Array.isArray(p.items) && p.items.length > 0 ? p.items.slice(0, 2).map((item: any, i: number) => (
+                                <span key={i} className="text-[10px] font-bold bg-slate-50 border border-slate-100 text-slate-400 px-2 py-0.5 rounded-md truncate max-w-[100px]">
+                                    {item.element || item.code || 'Item'}
                                 </span>
-                            </div>
+                            )) : null}
+                             {Array.isArray(p.items) && p.items.length > 2 && (
+                                <span className="text-[10px] font-bold text-slate-300 px-1">+ {p.items.length - 2}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-auto">
+                        <div>
+                           <p className="text-[10px] font-black text-slate-300 uppercase tracking-wider">Valor</p>
+                           <p className="text-lg font-black text-slate-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.val)}</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                           <ArrowLeft className="rotate-180" size={14}/>
                         </div>
                     </div>
                 </div>
-            ))
+            ))}
+            </div>
         )}
       </div>
     </div>
   );
+  };
 
   const renderDetails = () => (
     <div className="flex h-full animate-in fade-in overflow-hidden bg-[#f8fafc]">
-      <aside className="w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm z-10">
-        {/* Process Tree */}
-        <div className="p-6 flex-1 overflow-y-auto">
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><LayoutList size={14} /> Árvore do Processo</p>
-           <div className="space-y-2">
-              <button onClick={() => setSubView('DETAILS')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'DETAILS' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-                 <FileSearch size={18} /> Detalhes do Processo
-              </button>
-              <button onClick={() => setSubView('COVER')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'COVER' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-                 <FileCode size={18} /> Capa do Processo
-              </button>
-              <button onClick={() => setSubView('REQUEST')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'REQUEST' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-                 <FileText size={18} /> Requerimento Inicial
-              </button>
-              <div className="pt-2 pb-2">
-                 <button onClick={() => setSubView('DOSSIER')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'DOSSIER' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-500 hover:bg-slate-50'}`}>
-                    <BookOpen size={18}/> DOSSIÊ DIGITAL
-                 </button>
-              </div>
-              <button onClick={() => setSubView('HISTORY')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'HISTORY' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-                 <Clock size={18} /> Histórico / Auditoria
-              </button>
-           </div>
-        </div>
+      {/* Navigation Rail */}
+      <aside className="w-20 lg:w-72 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm z-20 transition-all duration-300">
+         <div className="p-6 flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+              <Gavel size={20} />
+            </div>
+            <div className="hidden lg:block">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Processo</p>
+              <p className="text-sm font-black text-slate-800 uppercase tracking-tighter">{selectedProcess.nup}</p>
+            </div>
+         </div>
 
-        <div className="p-6 mt-auto">
-           <button onClick={() => setView('LIST')} className="w-full py-5 bg-slate-100 text-slate-600 rounded-3xl text-[10px] font-black uppercase hover:bg-slate-200 transition-all flex items-center justify-center gap-2"><ArrowLeft size={16} /> Voltar ao Painel</button>
-        </div>
+         <div className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+            <p className="hidden lg:block px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 mt-4">Navegação</p>
+            
+            <button onClick={() => setSubView('DETAILS')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group ${subView === 'DETAILS' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <div className={`p-2 rounded-lg ${subView === 'DETAILS' ? 'bg-white shadow-sm' : 'bg-slate-100 group-hover:bg-white'}`}><FileSearch size={18}/></div>
+               <span className="hidden lg:block text-xs font-bold">Detalhes</span>
+            </button>
+
+            <button onClick={() => setSubView('COVER')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group ${subView === 'COVER' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <div className={`p-2 rounded-lg ${subView === 'COVER' ? 'bg-white shadow-sm' : 'bg-slate-100 group-hover:bg-white'}`}><FileCode size={18}/></div>
+               <span className="hidden lg:block text-xs font-bold">Capa</span>
+            </button>
+
+            <button onClick={() => setSubView('REQUEST')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group ${subView === 'REQUEST' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <div className={`p-2 rounded-lg ${subView === 'REQUEST' ? 'bg-white shadow-sm' : 'bg-slate-100 group-hover:bg-white'}`}><FileText size={18}/></div>
+               <span className="hidden lg:block text-xs font-bold">Requerimento</span>
+            </button>
+
+            <div className="py-2">
+              <div className="w-full h-px bg-slate-100 my-2"></div>
+            </div>
+
+            <button onClick={() => setSubView('DOSSIER')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group ${subView === 'DOSSIER' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <div className={`p-2 rounded-lg ${subView === 'DOSSIER' ? 'bg-white/10' : 'bg-slate-100 group-hover:bg-white'}`}><BookOpen size={18}/></div>
+               <span className="hidden lg:block text-xs font-bold">Dossiê Digital</span>
+            </button>
+
+            <button onClick={() => setSubView('HISTORY')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group ${subView === 'HISTORY' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <div className={`p-2 rounded-lg ${subView === 'HISTORY' ? 'bg-white shadow-sm' : 'bg-slate-100 group-hover:bg-white'}`}><Clock size={18}/></div>
+               <span className="hidden lg:block text-xs font-bold">Auditoria</span>
+            </button>
+         </div>
+
+         <div className="p-4 mt-auto border-t border-slate-100">
+            <button onClick={() => setView('LIST')} className="w-full py-4 bg-slate-50 text-slate-500 rounded-2xl hover:bg-slate-100 hover:text-slate-700 transition-all flex items-center justify-center gap-3">
+              <ArrowLeft size={18} />
+              <span className="hidden lg:block text-xs font-bold uppercase tracking-wider">Voltar</span>
+            </button>
+         </div>
       </aside>
 
-      <main className="flex-1 overflow-hidden flex flex-col relative">
-        <div className="bg-white/80 backdrop-blur-xl p-4 rounded-[32px] shadow-2xl border border-white flex flex-col md:flex-row items-center justify-between sticky top-0 z-[100] gap-4 mx-4 mt-4">
-           <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Gavel size={24} /></div>
+      <main className="flex-1 overflow-hidden flex flex-col relative bg-[#f8fafc]">
+        {/* Header Actions Stripe */}
+        <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between shadow-sm z-10">
+           <div className="flex items-center gap-6">
               <div>
-                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">SCS • {selectedProcess.nup}</span>
-                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mt-1">Painel de Controle</h2>
+                <h2 className="text-xl font-black text-slate-800">{
+                  subView === 'DETAILS' ? 'Análise do Processo' :
+                  subView === 'COVER' ? 'Capa Oficial' :
+                  subView === 'REQUEST' ? 'Requerimento Inicial' :
+                  subView === 'DOSSIER' ? 'Autos Digitais' :
+                  'Histórico & Auditoria'
+                }</h2>
+                <div className="flex items-center gap-2 mt-1">
+                   <span className={`w-2 h-2 rounded-full ${selectedProcess.type === 'SESSÃO DE JÚRI' ? 'bg-amber-500' : 'bg-blue-500'}`}></span>
+                   <span className="text-xs font-medium text-slate-500">{selectedProcess.type}</span>
+                </div>
               </div>
            </div>
 
-           <div className="flex flex-wrap items-center gap-2 bg-slate-100/50 p-2 rounded-2xl border border-slate-200/50">
-              <button onClick={() => setSubView('DETAILS')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${subView === 'DETAILS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'}`}><FileSearch size={14}/> Detalhes</button>
+           <div className="flex items-center gap-3">
+              <div className="h-8 w-px bg-slate-200 mx-2"></div>
+              
               <button 
                 onClick={() => setShowDocumentWizard(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/50 transition-all"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
               >
-                  <Plus size={14}/> Novo
+                  <Plus size={16}/> <span className="hidden sm:inline">Adicionar Documento</span>
               </button>
-              <div className="w-px h-6 bg-slate-200 mx-1"></div>
-              <button onClick={handleReturnToSuprido} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-all">
-                  <ThumbsDown size={14}/> Devolver
+
+              <button 
+                onClick={handleReturnToSuprido}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-red-600 bg-red-50 hover:bg-red-100 transition-all border border-red-100"
+              >
+                  <ThumbsDown size={16}/> Devolver
               </button>
-              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
               {hasAtesto ? (
-                  <button onClick={handleForwardToSosfu} className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20">
-                      <Send size={14}/> Enviar p/ SOSFU
+                  <button onClick={handleForwardToSosfu} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
+                      <Send size={16}/> Enviar p/ SOSFU
                   </button>
               ) : (
                   <button 
                       onClick={handleGenerateAtesto} 
                       disabled={!isChecklistComplete}
-                      className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isChecklistComplete ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${
+                        isChecklistComplete 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 ring-4 ring-blue-500/10' 
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
                   >
-                      <BadgeCheck size={14}/> Gerar Atesto
+                      <BadgeCheck size={16}/> {isChecklistComplete ? 'Gerar Atesto' : 'Complete o Checklist'}
                   </button>
               )}
            </div>
         </div>
 
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-10 space-y-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
            {subView === 'DETAILS' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-32">
+              <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32">
                  {/* Left Column: Process Data */}
-                 <div className="space-y-8">
-                    <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-6 opacity-5"><FileSearch size={120}/></div>
-                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-6">Dados da Solicitação</h3>
-                        <div className="space-y-6">
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interessado</label><p className="text-lg font-bold text-slate-800">{selectedProcess.interested}</p></div>
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Justificativa</label><div className="mt-2 p-6 bg-slate-50 rounded-3xl text-sm font-medium text-slate-600 italic leading-relaxed border border-slate-100">"{selectedProcess.desc}"</div></div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Itens Requisitados</label>
-                                <div className="mt-2 space-y-2">
-                                    {selectedProcess.items && selectedProcess.items.length > 0 ? (
-                                        selectedProcess.items.map((item: any, i: number) => (
-                                            <div key={i} className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl border border-slate-100">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-[10px] font-black">{i + 1}</span>
-                                                    <span className="text-sm font-bold text-slate-700">{item ? getElementDescription(item.element || item.codigo || '', item.desc || item.descricao || item.description) : 'Item'}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-xs font-bold text-slate-500">
-                                                        {item.qty || item.quantity || 1}x {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.val || item.unitValue || item.value || 0)}
-                                                    </span>
+                 <div className="xl:col-span-2 space-y-8">
+                    <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-all">
+                        <div className="flex items-start justify-between mb-8">
+                           <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Requerente</p>
+                              <h3 className="text-2xl font-black text-slate-800">{selectedProcess.interested}</h3>
+                           </div>
+                           <div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                              <FileSearch size={24}/>
+                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                           <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Justificativa</p>
+                              <p className="text-sm font-medium text-slate-600 italic leading-relaxed">"{selectedProcess.desc}"</p>
+                           </div>
+                           <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor Total</p>
+                             <p className="text-3xl font-black text-slate-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedProcess.val || 0)}</p>
+                           </div>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Itens Requisitados</label>
+                               <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">{selectedProcess.items?.length || 0} Itens</span>
+                            </div>
+                            <div className="space-y-3">
+                                {selectedProcess.items && selectedProcess.items.length > 0 ? (
+                                    selectedProcess.items.map((item: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between px-5 py-4 bg-white rounded-xl border border-slate-100 hover:border-blue-200 hover:shadow-sm transition-all group/item">
+                                            <div className="flex items-center gap-4">
+                                                <span className="w-8 h-8 bg-slate-50 text-slate-500 group-hover/item:bg-blue-100 group-hover/item:text-blue-600 rounded-lg flex items-center justify-center text-xs font-black transition-colors">{i + 1}</span>
+                                                <div>
+                                                   <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-0.5">{item.element || item.codigo || '3.3.90.30'}</p>
+                                                   <p className="text-sm font-bold text-slate-700">{item.desc || item.descricao || item.description || 'Item sem descrição'}</p>
                                                 </div>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="px-4 py-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-sm text-slate-400">
-                                            Nenhum item de despesa cadastrado
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-400 font-medium">{item.qty || 1}x</p>
+                                                <p className="text-sm font-black text-slate-800">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.val || item.value || 0)}
+                                                </p>
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
+                                    ))
+                                ) : (
+                                    <div className="px-4 py-8 bg-slate-50 rounded-2xl border border-slate-100 border-dashed text-center">
+                                        <p className="text-sm text-slate-400 font-medium">Nenhum item de despesa cadastrado</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
                  </div>
 
-                 {/* Right Column: Checklist & Action */}
-                 <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
-                    <div className="bg-[#0f172a] p-10 rounded-[48px] text-white shadow-2xl relative overflow-hidden">
+                 {/* Right Column: Interactive Checklist */}
+                 <div className="space-y-6">
+                    <div className="bg-[#0f172a] p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden ring-4 ring-slate-900/5">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><CheckSquare size={140}/></div>
+                        
                         <div className="relative z-10">
-                            <h3 className="text-xl font-black uppercase tracking-tight mb-6 flex items-center gap-3">
-                                <CheckSquare size={24} className="text-blue-400"/> Checklist de Homologação
-                            </h3>
-                            <div className="space-y-4">
+                            <h3 className="text-xl font-black uppercase tracking-tight mb-2">Checklist de Homologação</h3>
+                            <p className="text-slate-400 text-xs font-medium mb-8">Confirme os requisitos para liberar o atesto.</p>
+
+                            {/* Progress Bar */}
+                            <div className="mb-8">
+                               <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2">
+                                  <span className="text-blue-400">Progresso</span>
+                                  <span>{Object.values(checklist).filter(Boolean).length}/4</span>
+                               </div>
+                               <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-blue-500 transition-all duration-500 ease-out"
+                                    style={{ width: `${(Object.values(checklist).filter(Boolean).length / 4) * 100}%` }}
+                                  ></div>
+                               </div>
+                            </div>
+
+                            <div className="space-y-3">
                                 {[
-                                    { key: 'budgetAvailable', label: 'Há saldo orçamentário disponível' },
-                                    { key: 'publicInterest', label: 'Despesa de interesse público' },
-                                    { key: 'emergencyJustified', label: 'Impossibilidade de licitação comum' },
-                                    { key: 'itemsReviewed', label: 'Quantitativos revisados e aprovados' }
+                                    { key: 'budgetAvailable', label: 'Dotação Orçamentária' },
+                                    { key: 'publicInterest', label: 'Interesse Público' },
+                                    { key: 'emergencyJustified', label: 'Justificativa Válida' },
+                                    { key: 'itemsReviewed', label: 'Itens Conferidos' }
                                 ].map((item) => (
-                                    <label key={item.key} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
-                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${checklist[item.key as keyof typeof checklist] ? 'bg-blue-500 border-blue-500' : 'border-slate-500 group-hover:border-blue-400'}`}>
+                                    <label key={item.key} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer group select-none ${checklist[item.key as keyof typeof checklist] ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-900/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0 ${checklist[item.key as keyof typeof checklist] ? 'bg-white border-white' : 'border-slate-500 group-hover:border-blue-400'}`}>
                                             {checklist[item.key as keyof typeof checklist] && <CheckCircle2 size={16} className="text-white"/>}
                                         </div>
                                         <input type="checkbox" className="hidden" checked={checklist[item.key as keyof typeof checklist]} onChange={() => toggleCheck(item.key as keyof typeof checklist)} />
-                                        <span className={`text-sm font-bold ${checklist[item.key as keyof typeof checklist] ? 'text-white' : 'text-slate-400'}`}>{item.label}</span>
+                                        <span className={`text-sm font-bold ${checklist[item.key as keyof typeof checklist] ? 'text-white' : 'text-slate-400 group-hover:text-blue-200'}`}>{item.label}</span>
                                     </label>
                                 ))}
                             </div>
@@ -798,14 +948,13 @@ export const GestorDashboard: React.FC = () => {
                     </div>
 
                     {hasAtesto && (
-                        <div className="bg-emerald-50 border border-emerald-200 p-8 rounded-[40px] flex items-center gap-6">
-                            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                                <Signature size={32}/>
+                        <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-[32px] flex items-center gap-5 shadow-sm animate-in zoom-in duration-300">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shadow-inner">
+                                <Signature size={24}/>
                             </div>
                             <div>
-                                <h4 className="text-lg font-black text-emerald-800 uppercase">Documento Assinado</h4>
-                                <p className="text-sm text-emerald-700 font-medium">A Certidão de Atesto foi gerada com sucesso.</p>
-                                <button className="mt-2 text-xs font-bold text-emerald-800 underline">Visualizar PDF</button>
+                                <h4 className="text-sm font-black text-emerald-800 uppercase">Pronto para Envio</h4>
+                                <p className="text-xs text-emerald-700 font-medium mt-0.5">Certidão assinada eletronicamente.</p>
                             </div>
                         </div>
                     )}
@@ -1107,73 +1256,62 @@ export const GestorDashboard: React.FC = () => {
 
       {/* Document Viewer Modal */}
       {viewingDoc && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-            {/* Header */}
-            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <div>
-                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{viewingDoc.title}</h2>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  {viewingDoc.type || viewingDoc.desc} {viewingDoc.date && `• ${viewingDoc.date}`}
-                </p>
-              </div>
-              <button 
-                onClick={() => setViewingDoc(null)} 
-                className="p-2 hover:bg-slate-200 rounded-full transition-all"
-              >
-                <X size={20} className="text-slate-500"/>
-              </button>
-            </div>
-
-            {/* Document Content */}
-            <div className="flex-1 overflow-y-auto p-8 bg-slate-100">
-              <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-lg p-12 min-h-[600px]">
-                {/* Header Brasão */}
-                <div className="flex flex-col items-center justify-center mb-10 space-y-2 border-b border-slate-200 pb-8">
-                  <img 
-                    src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png" 
-                    alt="Brasão TJPA" 
-                    className="w-16 opacity-90"
-                  />
-                  <h1 className="text-sm font-bold text-slate-900 uppercase tracking-widest text-center">
-                    TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ
-                  </h1>
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-0 md:p-8 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-[#333]/90 backdrop-blur-md" onClick={() => setViewingDoc(null)}></div>
+          
+          <div className="relative w-full h-full max-w-6xl bg-[#525659] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-500">
+             {/* Dark Reader Header */}
+             <div className="bg-[#2a2a2a] px-6 py-4 flex items-center justify-between shadow-md z-10 border-b border-black/20">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center text-white shadow-inner">
+                      <FileText size={20}/>
+                   </div>
+                   <div>
+                      <h2 className="text-sm font-bold text-white uppercase tracking-wider">{viewingDoc.title}</h2>
+                      <p className="text-[10px] font-medium text-white/50">{viewingDoc.type || viewingDoc.desc} • {viewingDoc.date}</p>
+                   </div>
                 </div>
-
-                {/* Document Title */}
-                <h2 className="text-xl font-bold text-slate-900 mb-8 text-center border-b border-slate-900 pb-4">
-                  {viewingDoc.type || 'DOCUMENTO'} {viewingDoc.num && `- Fls. ${viewingDoc.num}`}
-                </h2>
-
-                {/* Content */}
-                <div className="whitespace-pre-wrap font-serif text-lg leading-relaxed text-slate-800">
-                  {viewingDoc.content || 'Conteúdo não disponível.'}
+                <div className="flex items-center gap-2">
+                   <button className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2">
+                      <Printer size={16}/> Imprimir
+                   </button>
+                   <div className="w-px h-6 bg-white/10 mx-2"></div>
+                   <button onClick={() => setViewingDoc(null)} className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all">
+                      <X size={24}/>
+                   </button>
                 </div>
+             </div>
 
-                {/* Signature */}
-                {viewingDoc.author && (
-                  <div className="mt-16 pt-8 border-t border-slate-100 flex flex-col items-center">
-                    <div className="w-48 h-px bg-slate-800 mb-4"></div>
-                    <p className="font-bold text-slate-900 uppercase text-sm">
-                      Signatário
-                    </p>
-                    <p className="text-xs text-slate-500 uppercase tracking-widest">
-                      {viewingDoc.date}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+             {/* Reader Content Area */}
+             <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-12 flex justify-center bg-[#525659]">
+                <div className="w-full max-w-3xl bg-white shadow-[0_0_50px_rgba(0,0,0,0.5)] min-h-[1000px] p-16 md:p-24 relative animate-in zoom-in-95 duration-300">
+                   {/* Standard Document Header */}
+                   <div className="text-center mb-16 space-y-4">
+                      <img src={BRASAO_TJPA_URL} className="w-20 mx-auto mb-6 opacity-90" />
+                      <h1 className="text-lg font-bold tracking-tight uppercase text-slate-900">TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ</h1>
+                      <div className="w-32 h-px bg-slate-900 mx-auto opacity-20"></div>
+                   </div>
 
-            {/* Footer */}
-            <div className="px-8 py-4 border-t border-slate-100 bg-white flex justify-end gap-3">
-              <button 
-                onClick={() => setViewingDoc(null)}
-                className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all"
-              >
-                Fechar
-              </button>
-            </div>
+                   {/* Title */}
+                   <h2 className="text-xl font-black text-slate-900 mb-12 text-center uppercase tracking-wide border-b-2 border-slate-900 pb-4">
+                      {viewingDoc.type || 'DOCUMENTO'} {viewingDoc.num && `• Fls. ${viewingDoc.num}`}
+                   </h2>
+
+                   {/* Content Body */}
+                   <div className="font-serif text-lg leading-loose text-slate-800 text-justify whitespace-pre-wrap">
+                      {viewingDoc.content || 'Conteúdo do documento não disponível para visualização.'}
+                   </div>
+
+                   {/* Footer Signature */}
+                   {viewingDoc.author && (
+                      <div className="mt-32 pt-8 border-t border-slate-900/10 flex flex-col items-center break-inside-avoid">
+                         <div className="w-64 h-px bg-slate-900 mb-4"></div>
+                         <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Assinado Eletronicamente</p>
+                         <p className="text-[10px] text-slate-500 uppercase mt-1">{viewingDoc.date}</p>
+                      </div>
+                   )}
+                </div>
+             </div>
           </div>
         </div>
       )}
