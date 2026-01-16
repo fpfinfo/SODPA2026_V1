@@ -473,9 +473,25 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
             .single();
           
           if (servidorData) {
+            // SYNC: Update profiles table to match servidores_tj data
+            // This ensures Gestor/Seplan views (which join profiles) see the correct name
+            await supabase.from('profiles').upsert({
+              id: user.id, // Ensure we use the auth user id
+              nome: servidorData.nome,
+              role: 'SUPRIDO', // Enforce correct role
+              email: servidorData.email,
+              cpf: servidorData.cpf,
+              matricula: servidorData.matricula,
+              cargo: servidorData.cargo,
+              lotacao: servidorData.lotacao,
+              municipio_id: null, // IDs might need specific lookup, keeping generic for now
+              unidade_id: null,
+              updated_at: new Date().toISOString()
+            });
+
             setProfileData({
-              id: servidorData.id,
-              servidor_id: servidorData.id, // Keep reference to servidores_tj
+              id: user.id, // Use auth user ID for consistency
+              servidor_id: servidorData.id, 
               role: 'SUPRIDO',
               nome: servidorData.nome || 'Servidor',
               cpf: servidorData.cpf || '',
@@ -492,7 +508,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
               conta: servidorData.conta_corrente || '',
               gestorNome: servidorData.gestor_nome || '',
               gestorEmail: servidorData.gestor_email || '',
-              source: 'servidores_tj' // Flag to know which table to update
+              source: 'servidores_tj'
             });
             // Skip to next step
           } else {
