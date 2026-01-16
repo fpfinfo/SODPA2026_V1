@@ -456,7 +456,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
           const { data: servidorData } = await supabase
             .from('servidores_tj')
             .select('*')
-            .eq('email', userEmail)
+            .ilike('email', userEmail)  // Case-insensitive email match
             .eq('ativo', true)
             .limit(1)
             .single();
