@@ -35,24 +35,30 @@ const AppContent: React.FC = () => {
       // PRIORITY 1: Fetch from servidores_tj by authenticated user's email
       let servidorData = null;
       if (userEmail) {
-        const { data: servidores } = await supabase
+        const { data: servidor, error } = await supabase
           .from('servidores_tj')
           .select('*')
           .ilike('email', userEmail)
           .eq('ativo', true)
-          .limit(1);
-        servidorData = servidores?.[0] || null;
+          .maybeSingle();
+        
+        if (!error && servidor) {
+          servidorData = servidor;
+        }
       }
       
       // PRIORITY 2: Fetch from profiles by user ID (if exists)
       let profileData = null;
       if (currentUserId) {
-        const { data: profiles } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', currentUserId)
-          .limit(1);
-        profileData = profiles?.[0] || null;
+          .maybeSingle();
+        
+        if (!error && profile) {
+          profileData = profile;
+        }
       }
       
       // Build merged profile prioritizing servidores_tj data (since it's authoritative)

@@ -16,7 +16,7 @@ interface BudgetAllocationDB {
 
 export function useBudgetPlan(year: number) {
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const { showToast } = useToast();
 
   const fetchBudgetPlan = useCallback(async (): Promise<BudgetPlanConfig | null> => {
     setLoading(true);
@@ -26,13 +26,14 @@ export function useBudgetPlan(year: number) {
         .from('budget_plans')
         .select('*')
         .eq('year', year)
-        .single();
+        .maybeSingle();
 
       if (planError) {
-        if (planError.code === 'PGRST116') { // Not found
-          return null;
-        }
         throw planError;
+      }
+
+      if (!planData) {
+        return null;
       }
 
       // 2. Fetch Allocations
@@ -91,16 +92,16 @@ export function useBudgetPlan(year: number) {
 
     } catch (error) {
       console.error('Error fetching budget plan:', error);
-      toast({
+      showToast({
         title: 'Erro ao carregar',
-        description: 'Não foi possível carregar o planejamento do servidor.',
-        variant: 'destructive'
+        message: 'Não foi possível carregar o planejamento do servidor.',
+        type: 'error'
       });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [year, toast]);
+  }, [year, showToast]);
 
   const saveBudgetPlan = useCallback(async (config: BudgetPlanConfig) => {
     setLoading(true);
@@ -144,26 +145,26 @@ export function useBudgetPlan(year: number) {
 
       if (allocError) throw allocError;
 
-      toast({
+      showToast({
         title: 'Salvo com sucesso',
-        description: 'Planejamento orçamentário sincronizado.',
-        variant: 'default' // success equivalent
+        message: 'Planejamento orçamentário sincronizado.',
+        type: 'success'
       });
 
       return true;
 
     } catch (error) {
       console.error('Error saving budget plan:', error);
-      toast({
+      showToast({
         title: 'Erro ao salvar',
-        description: 'Falha ao persistir dados no servidor.',
-        variant: 'destructive'
+        message: 'Falha ao persistir dados no servidor.',
+        type: 'error'
       });
       return false;
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [showToast]);
 
   return {
     fetchBudgetPlan,
