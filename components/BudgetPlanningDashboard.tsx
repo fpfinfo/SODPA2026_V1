@@ -36,6 +36,7 @@ import {
   formatBRL,
   parseBRL,
 } from '../types/budgetPlanning';
+import { useBudgetPlan } from '../hooks/useBudgetPlan';
 
 
 interface BudgetPlanningDashboardProps {
@@ -55,7 +56,9 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
   const [editingTotal, setEditingTotal] = useState(false);
   const [tempTotal, setTempTotal] = useState('');
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'SOSFU' | 'COMIL'>('SOSFU');
+  const [activeTab, setActiveTab] = useState<'SOSFU' | 'COMIL' | 'EJPA' | 'SETIC'>('SOSFU');
+  
+  const { fetchBudgetPlan, saveBudgetPlan, loading } = useBudgetPlan(2026);
 
   const computed = useMemo(() => calculateBudgetValues(config), [config]);
 
@@ -130,6 +133,17 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
     }));
   }, []);
 
+  const handleDescriptionChange = useCallback((ptresCode: PtresCode, newDescription: string) => {
+    setConfig(prev => ({
+      ...prev,
+      allocations: prev.allocations.map(alloc => 
+        alloc.ptres_code === ptresCode
+          ? { ...alloc, description: newDescription }
+          : alloc
+      ),
+    }));
+  }, []);
+
   const handleReset = useCallback(() => {
     if (confirm('Tem certeza que deseja resetar todos os valores? Esta ação não pode ser desfeita.')) {
       setConfig(createDefaultBudgetPlan(config.year));
@@ -154,11 +168,15 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
         await onSave(config);
       }
       
-      // Save to localStorage as backup
-      localStorage.setItem('budget_plan_config', JSON.stringify(config));
+      // Save to Supabase
+      const success = await saveBudgetPlan(config);
       
-      setSaveMessage({ type: 'success', text: 'Planejamento salvo com sucesso!' });
-      setTimeout(() => setSaveMessage(null), 3000);
+      if (success) {
+        setSaveMessage({ type: 'success', text: 'Planejamento salvo com sucesso no banco de dados!' });
+        setTimeout(() => setSaveMessage(null), 3000);
+      } else {
+        throw new Error('Failed to save to Supabase');
+      }
     } catch (error) {
       console.error('[BudgetPlanningDashboard] Save error:', error);
       setSaveMessage({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
@@ -168,31 +186,35 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
     }
   };
 
-  // Load from localStorage on mount
+  // Load from Supabase on mount
   React.useEffect(() => {
     if (!initialConfig) {
-      const saved = localStorage.getItem('budget_plan_config');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved) as BudgetPlanConfig;
-          if (parsed.year === 2026) {
-            setConfig(parsed);
-          }
-        } catch (e) {
-          console.warn('[BudgetPlanningDashboard] Failed to parse saved config');
+      const loadData = async () => {
+        const savedPlan = await fetchBudgetPlan();
+        if (savedPlan) {
+          setConfig(savedPlan);
+        } else {
+          // If no plan, we kept the default initialized state
+          console.log('No existing plan found, using defaults.');
         }
-      }
+      };
+      loadData();
     }
-  }, [initialConfig]);
+  }, [initialConfig, fetchBudgetPlan]);
 
   const getPtresIcon = (code: PtresCode) => {
     switch (code) {
       case '8193':
-      case '8176': return <Briefcase size={24} />;
+      case '8176': 
+      case '8716': 
+      case '8180': return <Briefcase size={24} />;
       case '8727':
-      case '8177': return <Zap size={24} />;
+      case '8177': 
+      case '8164': 
+      case '8181': return <Zap size={24} />;
       case '8163':
-      case '8178': return <Gavel size={24} />;
+      case '8178': 
+      case '8182': return <Gavel size={24} />;
     }
   };
 
@@ -204,8 +226,24 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
       case '8177': return { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-600', accent: 'bg-amber-500' };
       case '8163':
       case '8178': return { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', accent: 'bg-purple-600' };
+      case '8716': return { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-600', accent: 'bg-emerald-600' };
+      case '8164': return { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-600', accent: 'bg-cyan-600' };
+      case '8180': return { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-600', accent: 'bg-indigo-600' };
+      case '8181': return { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-600', accent: 'bg-violet-600' };
+      case '8182': return { bg: 'bg-fuchsia-50', border: 'border-fuchsia-200', text: 'text-fuchsia-600', accent: 'bg-fuchsia-600' };
     }
   };
+  
+  if (loading && !config.id) {
+    return (
+      <div className="w-full h-full flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4 text-slate-400">
+          <RefreshCw className="animate-spin" size={32} />
+          <span className="font-medium">Carregando planejamento...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar pb-10 space-y-8">
@@ -324,6 +362,28 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
           <Building2 size={18} />
           COMIL
         </button>
+        <button
+          onClick={() => setActiveTab('EJPA')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'EJPA'
+              ? 'bg-white shadow-md text-slate-800'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Scale size={18} />
+          EJPA
+        </button>
+        <button
+          onClick={() => setActiveTab('SETIC')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'SETIC'
+              ? 'bg-white shadow-md text-slate-800'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Building2 size={18} />
+          SETIC
+        </button>
       </div>
 
       {/* === TAB CONTENT === */}
@@ -354,9 +414,12 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
           </h3>
           <button
             onClick={() => {
-              const codes = activeTab === 'SOSFU' 
-                ? ['8193', '8727', '8163'] 
-                : ['8176', '8177', '8178'];
+              let codes: string[] = [];
+              if (activeTab === 'SOSFU') codes = ['8193', '8727', '8163'];
+              else if (activeTab === 'COMIL') codes = ['8176', '8177', '8178'];
+              else if (activeTab === 'EJPA') codes = ['8716', '8164'];
+              else if (activeTab === 'SETIC') codes = ['8180', '8181', '8182'];
+              
               setExpandedPtres(new Set(codes as PtresCode[]));
             }}
             className="text-xs font-bold text-blue-600 hover:underline"
@@ -370,8 +433,13 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
             const code = allocation.ptres_code;
             if (activeTab === 'SOSFU') {
               return ['8193', '8727', '8163'].includes(code);
-            } else {
+            } else if (activeTab === 'COMIL') {
               return ['8176', '8177', '8178'].includes(code);
+            } else if (activeTab === 'EJPA') {
+              return ['8716', '8164'].includes(code);
+            } else {
+              // SETIC
+              return ['8180', '8181', '8182'].includes(code);
             }
           })
           .map((allocation) => {
@@ -382,6 +450,14 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
           
           const ptresValues = computed.ptres_values[ptresCode];
           const isExpanded = expandedPtres.has(ptresCode);
+          
+          // Determine donut stroke color based on PTRES
+          let strokeColor = '#2563eb'; // blue default
+          if (['8727', '8177', '8164'].includes(ptresCode)) strokeColor = '#f59e0b'; // amber/cyan group
+          if (['8163', '8178', '8716'].includes(ptresCode)) strokeColor = '#9333ea'; // purple/emerald group
+          // Adjust for specific colors if strictly mapping
+          if (ptresCode === '8716') strokeColor = '#10b981'; // emerald
+          if (ptresCode === '8164') strokeColor = '#06b6d4'; // cyan
 
           return (
             <div
@@ -395,16 +471,36 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                 onClick={() => togglePtres(ptresCode)}
                 className={`w-full ${colors.bg} p-6 flex items-center justify-between transition-colors`}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 ${colors.accent} rounded-2xl flex items-center justify-center text-white shadow-lg`}>
+                <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
+                  <div className={`w-12 h-12 ${colors.accent} rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0`}>
                     {getPtresIcon(ptresCode)}
                   </div>
-                  <div className="text-left">
-                    <p className={`text-[10px] font-black ${colors.text} uppercase tracking-widest mb-0.5`}>
-                      PTRES {ptresCode}
-                    </p>
-                    <h4 className="text-lg font-black text-slate-800">{PTRES_CONFIG[ptresCode]?.name || 'Desconhecido'}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{PTRES_CONFIG[ptresCode]?.description || ''}</p>
+                  <div className="text-left flex-1 min-w-0">
+                    <div className="flex items-start gap-2 mb-0.5">
+                      <p className={`text-[10px] font-black ${colors.text} uppercase tracking-widest whitespace-nowrap mt-1`}>
+                        PTRES {ptresCode}
+                      </p>
+                      <span className="text-[10px] text-slate-300 mt-1">|</span>
+                      <textarea
+                        value={allocation.description || ''}
+                        onClick={(e) => e.stopPropagation()} // Prevent card toggle when clicking input
+                        onChange={(e) => {
+                          handleDescriptionChange(ptresCode, e.target.value);
+                          e.target.style.height = 'auto';
+                          e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        ref={(el) => {
+                          if (el) {
+                            el.style.height = 'auto';
+                            el.style.height = el.scrollHeight + 'px';
+                          }
+                        }}
+                        rows={1}
+                        className="text-[10px] font-medium text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none flex-1 min-w-0 transition-colors tracking-wider focus:bg-white focus:px-1 resize-none overflow-hidden leading-relaxed"
+                        placeholder="Descrição"
+                      />
+                    </div>
+                    <h4 className="text-lg font-black text-slate-800 truncate" title={PTRES_CONFIG[ptresCode]?.name}>{PTRES_CONFIG[ptresCode]?.name || 'Desconhecido'}</h4>
                   </div>
                 </div>
 
@@ -479,12 +575,6 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                                 <div>
                                   <p className="text-sm font-bold text-slate-700">{item.element_code}</p>
                                   <p className="text-xs text-slate-500">{item.element_name}</p>
-                                  {elementConfig?.tooltip && (
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <Info size={12} className="text-blue-500" />
-                                      <span className="text-[10px] text-blue-600 italic">{elementConfig.tooltip}</span>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </td>

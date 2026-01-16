@@ -10,9 +10,18 @@ export const PTRES_CONFIG = {
   '8163': { name: 'Extra-Júri', description: 'Suprimento Extraordinário - Sessões de Júri', color: 'purple' },
   
   // COMIL PTRES
-  '8176': { name: 'COMIL - Ordinário', description: 'Suprimento de Fundos Ordinário - COMIL', color: 'blue' },
-  '8177': { name: 'COMIL - Extra-Emergencial', description: 'Suprimento Extraordinário - COMIL', color: 'amber' },
-  '8178': { name: 'COMIL - Apoio', description: 'Suprimento de Apoio Logístico - COMIL', color: 'purple' },
+  '8176': { name: 'COMIL - Segurança 1º Grau', description: 'Implementação do Programa de Segurança e Acesso aos Prédios do Poder Judiciário 1° Grau', color: 'blue' },
+  '8177': { name: 'COMIL - Segurança 2º Grau', description: 'Implementação do Programa de Segurança e Acesso aos Prédios do Poder Judiciário 2° Grau', color: 'amber' },
+  '8178': { name: 'COMIL - Apoio', description: 'Implementação do Programa de Segurança e Acesso aos Prédios do Poder Judiciário Apoio Indireto', color: 'purple' },
+
+  // EJPA PTRES
+  '8716': { name: 'EJPA', description: 'Suprimento Escola Judicial - Custeio', color: 'emerald' },
+  '8164': { name: 'EJPA', description: 'Suprimento para Cursos e Treinamentos', color: 'cyan' },
+
+  // SETIC PTRES
+  '8180': { name: 'SETIC', description: 'Suprimento Informática - Custeio', color: 'indigo' },
+  '8181': { name: 'SETIC', description: 'Suprimento Informática - Investimento', color: 'violet' },
+  '8182': { name: 'SETIC', description: 'Suprimento Informática - Projetos Especiais', color: 'fuchsia' },
 } as const;
 
 export type PtresCode = keyof typeof PTRES_CONFIG;
@@ -45,6 +54,7 @@ export interface PtresAllocation {
   id: string;
   ptres_code: PtresCode;
   ptres_name: string;
+  description?: string; // Add description field for editable text
   items: DotacaoItem[];
 }
 
@@ -83,6 +93,7 @@ export function createDefaultBudgetPlan(year: number): BudgetPlanConfig {
     id: `${code}-${year}`,
     ptres_code: code,
     ptres_name: PTRES_CONFIG[code].name,
+    description: PTRES_CONFIG[code].description, // Initialize with default description
     items: EXPENSE_ELEMENTS.map((el, idx) => ({
       id: `${code}-${el.code}-${year}`,
       element_code: el.code,
@@ -105,6 +116,13 @@ export function createDefaultBudgetPlan(year: number): BudgetPlanConfig {
       createPtresAllocation('8176'),
       createPtresAllocation('8177'),
       createPtresAllocation('8178'),
+      // EJPA Allocations
+      createPtresAllocation('8716'),
+      createPtresAllocation('8164'),
+      // SETIC Allocations
+      createPtresAllocation('8180'),
+      createPtresAllocation('8181'),
+      createPtresAllocation('8182'),
     ],
   };
 }
