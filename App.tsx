@@ -11,6 +11,8 @@ import { ToastProvider } from './components/ui/ToastProvider';
 import { AppRole, Process } from './types';
 import { User, LogOut, ChevronDown, Bell, UserCircle, Settings as SettingsIcon, Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
+import { NotificationBell } from './components/NotificationBell';
+import { AlertBanner } from './components/AlertBanner';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -196,10 +198,9 @@ const AppContent: React.FC = () => {
 
           <div className="h-8 w-px bg-slate-200"></div>
 
-          <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">
-             <Bell size={20} />
-             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-          </button>
+          <div className="h-8 w-px bg-slate-200"></div>
+
+          <NotificationBell />
 
           {/* User Account Menu */}
           <div className="relative">
@@ -246,7 +247,10 @@ const AppContent: React.FC = () => {
       </nav>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden">
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <AlertBanner />
+        <div className="flex-1 overflow-auto">
         {activeRole === AppRole.SUPRIDO && (
           <SupridoDashboard 
             forceView={supridoViewOverride} 
@@ -273,13 +277,8 @@ const AppContent: React.FC = () => {
         {activeRole === AppRole.SGP && (
           <SgpDashboard />
         )}
-        {![AppRole.SUPRIDO, AppRole.GESTOR, AppRole.SEFIN, AppRole.AJSEFIN, AppRole.SGP].includes(activeRole) && (
-          <DashboardSOSFU 
-            forceTab={sosfuForceSettings ? 'SETTINGS' : null}
-            onInternalTabChange={() => setSosfuForceSettings(false)}
-            onProcessesChange={setSharedProcesses}
-          />
         )}
+        </div>
       </main>
     </div>
   );

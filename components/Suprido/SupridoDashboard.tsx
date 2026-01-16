@@ -55,7 +55,8 @@ import {
   Building2,
   Search,
   Gavel,
-  AlertTriangle
+  AlertTriangle,
+  Bell
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { DocumentCreationWizard } from '../DocumentCreationWizard';
@@ -290,6 +291,25 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       statusGeral: pendencias === 0 ? 'Regular' : `${pendencias} Pendência${pendencias > 1 ? 's' : ''}`
     };
   }, [history]);
+
+  const handleTestNotification = async () => {
+    try {
+      const { error } = await supabase.from('system_notifications').insert({
+        user_id: profileData?.id, 
+        role_target: null,
+        type: 'CRITICAL',
+        category: 'SYSTEM',
+        title: 'Alerta de Sistema (Teste)',
+        message: `Verificação de sistema de alertas realizada em ${new Date().toLocaleTimeString()}.`,
+        is_read: false,
+        link_action: '/#alert-test'
+      });
+      if (error) throw error;
+    } catch (e) {
+      console.error('Test notification failed', e);
+      alert('Erro ao criar notificação de teste');
+    }
+  };
 
   const handleExportPdf = async () => {
     const container = document.getElementById('pdf-content-container');
@@ -1130,9 +1150,14 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
               <Info size={14} className="text-blue-500" /> Gerencie suas solicitações e acompanhe o fluxo processual.
            </p>
         </div>
-        <button onClick={() => setCurrentView('SELECT_TYPE')} className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-[24px] text-sm font-black hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all hover:-translate-y-1 active:scale-95">
-          <PlusCircle size={22} /> Nova Solicitação
-        </button>
+        <div className="flex gap-4">
+          <button onClick={handleTestNotification} className="flex items-center gap-2 px-6 py-4 bg-white text-slate-600 border border-slate-200 rounded-[24px] text-sm font-bold hover:bg-slate-50 hover:text-blue-600 transition-all">
+             <Bell size={20} /> Testar Alerta
+          </button>
+          <button onClick={() => setCurrentView('SELECT_TYPE')} className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-[24px] text-sm font-black hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all hover:-translate-y-1 active:scale-95">
+             <PlusCircle size={22} /> Nova Solicitação
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
