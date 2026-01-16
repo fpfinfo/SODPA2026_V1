@@ -38,14 +38,16 @@ import {
   Loader2
 } from 'lucide-react';
 import { Process, ConcessionStatus } from '../types';
+import { UNIT_PTRES_MAP, BudgetUnit } from '../constants';
 import { useSefinTasks, SigningTask as DbSigningTask } from '../hooks/useSefinTasks';
+import { useFinancialAnalytics } from '../hooks/useFinancialAnalytics';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
 type DocumentOrigin = 'SOSFU' | 'AJSEFIN';
 type DocumentType = 'PORTARIA' | 'NOTA_EMPENHO' | 'DESPACHO' | 'DECISAO';
 type ViewMode = 'OPERATIONAL' | 'ANALYTICS';
-type GeoTab = 'MUNICIPALITY' | 'REGION' | 'POLE';
+type GeoTab = 'COMARCA' | 'ENTRANCIA' | 'POLE' | 'REGION';
 
 interface SefinDashboardProps {
   processes?: Process[];
@@ -69,53 +71,30 @@ interface SigningTask {
   unitName?: string;
 }
 
-const ANALYTICS_DATA = {
-  budget: { total: 12500000, executed: 3245000, percentage: 25.96 },
-  byElement: [
-    { code: '3.3.90.39', label: 'Serviços de Terceiros - PJ', value: 1150000, percent: 35 },
-    { code: '3.3.90.36', label: 'Serviços de Terceiros - PF', value: 850000, percent: 26 },
-    { code: '3.3.90.30.01', label: 'Consumo em Geral', value: 650000, percent: 20 },
-    { code: '3.3.90.33', label: 'Passagens e Locomoção', value: 350000, percent: 11 },
-    { code: '3.3.90.30.02', label: 'Combustíveis e Lubrificantes', value: 245000, percent: 8 },
-  ],
-  byType: [
-    { label: 'Extraordinário - Júri', value: 1800000, color: 'bg-amber-500' },
-    { label: 'Extraordinário - Emergencial', value: 1045000, color: 'bg-red-500' },
-    { label: 'Ordinário', value: 400000, color: 'bg-blue-600' },
-  ],
-  byMunicipality: [
-    { name: 'Belém', value: 850000 },
-    { name: 'Ananindeua', value: 420000 },
-    { name: 'Santarém', value: 380000 },
-    { name: 'Marabá', value: 290000 },
-    { name: 'Castanhal', value: 210000 },
-  ],
-  byRegion: [
-    { name: '1ª Região (Metropolitana)', value: 1500000 },
-    { name: '2ª Região (Nordeste)', value: 800000 },
-    { name: '3ª Região (Baixo Amazonas)', value: 600000 },
-  ],
-  byPole: [
-    { name: 'Pólo Belém', value: 1200000 },
-    { name: 'Pólo Santarém', value: 500000 },
-    { name: 'Pólo Altamira', value: 350000 },
-  ],
-  topSupridos: [
-    { name: 'Ademário Silva De Jesus', role: 'Técnico Judiciário', unit: 'Comarca Mãe do Rio', total: 45000 },
-    { name: 'Maria Oliveira Santos', role: 'Diretora de Secretaria', unit: 'Comarca Santarém', total: 38500 },
-    { name: 'João Paulo Costa', role: 'Oficial de Justiça', unit: 'Comarca Belém', total: 32000 },
-    { name: 'Ana Beatriz Lima', role: 'Analista Judiciário', unit: 'Comarca Marabá', total: 28900 },
-  ]
-};
+// Removed ANALYTICS_DATA in favor of useFinancialAnalytics hook
 
 export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], onSignComplete }) => {
   // Use Supabase hook for tasks
   const { tasks: dbTasks, isLoading: loadingTasks, signTask, signMultipleTasks, rejectTask } = useSefinTasks();
+  // Use Real Financial Analytics Hook
+  const { 
+    budget,
+    byElement,
+    byType,
+    byComarca, 
+    byEntrancia, 
+    byPole, 
+    byRegion, 
+    topSupridos,
+    budgetAllocations = [],
+    isLoading: loadingAnalytics 
+  } = useFinancialAnalytics();
   
   const [viewMode, setViewMode] = useState<ViewMode>('OPERATIONAL');
+  const [analyticsFilter, setAnalyticsFilter] = useState<BudgetUnit | 'TODOS'>('TODOS');
   const [activeTab, setActiveTab] = useState<'INBOX' | 'SIGNED'>('INBOX');
   const [originFilter, setOriginFilter] = useState<DocumentOrigin | 'ALL'>('ALL');
-  const [geoTab, setGeoTab] = useState<GeoTab>('MUNICIPALITY');
+  const [geoTab, setGeoTab] = useState<GeoTab>('COMARCA');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [previewTask, setPreviewTask] = useState<SigningTask | null>(null);
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
@@ -186,16 +165,242 @@ export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], 
   const handleReturnTask = () => { if(!returnReason) return alert('Informe o motivo.'); setIsReturnModalOpen(false); setPreviewTask(null); setReturnReason(''); alert('Documento devolvido à origem.'); };
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+
+
+  // Computed Budget Metrics based on filter
+  const filteredBudgetMetrics = useMemo(() => {
+    let targetPtres: string[] = [];
+    if (analyticsFilter === 'TODOS') {
+       targetPtres = Object.values(UNIT_PTRES_MAP).flat();
+    } else {
+       targetPtres = [...UNIT_PTRES_MAP[analyticsFilter]];
+    }
+
+    const relevantAllocations = budgetAllocations.filter(a => targetPtres.includes(a.ptres_code));
+    
+    const totalAllocated = relevantAllocations.reduce((acc, curr) => acc + curr.allocated_value, 0);
+    const totalCommitted = relevantAllocations.reduce((acc, curr) => acc + curr.committed_value, 0);
+    const available = totalAllocated - totalCommitted;
+    const percentageUsed = totalAllocated > 0 ? (totalCommitted / totalAllocated) * 100 : 0;
+
+    return { totalAllocated, totalCommitted, available, percentageUsed };
+  }, [budgetAllocations, analyticsFilter]);
+
   const renderAnalytics = () => (
     <div className="flex-1 overflow-y-auto p-10 custom-scrollbar animate-in fade-in space-y-8 pb-32">
+      
+      {/* Header with Filter */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-black text-slate-800 tracking-tight">Visão Geral Orçamentária</h3>
+          <p className="text-xs font-medium text-slate-500">Acompanhamento da execução financeira por unidade.</p>
+        </div>
+        <div className="bg-white p-1 rounded-xl border border-slate-200">
+           <select 
+              value={analyticsFilter}
+              onChange={(e) => setAnalyticsFilter(e.target.value as any)}
+              className="bg-transparent text-xs font-black uppercase tracking-widest text-slate-600 px-4 py-2 outline-none cursor-pointer hover:bg-slate-50 rounded-lg transition-colors"
+           >
+              <option value="TODOS">Todas as Unidades</option>
+              <option value="SOSFU">SOSFU - Fundo Rotativo</option>
+              <option value="COMIL">COMIL - Coordenadoria Militar</option>
+              <option value="EJPA">EJPA - Escola Judicial</option>
+              <option value="SETIC">SETIC - Informática</option>
+           </select>
+        </div>
+      </div>
+
+      {/* Budget Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-slate-900 p-6 rounded-[24px] text-white shadow-xl flex flex-col justify-between relative overflow-hidden group"><div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"><Wallet size={64}/></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Executado</p><h3 className="text-3xl font-black">{formatCurrency(ANALYTICS_DATA.budget.executed)}</h3></div><div className="mt-4"><div className="flex justify-between text-[10px] font-bold mb-1"><span className="text-emerald-400">{ANALYTICS_DATA.budget.percentage}% da Cota</span><span className="text-slate-500">2026</span></div><div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${ANALYTICS_DATA.budget.percentage}%` }}></div></div></div></div>
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Por Tipo de Suprimento</p><div className="space-y-3">{ANALYTICS_DATA.byType.map((item, i) => (<div key={i} className="flex items-center gap-3"><div className={`w-3 h-3 rounded-full ${item.color}`}></div><div className="flex-1"><div className="flex justify-between text-xs font-bold"><span className="text-slate-700">{item.label}</span><span className="text-slate-500">{formatCurrency(item.value)}</span></div></div></div>))}</div></div>
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm col-span-2"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Por Elemento de Despesa</p><div className="space-y-3">{ANALYTICS_DATA.byElement.map((el, i) => (<div key={i}><div className="flex justify-between text-xs font-bold mb-1"><span className="text-slate-600"><span className="font-mono text-slate-400 mr-2">{el.code}</span>{el.label}</span><span className="text-slate-800">{formatCurrency(el.value)}</span></div><div className="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${el.percent}%` }}></div></div></div>))}</div></div>
+        {/* Card 1: Dotação Atual (Azul) */}
+        <div className="bg-white p-6 rounded-[24px] border border-blue-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><DollarSign size={64} className="text-blue-600"/></div>
+          <div>
+            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Dotação Atual 2026</p>
+            <h3 className="text-2xl font-black text-slate-800">
+              {loadingAnalytics ? <span className="animate-pulse bg-slate-200 rounded h-8 w-32 inline-block"/> : formatCurrency(filteredBudgetMetrics.totalAllocated)}
+            </h3>
+          </div>
+          <div className="mt-4">
+             <div className="text-[10px] font-bold text-slate-400">Limite Aprovado LOA</div>
+          </div>
+        </div>
+
+        {/* Card 2: Empenhado (Laranja) */}
+        <div className="bg-white p-6 rounded-[24px] border border-amber-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><FileText size={64} className="text-amber-600"/></div>
+          <div>
+            <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Valor Empenhado</p>
+            <h3 className="text-2xl font-black text-slate-800">
+              {loadingAnalytics ? <span className="animate-pulse bg-slate-200 rounded h-8 w-32 inline-block"/> : formatCurrency(filteredBudgetMetrics.totalCommitted)}
+            </h3>
+          </div>
+          <div className="mt-4">
+            <div className="flex justify-between text-[10px] font-bold mb-1">
+              <span className="text-amber-600">{loadingAnalytics ? '...' : filteredBudgetMetrics.percentageUsed.toFixed(1)}% do Total</span>
+            </div>
+            <div className="w-full h-1.5 bg-amber-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-amber-500 transition-all duration-1000 ease-out" 
+                style={{ width: `${loadingAnalytics ? 0 : filteredBudgetMetrics.percentageUsed}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Disponível (Verde) */}
+        <div className="bg-slate-900 p-6 rounded-[24px] text-white shadow-xl flex flex-col justify-between relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"><Wallet size={64}/></div>
+          <div>
+            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Saldo Disponível</p>
+            <h3 className="text-3xl font-black">
+              {loadingAnalytics ? <span className="animate-pulse bg-slate-700/50 rounded h-8 w-32 inline-block"/> : formatCurrency(filteredBudgetMetrics.available)}
+            </h3>
+          </div>
+          <div className="mt-4">
+             <div className="text-[10px] font-bold text-slate-400 flex items-center gap-2">
+                <CheckCircle2 size={12} className="text-emerald-500"/> Livre para Execução
+             </div>
+          </div>
+        </div>
+        
+        {/* Card 4: Executado (Original) - Mantendo Contexto, mas ajustado */}
+        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><TrendingUp size={64}/></div>
+             <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Liquidado / Pago</p>
+                <h3 className="text-2xl font-black text-slate-800">{formatCurrency(budget.executed)}</h3> 
+                {analyticsFilter !== 'TODOS' && <span className="text-[9px] text-red-400 font-bold block mt-1">*Valor Global (Sem Filtro)</span>}
+             </div>
+              <div className="mt-4">
+                <div className="text-[10px] font-bold text-slate-400">Processado Financeiramente</div>
+             </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Por Tipo de Suprimento</p>
+          <div className="space-y-3">
+            {loadingAnalytics ? (
+              <div className="space-y-2 animate-pulse">
+                {[1,2,3].map(i => <div key={i} className="h-4 bg-slate-100 rounded"/>)}
+              </div>
+            ) : (
+              byType.map((item, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${item.color || 'bg-slate-400'}`}></div>
+                  <div className="flex-1">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-slate-700">{item.name}</span>
+                      <span className="text-slate-500">{formatCurrency(item.value)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm col-span-2">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Por Elemento de Despesa</p>
+          <div className="space-y-3">
+            {loadingAnalytics ? (
+              <div className="space-y-2 animate-pulse">
+                {[1,2,3].map(i => <div key={i} className="h-4 bg-slate-100 rounded"/>)}
+              </div>
+            ) : (
+              byElement.map((el, i) => (
+                <div key={i}>
+                  <div className="flex justify-between text-xs font-bold mb-1">
+                    <span className="text-slate-600">
+                      <span className="font-mono text-slate-400 mr-2">{el.code}</span>
+                      {el.name}
+                    </span>
+                    <span className="text-slate-800">{formatCurrency(el.value)}</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                      style={{ width: `${el.percent}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm col-span-2"><div className="flex items-center justify-between mb-4"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Distribuição Geográfica</p><div className="flex bg-slate-100 p-1 rounded-lg"><button onClick={() => setGeoTab('MUNICIPALITY')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'MUNICIPALITY' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Município</button><button onClick={() => setGeoTab('REGION')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'REGION' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Região</button><button onClick={() => setGeoTab('POLE')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'POLE' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Pólo</button></div></div><div className="space-y-3">{(geoTab === 'MUNICIPALITY' ? ANALYTICS_DATA.byMunicipality : geoTab === 'REGION' ? ANALYTICS_DATA.byRegion : ANALYTICS_DATA.byPole).map((item, i) => (<div key={i} className="flex items-center gap-4"><MapPin size={14} className="text-slate-400"/><div className="flex-1"><div className="flex justify-between text-xs font-bold"><span className="text-slate-700">{item.name}</span><span className="text-slate-500">{formatCurrency(item.value)}</span></div></div></div>))}</div></div>
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Users size={14}/> Top Supridos</p><div className="space-y-4">{ANALYTICS_DATA.topSupridos.map((sup, i) => (<div key={i} className="flex items-center gap-3"><div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-black text-slate-500">{i + 1}</div><div className="flex-1"><p className="text-xs font-bold text-slate-800">{sup.name}</p><p className="text-[10px] text-slate-400">{sup.unit}</p></div><span className="text-xs font-black text-emerald-600">{formatCurrency(sup.total)}</span></div>))}</div></div>
+        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Distribuição Geográfica</p>
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              <button onClick={() => setGeoTab('COMARCA')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'COMARCA' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Comarca</button>
+              <button onClick={() => setGeoTab('ENTRANCIA')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'ENTRANCIA' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Entrância</button>
+              <button onClick={() => setGeoTab('POLE')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'POLE' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Pólo</button>
+              <button onClick={() => setGeoTab('REGION')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'REGION' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Região</button>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {loadingAnalytics ? (
+              <div className="space-y-4 p-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex gap-4 animate-pulse">
+                    <div className="w-4 h-4 bg-slate-200 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-2 bg-slate-200 rounded w-3/4" />
+                      <div className="h-2 bg-slate-200 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+                (geoTab === 'COMARCA' ? byComarca : 
+                  geoTab === 'ENTRANCIA' ? byEntrancia :
+                  geoTab === 'POLE' ? byPole : 
+                  byRegion).map((item, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <MapPin size={14} className="text-slate-400"/>
+                    <div className="flex-1">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-slate-700">{item.name}</span>
+                        <span className="text-slate-500">{formatCurrency(item.value)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+            )}
+            {!loadingAnalytics && (geoTab === 'COMARCA' ? byComarca : geoTab === 'ENTRANCIA' ? byEntrancia : geoTab === 'POLE' ? byPole : byRegion).length === 0 && (
+               <div className="text-center py-6 text-slate-400 text-xs italic">Nenhum dado encontrado para esta visualização.</div>
+            )}
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Users size={14}/> Top Supridos
+          </p>
+          <div className="space-y-4">
+            {loadingAnalytics ? (
+                <div className="space-y-4">
+                    {[1,2,3].map(i => <div key={i} className="h-8 bg-slate-200 rounded animate-pulse"/>)}
+                </div>
+            ) : (
+                topSupridos.map((sup, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-black text-slate-500">
+                      {i + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-800">{sup.name}</p>
+                      <p className="text-[10px] text-slate-400">{sup.role} - {sup.unit}</p>
+                    </div>
+                    <span className="text-xs font-black text-emerald-600">{formatCurrency(sup.value)}</span>
+                  </div>
+                ))
+            )}
+           </div>
+        </div>
       </div>
     </div>
   );

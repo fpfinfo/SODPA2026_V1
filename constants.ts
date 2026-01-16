@@ -267,3 +267,12 @@ export const UNIFIED_COLUMNS = [
   { id: 'PENDING', label: 'Pendências / Assinaturas / Prazos', statuses: [ConcessionStatus.SIGNATURE, AccountStatus.PENDING, AccountStatus.PRAZO_RECURSAL] },
   { id: 'DONE', label: 'Concluídos / Financeiro / SGP', statuses: [ConcessionStatus.FINANCE, ConcessionStatus.GRANTED, AccountStatus.APPROVED_CAVEATS, AccountStatus.ARCHIVED, AccountStatus.AVERBACAO_SGP, AccountStatus.SIAFE_DONE] }
 ];
+
+export const UNIT_PTRES_MAP = {
+  'SOSFU': ['8193', '8727', '8163'],
+  'COMIL': ['8176', '8177', '8178'],
+  'EJPA': ['8716', '8164'],
+  'SETIC': ['8180', '8181', '8182'],
+} as const;
+
+export type BudgetUnit = keyof typeof UNIT_PTRES_MAP;
