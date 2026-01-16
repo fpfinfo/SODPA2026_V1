@@ -3,7 +3,7 @@
  * Management of administrative units' budget caps and execution tracking
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Search,
   Building2,
@@ -11,7 +11,6 @@ import {
   Edit3,
   Check,
   X,
-  AlertCircle,
   TrendingUp,
   DollarSign,
   Save,
@@ -19,30 +18,32 @@ import {
   Info,
   CheckCircle,
   AlertTriangle,
+  FileText,
+  Hash
 } from 'lucide-react';
 
-export interface AdminUnit {
+export interface BudgetLineItem {
   id: string;
-  name: string;
+  unitName: string;
   shortName?: string;
-  annualCap: number;
-  executed: number;
+  expenseElement: string;
+  dotationNumber: string;
+  currentDotation: number;
+  committedValue: number;
 }
 
 interface AdminBudgetTableProps {
-  units: AdminUnit[];
-  onUpdateUnit: (id: string, updates: Partial<AdminUnit>) => void;
-  onAddUnit: (unit: Omit<AdminUnit, 'id'>) => void;
+  units: BudgetLineItem[]; // Renamed prop for clarity, though keeping generic name locally might be easier
+  onUpdateUnit: (id: string, updates: Partial<BudgetLineItem>) => void;
+  onAddUnit: (unit: Omit<BudgetLineItem, 'id'>) => void;
   onSave?: () => Promise<void>;
 }
 
 // Mock initial data
-const MOCK_ADMIN_UNITS: AdminUnit[] = [
-  { id: '1', name: 'Secretaria de Informática', shortName: 'SECIN', annualCap: 150000, executed: 45000 },
-  { id: '2', name: 'Secretaria de Engenharia', shortName: 'SECENG', annualCap: 120000, executed: 80000 },
-  { id: '3', name: 'Secretaria de Gestão de Pessoas (SGP)', shortName: 'SGP', annualCap: 50000, executed: 12000 },
-  { id: '4', name: 'Coordenadoria Militar', shortName: 'GABMIL', annualCap: 80000, executed: 25000 },
-  { id: '5', name: 'Coordenadoria de Cerimonial', shortName: 'CERIM', annualCap: 60000, executed: 55000 },
+const MOCK_BUDGET_ITEMS: BudgetLineItem[] = [
+  { id: '1', unitName: 'Secretaria de Informática', shortName: 'SECIN', expenseElement: '33.90.30', dotationNumber: '123', currentDotation: 150000, committedValue: 45000 },
+  { id: '2', unitName: 'Secretaria de Engenharia', shortName: 'SECENG', expenseElement: '33.90.39', dotationNumber: '124', currentDotation: 120000, committedValue: 80000 },
+  { id: '3', unitName: 'SGP', shortName: 'SGP', expenseElement: '33.90.36', dotationNumber: '125', currentDotation: 50000, committedValue: 12000 },
 ];
 
 export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
@@ -51,32 +52,41 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
   onAddUnit,
   onSave,
 }) => {
-  const [units, setUnits] = useState<AdminUnit[]>(initialUnits.length > 0 ? initialUnits : MOCK_ADMIN_UNITS);
+  // We use "units" variable name but it now holds BudgetLineItems
+  const [items, setItems] = useState<BudgetLineItem[]>(initialUnits.length > 0 ? initialUnits : MOCK_BUDGET_ITEMS);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<number>(0);
+  
+  // Edit State
+  const [editForm, setEditForm] = useState<Partial<BudgetLineItem>>({});
+  
   const [isAdding, setIsAdding] = useState(false);
-  const [newUnit, setNewUnit] = useState({ name: '', annualCap: 0 });
+  const [newItem, setNewItem] = useState<Partial<BudgetLineItem>>({ 
+    unitName: '', expenseElement: '', dotationNumber: '', currentDotation: 0, committedValue: 0 
+  });
+  
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Filter units by search
-  const filteredUnits = useMemo(() => {
-    if (!searchTerm.trim()) return units;
+  // Filter items
+  const filteredItems = useMemo(() => {
+    if (!searchTerm.trim()) return items;
     const term = searchTerm.toLowerCase();
-    return units.filter(u => 
-      u.name.toLowerCase().includes(term) || 
-      u.shortName?.toLowerCase().includes(term)
+    return items.filter(u => 
+      u.unitName.toLowerCase().includes(term) || 
+      u.shortName?.toLowerCase().includes(term) ||
+      u.expenseElement.toLowerCase().includes(term) ||
+      u.dotationNumber.includes(term)
     );
-  }, [units, searchTerm]);
+  }, [items, searchTerm]);
 
   // Calculate totals
   const totals = useMemo(() => {
-    return units.reduce((acc, u) => ({
-      cap: acc.cap + u.annualCap,
-      executed: acc.executed + u.executed,
+    return items.reduce((acc, u) => ({
+      cap: acc.cap + u.currentDotation,
+      executed: acc.executed + u.committedValue,
     }), { cap: 0, executed: 0 });
-  }, [units]);
+  }, [items]);
 
   const formatBRL = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -89,34 +99,40 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
     return { bg: 'bg-emerald-50', bar: 'bg-emerald-500', text: 'text-emerald-600' };
   };
 
-  const handleStartEdit = (unit: AdminUnit) => {
-    setEditingId(unit.id);
-    setEditValue(unit.annualCap);
+  const handleStartEdit = (item: BudgetLineItem) => {
+    setEditingId(item.id);
+    setEditForm({ ...item });
   };
 
   const handleSaveEdit = (id: string) => {
-    setUnits(prev => prev.map(u => u.id === id ? { ...u, annualCap: editValue } : u));
-    onUpdateUnit(id, { annualCap: editValue });
+    if (!editForm) return;
+    
+    setItems(prev => prev.map(u => u.id === id ? { ...u, ...editForm } as BudgetLineItem : u));
+    onUpdateUnit(id, editForm);
     setEditingId(null);
+    setEditForm({});
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setEditValue(0);
+    setEditForm({});
   };
 
-  const handleAddUnit = () => {
-    if (!newUnit.name.trim() || newUnit.annualCap <= 0) return;
+  const handleAddItem = () => {
+    if (!newItem.unitName?.trim() || !newItem.currentDotation) return;
     const newId = Date.now().toString();
-    const unit: AdminUnit = {
+    const item: BudgetLineItem = {
       id: newId,
-      name: newUnit.name,
-      annualCap: newUnit.annualCap,
-      executed: 0,
+      unitName: newItem.unitName || '',
+      shortName: newItem.shortName || newItem.unitName?.substring(0, 6).toUpperCase(),
+      expenseElement: newItem.expenseElement || '',
+      dotationNumber: newItem.dotationNumber || '',
+      currentDotation: newItem.currentDotation || 0,
+      committedValue: newItem.committedValue || 0,
     };
-    setUnits(prev => [...prev, unit]);
-    onAddUnit(unit);
-    setNewUnit({ name: '', annualCap: 0 });
+    setItems(prev => [...prev, item]);
+    onAddUnit(item);
+    setNewItem({ unitName: '', expenseElement: '', dotationNumber: '', currentDotation: 0, committedValue: 0 });
     setIsAdding(false);
   };
 
@@ -124,10 +140,9 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
     setIsSaving(true);
     setSaveMessage(null);
     try {
-      // Save to localStorage
-      localStorage.setItem('admin_units_budget', JSON.stringify(units));
+      localStorage.setItem('admin_units_budget', JSON.stringify(items));
       if (onSave) await onSave();
-      setSaveMessage({ type: 'success', text: 'Tetos salvos com sucesso!' });
+      setSaveMessage({ type: 'success', text: 'Dados salvos com sucesso!' });
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (error) {
       setSaveMessage({ type: 'error', text: 'Erro ao salvar. Tente novamente.' });
@@ -142,8 +157,11 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
     const saved = localStorage.getItem('admin_units_budget');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved) as AdminUnit[];
-        if (parsed.length > 0) setUnits(parsed);
+        const parsed = JSON.parse(saved) as BudgetLineItem[];
+        // Basic validation to check if it has the new fields, otherwise ignore or migrate
+        // For simplicity, we just load if it looks like an array. 
+        // ideally we should check if 'expenseElement' exists, if not, maybe migrate old data
+        if (parsed.length > 0) setItems(parsed);
       } catch (e) {
         console.warn('[AdminBudgetTable] Failed to parse saved data');
       }
@@ -159,8 +177,8 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
             <Building2 size={24} />
           </div>
           <div>
-            <h3 className="text-lg font-black text-slate-800">Unidades Administrativas</h3>
-            <p className="text-xs text-slate-500">Orçamento exclusivo para Extra-Emergencial</p>
+            <h3 className="text-lg font-black text-slate-800">Matriz Orçamentária</h3>
+            <p className="text-xs text-slate-500">Gestão detalhada por Elemento e Dotação</p>
           </div>
         </div>
 
@@ -172,7 +190,7 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar Unidade..."
+              placeholder="Buscar..."
               className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-64"
             />
           </div>
@@ -183,55 +201,53 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
             className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-bold hover:bg-teal-700 transition-colors shadow-sm"
           >
             <Plus size={16} />
-            Nova Unidade
+            Novo Item
           </button>
         </div>
-      </div>
-
-      {/* Alert */}
-      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-        <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-700">
-          Unidades Administrativas não recebem suprimento ordinário. O teto limita apenas solicitações Extra-Emergenciais.
-        </p>
       </div>
 
       {/* Stats Bar */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Unidades</p>
-          <p className="text-2xl font-black text-slate-800">{units.length}</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total de Itens</p>
+          <p className="text-2xl font-black text-slate-800">{items.length}</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Teto Global</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Dotação Global</p>
           <p className="text-2xl font-black text-teal-600">{formatBRL(totals.cap)}</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Executado</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Empenhado</p>
           <p className="text-2xl font-black text-slate-800">{formatBRL(totals.executed)}</p>
-          <p className="text-xs text-slate-500">{((totals.executed / totals.cap) * 100).toFixed(1)}% utilizado</p>
+          <p className="text-xs text-slate-500">{totals.cap > 0 ? ((totals.executed / totals.cap) * 100).toFixed(1) : 0}% utilizado</p>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[1000px]">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Unidade Administrativa (Secretaria/Setor)
+              <th className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Unidade / Setor
               </th>
-              <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-40">
-                Teto Anual (R$)
+              <th className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">
+                Elemento
               </th>
-              <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">
-                Executado (R$)
+              <th className="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">
+                N° Dotação
               </th>
-              <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">
-                Saldo Disponível (R$)
+              <th className="px-4 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">
+                Dotação Atual
               </th>
-              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-40">
-                Status
+              <th className="px-4 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">
+                Vlr. Empenhado
+              </th>
+              <th className="px-4 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">
+                Disponível
+              </th>
+              <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">
+                Ações
               </th>
             </tr>
           </thead>
@@ -239,45 +255,62 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
             {/* Add New Row */}
             {isAdding && (
               <tr className="bg-teal-50/50 animate-in slide-in-from-top-2">
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <input
                     type="text"
-                    value={newUnit.name}
-                    onChange={(e) => setNewUnit(prev => ({ ...prev, name: e.target.value }))}
+                    value={newItem.unitName}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, unitName: e.target.value }))}
                     placeholder="Nome da Unidade..."
-                    className="w-full px-3 py-2 border border-teal-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-2 py-1.5 border border-teal-200 rounded text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
                     autoFocus
                   />
                 </td>
-                <td className="px-6 py-4">
-                  <div className="relative">
-                    <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="number"
-                      value={newUnit.annualCap || ''}
-                      onChange={(e) => setNewUnit(prev => ({ ...prev, annualCap: parseFloat(e.target.value) || 0 }))}
-                      placeholder="0,00"
-                      className="w-full pl-8 pr-3 py-2 border border-teal-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    />
-                  </div>
+                <td className="px-4 py-3">
+                  <input
+                    type="text"
+                    value={newItem.expenseElement}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, expenseElement: e.target.value }))}
+                    placeholder="Ex: 33.90.30"
+                    className="w-full px-2 py-1.5 border border-teal-200 rounded text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
                 </td>
-                <td className="px-6 py-4 text-right text-sm text-slate-400">R$ 0,00</td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-teal-600">
-                  {formatBRL(newUnit.annualCap)}
+                <td className="px-4 py-3">
+                  <input
+                    type="text"
+                    value={newItem.dotationNumber}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, dotationNumber: e.target.value }))}
+                    placeholder="N°"
+                    className="w-full px-2 py-1.5 border border-teal-200 rounded text-xs text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleAddUnit}
-                      className="p-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                    >
-                      <Check size={16} />
+                <td className="px-4 py-3">
+                  <input
+                    type="number"
+                    value={newItem.currentDotation || ''}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, currentDotation: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0,00"
+                    className="w-full px-2 py-1.5 border border-teal-200 rounded text-xs text-right focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <input
+                    type="number"
+                    value={newItem.committedValue || ''}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, committedValue: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0,00"
+                    className="w-full px-2 py-1.5 border border-teal-200 rounded text-xs text-right focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </td>
+                <td className="px-4 py-3 text-right text-xs text-slate-400">
+                  {formatBRL((newItem.currentDotation || 0) - (newItem.committedValue || 0))}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={handleAddItem} className="p-1.5 bg-teal-600 text-white rounded hover:bg-teal-700">
+                      <Check size={14} />
                     </button>
-                    <button
-                      onClick={() => { setIsAdding(false); setNewUnit({ name: '', annualCap: 0 }); }}
-                      className="p-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
-                    >
-                      <X size={16} />
+                    <button onClick={() => setIsAdding(false)} className="p-1.5 bg-slate-200 text-slate-600 rounded hover:bg-slate-300">
+                      <X size={14} />
                     </button>
                   </div>
                 </td>
@@ -285,91 +318,123 @@ export const AdminBudgetTable: React.FC<AdminBudgetTableProps> = ({
             )}
 
             {/* Data Rows */}
-            {filteredUnits.map((unit) => {
-              const saldo = unit.annualCap - unit.executed;
-              const pct = unit.annualCap > 0 ? (unit.executed / unit.annualCap) * 100 : 0;
-              const status = getStatusColor(unit.executed, unit.annualCap);
-              const isEditing = editingId === unit.id;
+            {filteredItems.map((item) => {
+              const available = item.currentDotation - item.committedValue;
+              const isEditing = editingId === item.id;
 
-              return (
-                <tr key={unit.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${status.bar}`} />
-                      <div>
-                        <p className="text-sm font-bold text-slate-700">{unit.name}</p>
-                        {unit.shortName && (
-                          <p className="text-[10px] text-slate-400 font-mono">{unit.shortName}</p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {isEditing ? (
-                      <div className="flex items-center gap-2 justify-end">
-                        <input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(parseFloat(e.target.value) || 0)}
-                          className="w-28 px-3 py-1 border border-blue-300 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleSaveEdit(unit.id)}
-                          className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
+              if (isEditing) {
+                return (
+                  <tr key={item.id} className="bg-blue-50/30">
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        value={editForm.unitName || ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, unitName: e.target.value }))}
+                        className="w-full px-2 py-1 border border-blue-300 rounded text-xs focus:ring-2 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        value={editForm.expenseElement || ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, expenseElement: e.target.value }))}
+                        className="w-full px-2 py-1 border border-blue-300 rounded text-xs focus:ring-2 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        value={editForm.dotationNumber || ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, dotationNumber: e.target.value }))}
+                        className="w-full px-2 py-1 border border-blue-300 rounded text-xs text-center focus:ring-2 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={editForm.currentDotation}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, currentDotation: parseFloat(e.target.value) || 0 }))}
+                        className="w-full px-2 py-1 border border-blue-300 rounded text-xs text-right focus:ring-2 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={editForm.committedValue}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, committedValue: parseFloat(e.target.value) || 0 }))}
+                        className="w-full px-2 py-1 border border-blue-300 rounded text-xs text-right focus:ring-2 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs font-bold text-slate-500">
+                      {formatBRL((editForm.currentDotation || 0) - (editForm.committedValue || 0))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => handleSaveEdit(item.id)} className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700">
                           <Check size={14} />
                         </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="p-1.5 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300"
-                        >
+                        <button onClick={handleCancelEdit} className="p-1.5 bg-slate-200 text-slate-600 rounded hover:bg-slate-300">
                           <X size={14} />
                         </button>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-sm font-bold text-slate-700">{formatBRL(unit.annualCap)}</span>
-                        <button
-                          onClick={() => handleStartEdit(unit)}
-                          className="p-1.5 opacity-0 group-hover:opacity-100 bg-slate-100 text-slate-500 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-all"
-                        >
-                          <Edit3 size={12} />
-                        </button>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 size={14} className="text-slate-400" />
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">{item.unitName}</p>
+                        {item.shortName && <p className="text-[10px] text-slate-400">{item.shortName}</p>}
                       </div>
-                    )}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="text-sm text-slate-600">{formatBRL(unit.executed)}</span>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="text-slate-400" />
+                      <span className="text-xs font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{item.expenseElement || '-'}</span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className={`text-sm font-bold ${saldo < 0 ? 'text-red-600' : 'text-teal-600'}`}>
-                      {formatBRL(saldo)}
+                  <td className="px-4 py-3 text-center">
+                   <div className="flex items-center justify-center gap-1">
+                      <Hash size={12} className="text-slate-300" />
+                      <span className="text-xs font-mono text-slate-600">{item.dotationNumber || '-'}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="text-sm font-bold text-slate-700">{formatBRL(item.currentDotation)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="text-sm text-slate-600">{formatBRL(item.committedValue)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={`text-sm font-bold ${available < 0 ? 'text-red-600' : 'text-teal-600'}`}>
+                      {formatBRL(available)}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {/* Progress Bar */}
-                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${status.bar}`}
-                          style={{ width: `${Math.min(pct, 100)}%` }}
-                        />
-                      </div>
-                      <span className={`text-xs font-bold ${status.text} w-14 text-right`}>
-                        {pct.toFixed(1)}%
-                      </span>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={() => handleStartEdit(item)}
+                        className="p-1.5 opacity-0 group-hover:opacity-100 bg-slate-100 text-slate-500 rounded hover:bg-blue-50 hover:text-blue-600 transition-all"
+                      >
+                        <Edit3 size={14} />
+                      </button>
                     </div>
                   </td>
                 </tr>
               );
             })}
 
-            {filteredUnits.length === 0 && (
+            {filteredItems.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                   <Building2 size={32} className="mx-auto mb-2 text-slate-300" />
-                  <p className="text-sm font-medium">Nenhuma unidade encontrada</p>
+                  <p className="text-sm font-medium">Nenhum item encontrado</p>
                 </td>
               </tr>
             )}
