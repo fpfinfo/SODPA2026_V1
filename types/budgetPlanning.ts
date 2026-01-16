@@ -8,6 +8,11 @@ export const PTRES_CONFIG = {
   '8193': { name: 'Ordinário', description: 'Suprimento de Fundos Ordinário - Comarcas', color: 'blue' },
   '8727': { name: 'Extra-Emergencial', description: 'Suprimento Extraordinário - Emergências', color: 'amber' },
   '8163': { name: 'Extra-Júri', description: 'Suprimento Extraordinário - Sessões de Júri', color: 'purple' },
+  
+  // COMIL PTRES
+  '8176': { name: 'COMIL - Ordinário', description: 'Suprimento de Fundos Ordinário - COMIL', color: 'blue' },
+  '8177': { name: 'COMIL - Extra-Emergencial', description: 'Suprimento Extraordinário - COMIL', color: 'amber' },
+  '8178': { name: 'COMIL - Apoio', description: 'Suprimento de Apoio Logístico - COMIL', color: 'purple' },
 } as const;
 
 export type PtresCode = keyof typeof PTRES_CONFIG;
@@ -96,6 +101,10 @@ export function createDefaultBudgetPlan(year: number): BudgetPlanConfig {
       createPtresAllocation('8193'),
       createPtresAllocation('8727'),
       createPtresAllocation('8163'),
+      // COMIL Allocations
+      createPtresAllocation('8176'),
+      createPtresAllocation('8177'),
+      createPtresAllocation('8178'),
     ],
   };
 }

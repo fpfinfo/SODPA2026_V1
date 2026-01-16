@@ -36,7 +36,7 @@ import {
   formatBRL,
   parseBRL,
 } from '../types/budgetPlanning';
-import { AdminBudgetTable } from './AdminBudgetTable';
+
 
 interface BudgetPlanningDashboardProps {
   initialConfig?: BudgetPlanConfig;
@@ -55,7 +55,7 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
   const [editingTotal, setEditingTotal] = useState(false);
   const [tempTotal, setTempTotal] = useState('');
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'PTRES' | 'ADMIN'>('PTRES');
+  const [activeTab, setActiveTab] = useState<'SOSFU' | 'COMIL'>('SOSFU');
 
   const computed = useMemo(() => calculateBudgetValues(config), [config]);
 
@@ -104,6 +104,24 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
               items: alloc.items.map(item =>
                 item.element_code === elementCode
                   ? { ...item, allocated_value: value }
+                  : item
+              ),
+            }
+          : alloc
+      ),
+    }));
+  }, []);
+
+  const handleCommittedValueChange = useCallback((ptresCode: PtresCode, elementCode: string, value: number) => {
+    setConfig(prev => ({
+      ...prev,
+      allocations: prev.allocations.map(alloc =>
+        alloc.ptres_code === ptresCode
+          ? {
+              ...alloc,
+              items: alloc.items.map(item =>
+                item.element_code === elementCode
+                  ? { ...item, committed_value: value }
                   : item
               ),
             }
@@ -169,17 +187,23 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
 
   const getPtresIcon = (code: PtresCode) => {
     switch (code) {
-      case '8193': return <Briefcase size={24} />;
-      case '8727': return <Zap size={24} />;
-      case '8163': return <Gavel size={24} />;
+      case '8193':
+      case '8176': return <Briefcase size={24} />;
+      case '8727':
+      case '8177': return <Zap size={24} />;
+      case '8163':
+      case '8178': return <Gavel size={24} />;
     }
   };
 
   const getPtresColor = (code: PtresCode) => {
     switch (code) {
-      case '8193': return { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', accent: 'bg-blue-600' };
-      case '8727': return { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-600', accent: 'bg-amber-500' };
-      case '8163': return { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', accent: 'bg-purple-600' };
+      case '8193':
+      case '8176': return { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', accent: 'bg-blue-600' };
+      case '8727':
+      case '8177': return { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-600', accent: 'bg-amber-500' };
+      case '8163':
+      case '8178': return { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', accent: 'bg-purple-600' };
     }
   };
 
@@ -279,38 +303,31 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
       {/* === TAB NAVIGATION === */}
       <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
         <button
-          onClick={() => setActiveTab('PTRES')}
+          onClick={() => setActiveTab('SOSFU')}
           className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'PTRES'
+            activeTab === 'SOSFU'
               ? 'bg-white shadow-md text-slate-800'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <Landmark size={18} />
-          Comarcas (Jurisdicional)
+          SOSFU
         </button>
         <button
-          onClick={() => setActiveTab('ADMIN')}
+          onClick={() => setActiveTab('COMIL')}
           className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'ADMIN'
+            activeTab === 'COMIL'
               ? 'bg-white shadow-md text-slate-800'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <Building2 size={18} />
-          Unidades Admin.
+          COMIL
         </button>
       </div>
 
       {/* === TAB CONTENT === */}
-      {activeTab === 'ADMIN' ? (
-        <AdminBudgetTable
-          units={[]}
-          onUpdateUnit={() => {}}
-          onAddUnit={() => {}}
-        />
-      ) : (
-        <>
+      
           {/* === ALERT if over budget === */}
       {computed.is_over_budget && (
         <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 flex items-start gap-4 animate-pulse">
@@ -333,19 +350,36 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
             <PieChart size={20} className="text-slate-400" />
-            Distribuição por PTRES
+            Distribuição por PTRES ({activeTab})
           </h3>
           <button
-            onClick={() => setExpandedPtres(new Set(['8193', '8727', '8163']))}
+            onClick={() => {
+              const codes = activeTab === 'SOSFU' 
+                ? ['8193', '8727', '8163'] 
+                : ['8176', '8177', '8178'];
+              setExpandedPtres(new Set(codes as PtresCode[]));
+            }}
             className="text-xs font-bold text-blue-600 hover:underline"
           >
             Expandir Todos
           </button>
         </div>
 
-        {config.allocations.map((allocation) => {
+        {config.allocations
+          .filter(allocation => {
+            const code = allocation.ptres_code;
+            if (activeTab === 'SOSFU') {
+              return ['8193', '8727', '8163'].includes(code);
+            } else {
+              return ['8176', '8177', '8178'].includes(code);
+            }
+          })
+          .map((allocation) => {
           const ptresCode = allocation.ptres_code as PtresCode;
-          const colors = getPtresColor(ptresCode);
+          const colors = getPtresColor(ptresCode) || { 
+            bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600', accent: 'bg-slate-500' 
+          }; // Fallback since getPtresColor might not cover new codes yet
+          
           const ptresValues = computed.ptres_values[ptresCode];
           const isExpanded = expandedPtres.has(ptresCode);
 
@@ -369,8 +403,8 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                     <p className={`text-[10px] font-black ${colors.text} uppercase tracking-widest mb-0.5`}>
                       PTRES {ptresCode}
                     </p>
-                    <h4 className="text-lg font-black text-slate-800">{PTRES_CONFIG[ptresCode].name}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{PTRES_CONFIG[ptresCode].description}</p>
+                    <h4 className="text-lg font-black text-slate-800">{PTRES_CONFIG[ptresCode]?.name || 'Desconhecido'}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">{PTRES_CONFIG[ptresCode]?.description || ''}</p>
                   </div>
                 </div>
 
@@ -394,7 +428,7 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                         strokeWidth="4"
                         strokeDasharray={`${(ptresValues?.percentage_of_global || 0) * 0.88} 88`}
                         className="transition-all duration-500"
-                        style={{ stroke: ptresCode === '8193' ? '#2563eb' : ptresCode === '8727' ? '#f59e0b' : '#9333ea' }}
+                        style={{ stroke: ['8193', '8176'].includes(ptresCode) ? '#2563eb' : ['8727', '8177'].includes(ptresCode) ? '#f59e0b' : '#9333ea' }}
                       />
                     </svg>
                   </div>
@@ -477,13 +511,15 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                               </div>
                             </td>
                             <td className="px-4 py-4">
-                              <div className="relative opacity-70 cursor-not-allowed">
+                              <div className="relative">
                                 <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
                                   type="number"
-                                  value={item.committed_value || 0}
-                                  disabled
-                                  className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-right text-slate-500"
+                                  value={item.committed_value || ''}
+                                  onChange={(e) => handleCommittedValueChange(ptresCode, item.element_code, parseFloat(e.target.value) || 0)}
+                                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="0,00"
+                                  step="100"
                                 />
                               </div>
                             </td>
@@ -575,9 +611,7 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
         </button>
         </div>
       </div>
-      </>
-      )}
-    </div>
+      </div>
   );
 };
 
