@@ -1,26 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-
-export interface SOSFUProcess {
-  id: string;
-  nup: string;
-  tipo: string;
-  status: string;
-  valor_solicitado: number;
-  descricao: string;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
-  destino_atual: string;
-  assigned_to_id: string | null;
-  // Execution documents numbers
-  ne_numero?: string;
-  dl_numero?: string;
-  ob_numero?: string;
-  // User info
-  suprido_nome?: string;
-  suprido_email?: string;
-}
+import { Process, ProcessType, ConcessionStatus } from '../types';
 
 export interface SOSFUStats {
   total: number;
@@ -32,20 +12,21 @@ export interface SOSFUStats {
   myTasks: number;
   awaitingSignature: number;
   awaitingPC: number;
-  inAnalysis: number;
+  solicitacoesAnalysis: number;
+  prestacoesAudit: number;
 }
 
 export type ProcessCategory = 'SOLICITACAO' | 'PRESTACAO';
 
 export const useSOSFUProcesses = () => {
-  const [processes, setProcesses] = useState<SOSFUProcess[]>([]);
+  const [processes, setProcesses] = useState<Process[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Classify process by category
-  const getCategory = (process: SOSFUProcess): ProcessCategory => {
-    const status = process.status?.toUpperCase() || '';
-    const tipo = process.tipo?.toLowerCase() || '';
+  const getCategory = (process: Process): ProcessCategory => {
+    const status = (process.status as string)?.toUpperCase() || '';
+    const tipo = (process.type as string)?.toLowerCase() || '';
     
     // Prestação de Contas
     if (
@@ -53,7 +34,8 @@ export const useSOSFUProcesses = () => {
       status.includes('AGUARDANDO PC') ||
       status.includes('PC ') ||
       tipo.includes('prestação') ||
-      tipo.includes('prestacao')
+      tipo.includes('prestacao') ||
+      process.type === ProcessType.ACCOUNTABILITY
     ) {
       return 'PRESTACAO';
     }
@@ -80,11 +62,23 @@ export const useSOSFUProcesses = () => {
 
       if (fetchError) throw fetchError;
 
-      // Map data with user info
-      const mappedProcesses: SOSFUProcess[] = (data || []).map((p: any) => ({
-        ...p,
-        suprido_nome: p.profiles?.nome || 'Suprido',
-        suprido_email: p.profiles?.email || ''
+      // Map database fields to Process interface
+      const mappedProcesses: Process[] = (data || []).map((p: any) => ({
+        id: p.id,
+        protocolNumber: p.nup || p.protocolNumber,
+        type: p.tipo === 'ACCOUNTABILITY' ? ProcessType.ACCOUNTABILITY : ProcessType.CONCESSION,
+        status: p.status,
+        value: p.valor_solicitado || 0,
+        createdAt: p.created_at,
+        updated_at: p.updated_at,
+        user_id: p.user_id,
+        destino_atual: p.destino_atual,
+        assignedToId: p.assigned_to_id,
+        neNumber: p.ne_numero,
+        dlNumber: p.dl_numero,
+        obNumber: p.ob_numero,
+        interestedParty: p.profiles?.nome || 'Suprido',
+        priority: p.priority || 'NORMAL'
       }));
 
       setProcesses(mappedProcesses);
@@ -100,28 +94,32 @@ export const useSOSFUProcesses = () => {
   const stats: SOSFUStats = {
     total: processes.length,
     inbox: {
-      total: processes.filter(p => !p.assigned_to_id).length,
-      solicitacoes: processes.filter(p => !p.assigned_to_id && getCategory(p) === 'SOLICITACAO').length,
-      prestacoes: processes.filter(p => !p.assigned_to_id && getCategory(p) === 'PRESTACAO').length,
+      total: processes.filter(p => !p.assignedToId).length,
+      solicitacoes: processes.filter(p => !p.assignedToId && getCategory(p) === 'SOLICITACAO').length,
+      prestacoes: processes.filter(p => !p.assignedToId && getCategory(p) === 'PRESTACAO').length,
     },
-    myTasks: processes.filter(p => p.assigned_to_id === 'CURRENT_USER').length, // TODO: get current user
+    myTasks: processes.filter(p => p.assignedToId === 'CURRENT_USER').length,
     awaitingSignature: processes.filter(p => 
-      p.status?.toUpperCase().includes('AGUARDANDO ASSINATURA')
+      (p.status as string)?.toUpperCase().includes('AGUARDANDO ASSINATURA')
     ).length,
     awaitingPC: processes.filter(p => 
-      p.status?.toUpperCase().includes('AGUARDANDO PRESTAÇÃO') ||
-      p.status?.toUpperCase().includes('AGUARDANDO PC')
+      (p.status as string)?.toUpperCase().includes('AGUARDANDO PRESTAÇÃO') ||
+      (p.status as string)?.toUpperCase().includes('AGUARDANDO PC')
     ).length,
-    inAnalysis: processes.filter(p => 
-      p.status?.toUpperCase().includes('EM ANÁLISE') ||
-      p.status?.toUpperCase().includes('ANALISE')
+    solicitacoesAnalysis: processes.filter(p => 
+      getCategory(p) === 'SOLICITACAO' && 
+      ((p.status as string)?.toUpperCase().includes('ANÁLISE') || (p.status as string)?.toUpperCase().includes('ANALISE'))
+    ).length,
+    prestacoesAudit: processes.filter(p => 
+      getCategory(p) === 'PRESTACAO' && 
+      ((p.status as string)?.toUpperCase().includes('AUDITORIA') || (p.status as string)?.toUpperCase().includes('TRIBUTA'))
     ).length,
   };
 
   // Filter by category
   const getSolicitacoes = () => processes.filter(p => getCategory(p) === 'SOLICITACAO');
   const getPrestacoes = () => processes.filter(p => getCategory(p) === 'PRESTACAO');
-  const getInbox = () => processes.filter(p => !p.assigned_to_id);
+  const getInbox = () => processes.filter(p => !p.assignedToId);
 
   // Assign process to user
   const assignToUser = async (processId: string, userId: string) => {

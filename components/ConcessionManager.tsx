@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { Process, ProcessType, ConcessionStatus, ProcessDocument, DocType } from '../types';
 import { 
   FileText, 
@@ -32,26 +33,37 @@ import {
 
 interface ConcessionManagerProps {
   processes: Process[];
-  onUpdateStatus: (processId: string, newStatus: ConcessionStatus) => void;
+  onUpdateStatus: (processId: string, newStatus: string) => void;
+  onUpdateExecutionNumbers: (processId: string, numbers: { ne_numero?: string; dl_numero?: string; ob_numero?: string }) => Promise<void>;
+  onTramitToSeplan: (processId: string) => Promise<void>;
+  onCompleteExecution: (processId: string) => Promise<void>;
+  refresh: () => void;
   budgetCap?: number; // Mocked Total Budget
 }
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-export const ConcessionManager: React.FC<ConcessionManagerProps> = ({ processes, onUpdateStatus, budgetCap = 500000 }) => {
+export const ConcessionManager: React.FC<ConcessionManagerProps> = ({ 
+    processes, 
+    onUpdateStatus, 
+    onUpdateExecutionNumbers,
+    onTramitToSeplan,
+    onCompleteExecution,
+    refresh,
+    budgetCap = 500000 
+}) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ConcessionStatus | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string | 'ALL'>('ALL');
   const [activeTab, setActiveTab] = useState<'ANALYSIS' | 'DOCS'>('ANALYSIS');
-
-  // Local state to simulate updates that would happen in DB
-  const [localProcesses, setLocalProcesses] = useState<Process[]>(processes);
 
   // Input States for Finance
   const [inputs, setInputs] = useState({
       ne: '',
       dl: '',
-      ob: ''
+      ob: '',
+      siafe_nl: '',
+      siafe_date: ''
   });
 
   const [previewDoc, setPreviewDoc] = useState<ProcessDocument | null>(null);
@@ -59,13 +71,13 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({ processes,
 
   // Filter processes for Concession only
   const concessionProcesses = useMemo(() => {
-    return localProcesses.filter(p => 
-      p.type === ProcessType.CONCESSION &&
+    return processes.filter(p => 
+      (p.type === ProcessType.CONCESSION || p.type === ProcessType.ACCOUNTABILITY) &&
       (statusFilter === 'ALL' || p.status === statusFilter) &&
       (p.protocolNumber.toLowerCase().includes(filterText.toLowerCase()) || 
        p.interestedParty?.toLowerCase().includes(filterText.toLowerCase()))
     );
-  }, [localProcesses, filterText, statusFilter]);
+  }, [processes, filterText, statusFilter]);
 
   const selectedProcess = useMemo(() => 
     concessionProcesses.find(p => p.id === selectedId) || concessionProcesses[0] || null
@@ -79,98 +91,98 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({ processes,
 
   // --- Actions ---
 
-  const updateLocalProcess = (updates: Partial<Process>) => {
-      if (!selectedProcess) return;
-      setLocalProcesses(prev => prev.map(p => p.id === selectedProcess.id ? { ...p, ...updates } : p));
-  };
 
-  const handleGenerateDoc = (type: DocType) => {
+  const handleGenerateDoc = async (type: DocType) => {
       if (!selectedProcess) return;
 
       // Validation
       if (type === 'NOTA_EMPENHO' && !inputs.ne) { alert('Informe o número da Nota de Empenho.'); return; }
       if (type === 'LIQUIDACAO' && !inputs.dl) { alert('Informe o número do Documento de Liquidação.'); return; }
       if (type === 'ORDEM_BANCARIA' && !inputs.ob) { alert('Informe o número da Ordem Bancária.'); return; }
+      if (type === 'PORTARIA_ACCOUNTABILITY' && (!inputs.siafe_nl || !inputs.siafe_date)) { 
+          alert('Informe a Nota de Lançamento (NL) e a Data da Baixa no SIAFE.'); return; 
+      }
 
-      const newDoc: ProcessDocument = {
-          id: `DOC-${Date.now()}`,
-          type,
-          title: getDocTitle(type),
-          generatedAt: new Date().toISOString(),
-          metadata: {
-              neNumber: type === 'NOTA_EMPENHO' ? inputs.ne : undefined,
-              dlNumber: type === 'LIQUIDACAO' ? inputs.dl : undefined,
-              obNumber: type === 'ORDEM_BANCARIA' ? inputs.ob : undefined,
-          }
-      };
+      try {
+          // Persistence in DB
+          if (type === 'NOTA_EMPENHO') await onUpdateExecutionNumbers(selectedProcess.id, { ne_numero: inputs.ne });
+          if (type === 'LIQUIDACAO') await onUpdateExecutionNumbers(selectedProcess.id, { dl_numero: inputs.dl });
+          if (type === 'ORDEM_BANCARIA') await onUpdateExecutionNumbers(selectedProcess.id, { ob_numero: inputs.ob });
 
-      const updatedDocs = [...(selectedProcess.generatedDocuments || []), newDoc];
-      const updates: Partial<Process> = { generatedDocuments: updatedDocs };
+          const newDoc: ProcessDocument = {
+              id: `DOC-${Date.now()}`,
+              type,
+              title: getDocTitle(type),
+              generatedAt: new Date().toISOString(),
+              metadata: {
+                  neNumber: type === 'NOTA_EMPENHO' ? inputs.ne : undefined,
+                  dlNumber: type === 'LIQUIDACAO' ? inputs.dl : undefined,
+                  obNumber: type === 'ORDEM_BANCARIA' ? inputs.ob : undefined,
+                  siafeNl: type === 'PORTARIA_ACCOUNTABILITY' ? inputs.siafe_nl : undefined,
+                  siafeDate: type === 'PORTARIA_ACCOUNTABILITY' ? inputs.siafe_date : undefined,
+              }
+          };
 
-      if (type === 'NOTA_EMPENHO') updates.neNumber = inputs.ne;
-      if (type === 'LIQUIDACAO') updates.dlNumber = inputs.dl;
-      if (type === 'ORDEM_BANCARIA') updates.obNumber = inputs.ob;
-
-      updateLocalProcess(updates);
-      setPreviewDoc(newDoc); // Auto-open preview
+          // In production, we would also insert this into the 'documentos' table
+          // For now, updating numbers is the priority persistence
+          setPreviewDoc(newDoc);
+          refresh();
+      } catch (err) {
+          alert('Erro ao persistir documento: ' + (err as Error).message);
+      }
   };
 
   const getDocTitle = (type: DocType) => {
       switch(type) {
-          case 'PORTARIA': return 'Portaria de Concessão de Suprimento';
-          case 'CERTIDAO_REGULARIDADE': return 'Certidão de Regularidade (SISUP)';
+          case 'PORTARIA': return 'Portaria de Autorização';
+          case 'CERTIDAO_REGULARIDADE': return 'Certidão de Regularidade';
           case 'NOTA_EMPENHO': return 'Nota de Empenho (NE)';
           case 'LIQUIDACAO': return 'Documento de Liquidação (DL)';
           case 'ORDEM_BANCARIA': return 'Ordem Bancária (OB)';
+          case 'PORTARIA_ACCOUNTABILITY': return 'Portaria de Regularidade de PC';
           default: return 'Documento';
       }
   };
 
   const hasDoc = (type: DocType) => selectedProcess?.generatedDocuments?.some(d => d.type === type);
 
-  const handleTramitarSeplan = () => {
-      console.log('[DEBUG] handleTramitarSeplan called');
-      console.log('[DEBUG] selectedProcess:', selectedProcess);
-      
+  const handleTramitarSeplan = async () => {
       if (!hasDoc('PORTARIA') || !hasDoc('CERTIDAO_REGULARIDADE') || !hasDoc('NOTA_EMPENHO')) {
-          console.log('[DEBUG] Missing docs - aborting');
           alert('Gere a Portaria, a Certidão e a NE antes de tramitar.');
           return;
       }
       
-      console.log('[DEBUG] All docs present, proceeding with tramitation');
-      
-      // Update local state
-      updateLocalProcess({ status: ConcessionStatus.SIGNATURE });
-      console.log('[DEBUG] Local process updated');
-      
-      // Notify parent component
-      onUpdateStatus(selectedProcess!.id, ConcessionStatus.SIGNATURE);
-      console.log('[DEBUG] Parent notified');
-      
-      // Show success banner
-      setSuccessMessage(`✅ Processo ${selectedProcess!.protocolNumber} tramitado para SEPLAN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
-      console.log('[DEBUG] Success message set');
-      
-      // Clear after 10 seconds
-      setTimeout(() => setSuccessMessage(null), 10000);
-  };
-
-  // Simulates Return from SEPLAN
-  const handleSimulateSeplanReturn = () => {
-      if(confirm('Simular assinatura e retorno da SEPLAN?')) {
-          updateLocalProcess({ status: ConcessionStatus.FINANCE }); // Ready for Payment
+      try {
+          await onTramitToSeplan(selectedProcess!.id);
+          setSuccessMessage(`✅ Processo ${selectedProcess!.protocolNumber} tramitado para SEPLAN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
+          setTimeout(() => setSuccessMessage(null), 10000);
+          refresh();
+      } catch (err) {
+          alert('Erro ao tramitar para SEPLAN: ' + (err as Error).message);
       }
   };
 
-  const handleFinalizePayment = () => {
+  // Simulates Return from SEPLAN
+  const handleSimulateSeplanReturn = async () => {
+      if(confirm('Simular assinatura e retorno da SEPLAN?')) {
+          const { error } = await supabase.from('solicitacoes').update({ status: ConcessionStatus.FINANCE }).eq('id', selectedProcess!.id);
+          if (error) alert('Erro ao simular: ' + error.message);
+          else refresh();
+      }
+  };
+
+  const handleFinalizePayment = async () => {
       if (!hasDoc('LIQUIDACAO') || !hasDoc('ORDEM_BANCARIA')) {
           alert('Gere a DL e a OB para concluir o pagamento.');
           return;
       }
-      updateLocalProcess({ status: ConcessionStatus.GRANTED });
-      onUpdateStatus(selectedProcess!.id, ConcessionStatus.GRANTED);
-      alert('Pagamento Concluído! O processo agora aguarda prestação de contas.');
+      try {
+          await onCompleteExecution(selectedProcess!.id);
+          alert('Pagamento Concluído! O processo agora aguarda prestação de contas.');
+          refresh();
+      } catch (err) {
+          alert('Erro ao concluir execução: ' + (err as Error).message);
+      }
   };
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -434,6 +446,44 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({ processes,
                                           </p>
                                       </div>
                                   )}
+
+                                  {previewDoc.type === 'PORTARIA_ACCOUNTABILITY' && (
+                                      <div className="space-y-6 text-justify text-sm leading-7">
+                                          <div className="flex flex-col items-center text-center space-y-1 mb-8">
+                                              <img src={BRASAO_TJPA_URL} className="w-16 mb-2" alt="Brasão TJPA" />
+                                              <h1 className="font-bold text-xs uppercase text-slate-900 underline underline-offset-4">Tribunal de Justiça do Pará</h1>
+                                              <h2 className="text-[10px] uppercase text-slate-700">Secretaria de Planejamento, Coordenação e Finanças</h2>
+                                          </div>
+                                          
+                                          <div className="text-center mb-10">
+                                              <h2 className="font-black text-lg uppercase tracking-tight text-slate-900 border-y-2 border-slate-900 py-2 inline-block px-12">
+                                                  Portaria de Regularidade de PC
+                                              </h2>
+                                          </div>
+
+                                          <p>
+                                              A Secretaria de Planejamento, Coordenação e Finanças do Tribunal de Justiça do Estado do Pará, no uso de suas atribuições legais, e considerando a análise técnica realizada pela equipe de Auditoria do SOSFU,
+                                          </p>
+                                          
+                                          <p className="font-bold text-slate-800">RESOLVE:</p>
+                                          
+                                          <p>
+                                              <span className="font-bold">Art. 1º</span> - Declarar <span className="font-black text-emerald-600 bg-emerald-50 px-1">REGULAR</span> a prestação de contas do suprimento de fundos concedido ao servidor(a) <strong className="uppercase">{selectedProcess.interestedParty}</strong>, referente ao protocolo <strong className="font-mono">{selectedProcess.protocolNumber}</strong>.
+                                          </p>
+                                          
+                                          <p>
+                                              <span className="font-bold">Art. 2º</span> - Informar que a baixa da responsabilidade do servidor foi devidamente efetuada no Sistema de Administração Financeira (SIAFE), sob a Nota de Lançamento (NL) <strong>{previewDoc.metadata?.siafeNl}</strong> em <strong>{previewDoc.metadata?.siafeDate}</strong>.
+                                          </p>
+                                          
+                                          <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col items-center">
+                                              <p className="font-medium text-slate-800">Belém, {new Date().toLocaleDateString('pt-BR', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                                              <div className="mt-8 text-center opacity-40">
+                                                  <p className="text-[10px] font-bold uppercase tracking-widest">Assinado Eletronicamente</p>
+                                                  <p className="text-[9px]">Ordenador de Despesa / Coordenador SOSFU</p>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  )}
                                   
                                   <div className="absolute bottom-12 left-12 right-12 text-center border-t border-slate-300 pt-4">
                                       <p className="font-bold text-xs uppercase">Assinado Eletronicamente</p>
@@ -646,85 +696,143 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({ processes,
 
                                 <div className="border-t border-slate-200 my-4"></div>
 
-                                {/* Workflow Phase 1: Instruction */}
-                                <div className={`transition-opacity ${selectedProcess.status === ConcessionStatus.SIGNATURE ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-4 flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">1</div>
-                                        Instrução Processual
-                                    </h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {/* Certidão */}
-                                        <div className="p-4 rounded-2xl border border-slate-200 flex flex-col justify-between h-32 bg-white">
-                                            <div className="flex justify-between items-start">
-                                                <span className="text-xs font-bold text-slate-600">1. Certidão de Regularidade</span>
-                                                {hasDoc('CERTIDAO_REGULARIDADE') && <CheckCircle2 size={16} className="text-emerald-500"/>}
+                                {selectedProcess.type === ProcessType.ACCOUNTABILITY ? (
+                                    <div className="animate-in slide-in-from-bottom-4">
+                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-4 flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">A</div>
+                                            Finalização de Prestação de Contas
+                                        </h4>
+                                        <div className="space-y-4">
+                                            {/* SIAFE NL Input */}
+                                            <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div>
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nota de Lançamento (NL) - SIAFE</label>
+                                                        <div className="relative">
+                                                            <Key size={14} className="absolute left-3 top-3 text-slate-400"/>
+                                                            <input 
+                                                                type="text" 
+                                                                placeholder="Ex: 2026NL000999" 
+                                                                className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                                                value={inputs.siafe_nl}
+                                                                onChange={e => setInputs({...inputs, siafe_nl: e.target.value})}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data da Baixa no Sistema</label>
+                                                        <div className="relative">
+                                                            <CalendarDays size={14} className="absolute left-3 top-3 text-slate-400"/>
+                                                            <input 
+                                                                type="date" 
+                                                                className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                                                value={inputs.siafe_date}
+                                                                onChange={e => setInputs({...inputs, siafe_date: e.target.value})}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleGenerateDoc('PORTARIA_ACCOUNTABILITY')}
+                                                    disabled={!inputs.siafe_nl || !inputs.siafe_date || hasDoc('PORTARIA_ACCOUNTABILITY')}
+                                                    className="w-full py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                                >
+                                                    <FileCheck size={18}/>
+                                                    {hasDoc('PORTARIA_ACCOUNTABILITY') ? 'Portaria de Regularidade Gerada' : 'Gerar Portaria de Regularidade'}
+                                                </button>
                                             </div>
-                                            <button 
-                                                onClick={() => handleGenerateDoc('CERTIDAO_REGULARIDADE')}
-                                                disabled={hasDoc('CERTIDAO_REGULARIDADE')}
-                                                className="w-full py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50"
-                                            >
-                                                {hasDoc('CERTIDAO_REGULARIDADE') ? 'Gerado' : 'Gerar Certidão'}
-                                            </button>
-                                        </div>
-
-                                        {/* Portaria */}
-                                        <div className="p-4 rounded-2xl border border-slate-200 flex flex-col justify-between h-32 bg-white">
-                                            <div className="flex justify-between items-start">
-                                                <span className="text-xs font-bold text-slate-600">2. Portaria SF</span>
-                                                {hasDoc('PORTARIA') && <CheckCircle2 size={16} className="text-emerald-500"/>}
-                                            </div>
-                                            <button 
-                                                onClick={() => handleGenerateDoc('PORTARIA')}
-                                                disabled={hasDoc('PORTARIA')}
-                                                className="w-full py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50"
-                                            >
-                                                {hasDoc('PORTARIA') ? 'Gerado' : 'Minutar Portaria'}
-                                            </button>
-                                        </div>
-
-                                        {/* Nota de Empenho - Requires Input */}
-                                        <div className="col-span-2 p-4 rounded-2xl border border-blue-100 bg-blue-50/50 flex items-center gap-4">
-                                            <div className="flex-1">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">3. Número da NE (SIAFE)</label>
-                                                <div className="relative">
-                                                    <Key size={14} className="absolute left-3 top-2.5 text-slate-400"/>
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Ex: 2026NE000123" 
-                                                        className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-                                                        value={inputs.ne}
-                                                        onChange={e => setInputs({...inputs, ne: e.target.value})}
-                                                        disabled={hasDoc('NOTA_EMPENHO')}
-                                                    />
+                                            
+                                            <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3">
+                                                <div className="p-2 bg-white rounded-lg text-blue-600 shadow-sm">
+                                                    <Zap size={16}/>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-blue-900">Análise Sentinela Concluída</p>
+                                                    <p className="text-[10px] text-blue-700 mt-1 uppercase font-black tracking-tight">Status: REGULAR COM RESSALVA (AUTO)</p>
                                                 </div>
                                             </div>
-                                            <button 
-                                                onClick={() => handleGenerateDoc('NOTA_EMPENHO')}
-                                                disabled={!inputs.ne || hasDoc('NOTA_EMPENHO')}
-                                                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                                            >
-                                                {hasDoc('NOTA_EMPENHO') ? 'Emitida' : 'Emitir NE'}
-                                            </button>
                                         </div>
                                     </div>
+                                ) : (
+                                    <>
+                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-4 flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">1</div>
+                                            Instrução Processual
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {/* Certidão */}
+                                            <div className="p-4 rounded-2xl border border-slate-200 flex flex-col justify-between h-32 bg-white">
+                                                <div className="flex justify-between items-start">
+                                                    <span className="text-xs font-bold text-slate-600">1. Certidão de Regularidade</span>
+                                                    {hasDoc('CERTIDAO_REGULARIDADE') && <CheckCircle2 size={16} className="text-emerald-500"/>}
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleGenerateDoc('CERTIDAO_REGULARIDADE')}
+                                                    disabled={hasDoc('CERTIDAO_REGULARIDADE')}
+                                                    className="w-full py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50"
+                                                >
+                                                    {hasDoc('CERTIDAO_REGULARIDADE') ? 'Gerado' : 'Gerar Certidão'}
+                                                </button>
+                                            </div>
 
-                                    {/* Send to SEPLAN Action */}
-                                    <div className="mt-4 flex justify-end">
-                                        <button 
-                                            onClick={handleTramitarSeplan}
-                                            disabled={!isReadyToTramit || !isEditableStatus}
-                                            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all ${
-                                                !isReadyToTramit || !isEditableStatus
-                                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                                : 'bg-slate-900 text-white hover:bg-slate-800'
-                                            }`}
-                                            title={!isReadyToTramit ? "Gere os 3 documentos obrigatórios acima para habilitar." : "Enviar para SEPLAN"}
-                                            >
-                                                <Send size={16}/> Tramitar para SEPLAN (Assinatura Lote)
-                                            </button>
-                                    </div>
-                                </div>
+                                            {/* Portaria */}
+                                            <div className="p-4 rounded-2xl border border-slate-200 flex flex-col justify-between h-32 bg-white">
+                                                <div className="flex justify-between items-start">
+                                                    <span className="text-xs font-bold text-slate-600">2. Portaria SF</span>
+                                                    {hasDoc('PORTARIA') && <CheckCircle2 size={16} className="text-emerald-500"/>}
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleGenerateDoc('PORTARIA')}
+                                                    disabled={hasDoc('PORTARIA')}
+                                                    className="w-full py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50"
+                                                >
+                                                    {hasDoc('PORTARIA') ? 'Gerado' : 'Minutar Portaria'}
+                                                </button>
+                                            </div>
+
+                                            {/* Nota de Empenho - Requires Input */}
+                                            <div className="col-span-2 p-4 rounded-2xl border border-blue-100 bg-blue-50/50 flex items-center gap-4">
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">3. Número da NE (SIAFE)</label>
+                                                    <div className="relative">
+                                                        <Key size={14} className="absolute left-3 top-2.5 text-slate-400"/>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Ex: 2026NE000123" 
+                                                            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+                                                            value={inputs.ne}
+                                                            onChange={e => setInputs({...inputs, ne: e.target.value})}
+                                                            disabled={hasDoc('NOTA_EMPENHO')}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleGenerateDoc('NOTA_EMPENHO')}
+                                                    disabled={!inputs.ne || hasDoc('NOTA_EMPENHO')}
+                                                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                                                >
+                                                    {hasDoc('NOTA_EMPENHO') ? 'Emitida' : 'Emitir NE'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Send to SEPLAN Action */}
+                                        <div className="mt-4 flex justify-end">
+                                            <button 
+                                                onClick={handleTramitarSeplan}
+                                                disabled={!isReadyToTramit || !isEditableStatus}
+                                                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all ${
+                                                    !isReadyToTramit || !isEditableStatus
+                                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                                                }`}
+                                                title={!isReadyToTramit ? "Gere os 3 documentos obrigatórios acima para habilitar." : "Enviar para SEPLAN"}
+                                                >
+                                                    <Send size={16}/> Tramitar para SEPLAN (Assinatura Lote)
+                                                </button>
+                                        </div>
+                                    </>
+                                )}
 
                                 {/* Wait State for SEPLAN */}
                                 {selectedProcess.status === ConcessionStatus.SIGNATURE && (

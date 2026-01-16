@@ -97,7 +97,7 @@ export const SentinelaAudit: React.FC<SentinelaAuditProps> = ({ process, onClose
   }
 
   return (
-    <div className="h-full flex flex-col bg-slate-100 overflow-hidden">
+    <div className="fixed inset-0 z-[250] flex flex-col bg-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
       {/* Top Header */}
       <div className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center gap-3">

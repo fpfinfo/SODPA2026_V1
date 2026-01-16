@@ -193,7 +193,7 @@ export interface ProcessItem {
 }
 
 // Tipos para Documentos Gerados
-export type DocType = 'PORTARIA' | 'CERTIDAO_REGULARIDADE' | 'NOTA_EMPENHO' | 'LIQUIDACAO' | 'ORDEM_BANCARIA';
+export type DocType = 'PORTARIA' | 'CERTIDAO_REGULARIDADE' | 'NOTA_EMPENHO' | 'LIQUIDACAO' | 'ORDEM_BANCARIA' | 'PORTARIA_ACCOUNTABILITY';
 
 export interface ProcessDocument {
   id: string;
@@ -205,6 +205,8 @@ export interface ProcessDocument {
     neNumber?: string;
     dlNumber?: string;
     obNumber?: string;
+    siafeNl?: string;
+    siafeDate?: string;
   };
 }
 

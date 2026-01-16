@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { FilterTab, ViewMode, ProcessType, Process, ProcessStatus, ConcessionStatus, AccountStatus, SupplyCategory, AnnualBudget, BudgetDistribution, AdminBudget, BudgetRule } from '../types';
 import { MOCK_PROCESSES, STAFF_MEMBERS, CURRENT_USER_ID, INITIAL_BUDGET, MOCK_BUDGET_MATRIX, MOCK_ADMIN_BUDGETS, MOCK_BUDGET_RULES } from '../constants';
 import { KPIHeader } from './KPIHeader';
@@ -17,6 +18,7 @@ import { SupridoManager } from './SupridoManager';
 import { SiafeManager } from './SiafeManager';
 import { ConcessionManager } from './ConcessionManager';
 import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
+import { useSOSFUProcesses, SOSFUStats } from '../hooks/useSOSFUProcesses';
 import { useRoleRequests, ROLE_LABELS, RoleRequest } from '../hooks/useRoleRequests';
 import { useTeamMembers, TeamMember } from '../hooks/useTeamMembers';
 import { 
@@ -66,8 +68,18 @@ type SosfuViewMode = 'DASHBOARD' | 'LIST' | 'KANBAN';
 type ListFilterType = 'INBOX' | 'MY_TASKS' | 'ANALYSIS' | 'FINANCE' | 'TEAM_MEMBER';
 
 export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInternalTabChange, onProcessesChange }) => {
-  // Real data will be fetched from database - no more mock data
-  const [processes, setProcesses] = useState<Process[]>([]);
+  // Real data fetched from hook
+  const { 
+    processes, 
+    stats: sosfuStats, 
+    isLoading: isProcessesLoading, 
+    refresh: refreshProcesses,
+    getCategory,
+    assignToUser,
+    updateExecutionNumbers,
+    tramitToSeplan,
+    completeExecution
+  } = useSOSFUProcesses();
 
   // Propagate process changes to parent for cross-module integration (e.g., SEPLAN inbox)
   React.useEffect(() => {
@@ -100,21 +112,16 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   useEffect(() => { if (forceTab) { setActiveTab(forceTab); if (onInternalTabChange) onInternalTabChange(); } }, [forceTab, onInternalTabChange]);
   useEffect(() => { setIsLoading(true); const timer = setTimeout(() => setIsLoading(false), 400); return () => clearTimeout(timer); }, [activeTab, listFilter, viewMode]);
 
-  const stats = useMemo(() => ({
-    inbox: processes.filter(p => !p.assignedToId).length,
-    myTasks: processes.filter(p => p.assignedToId === CURRENT_USER_ID && p.status !== ConcessionStatus.FINANCE && p.status !== AccountStatus.ARCHIVED).length,
-    analysis: processes.filter(p => (p.status === ConcessionStatus.ANALYSIS || p.status === AccountStatus.AUDIT)).length,
-    finance: processes.filter(p => p.status === ConcessionStatus.FINANCE || p.status === ConcessionStatus.GRANTED).length,
-  }), [processes]);
+  const stats = sosfuStats;
 
   const auditStats = useMemo(() => {
-      const accountabilityProcesses = processes.filter(p => p.type === ProcessType.ACCOUNTABILITY);
+      const accountabilityProcesses = processes.filter(p => getCategory(p) === 'PRESTACAO');
       return {
           critical: accountabilityProcesses.filter(p => p.sentinelaRisk === 'CRITICAL').length,
           pending: accountabilityProcesses.filter(p => !p.sentinelaRisk || p.sentinelaRisk === 'PENDING').length,
           total: accountabilityProcesses.length
       };
-  }, [processes]);
+  }, [processes, getCategory]);
 
   // Fetch real team members from database
   const { teamMembers: realTeamMembers, isLoading: isLoadingTeam, refresh: refreshTeamMembers } = useTeamMembers();
@@ -151,26 +158,62 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   }, [processes, realTeamMembers]);
 
   const handleCardClick = (mode: SosfuViewMode, filter?: ListFilterType) => { setViewMode(mode); if (filter) setListFilter(filter); };
-  const handleAction = (action: string, id: string) => { if (action === 'assume') setAssigningProcessId(id); else if (action === 'sentinela') { const p = processes.find(pr => pr.id === id); if (p) setAuditProcess(p); } };
+  const handleAction = (action: string, id: string) => { 
+    const p = processes.find(pr => pr.id === id);
+    if (!p) return;
+    if (action === 'assume') setAssigningProcessId(id); 
+    else if (action === 'sentinela') setAuditProcess(p);
+    else if (action === 'details') { setSelectedProcess(p); setDetailsModalTab('DETAILS'); }
+    else if (action === 'analysis') handleMoveProcess(id, ConcessionStatus.ANALYSIS);
+  };
   const handleViewMemberQueue = (memberId: string) => { setSelectedMemberId(memberId); setListFilter('TEAM_MEMBER'); setViewMode('LIST'); };
-  const handleAssignUser = (processId: string, staffId: string) => { setProcesses(prev => prev.map(p => p.id === processId ? { ...p, assignedToId: staffId, status: ConcessionStatus.ANALYSIS } : p)); setAssigningProcessId(null); };
-  const handleBulkRedistribute = (targetMemberId: string) => { if (!redistributionSourceId) return; setProcesses(prev => prev.map(p => p.assignedToId === redistributionSourceId ? { ...p, assignedToId: targetMemberId } : p)); setRedistributionSourceId(null); alert('Carga de trabalho redistribuída com sucesso!'); };
-  
-  // Handler for ConcessionManager status updates - Updates process state which propagates to SeplanDashboard
-  const handleMoveProcess = (processId: string, newStatus: string) => {
-    console.log('[DashboardSOSFU] handleMoveProcess called:', processId, newStatus);
-    setProcesses(prev => prev.map(p => p.id === processId ? { ...p, status: newStatus } : p));
+  const handleAssignUser = async (processId: string, staffId: string) => { 
+    try {
+      await assignToUser(processId, staffId); 
+      setAssigningProcessId(null); 
+    } catch (err) {
+      alert('Erro ao atribuir processo: ' + (err as Error).message);
+    }
+  };
+  const handleBulkRedistribute = async (targetMemberId: string) => { 
+    if (!redistributionSourceId) return; 
+    try {
+      for (const p of processes.filter(p => p.assignedToId === redistributionSourceId)) {
+        await assignToUser(p.id, targetMemberId);
+      }
+      setRedistributionSourceId(null); 
+      alert('Carga de trabalho redistribuída com sucesso!'); 
+    } catch (err) {
+      alert('Erro ao redistribuir carga: ' + (err as Error).message);
+    }
   };
   
-  const handlePriorityChange = (processId: string, newPriority: 'NORMAL' | 'HIGH' | 'CRITICAL') => { setProcesses(prev => prev.map(p => p.id === processId ? { ...p, priority: newPriority } : p)); };
-  const handleBatchLaunch = (newProcesses: Process[], totalValue: number) => { setProcesses(prev => [...newProcesses, ...prev]); setBudget(prev => ({ ...prev, executedOrdinary: prev.executedOrdinary + totalValue })); };
+  // Handler for ConcessionManager status updates - Updates process state which propagates to SeplanDashboard
+  const handleMoveProcess = async (processId: string, newStatus: string) => {
+    console.log('[DashboardSOSFU] handleMoveProcess called:', processId, newStatus);
+    const { error } = await supabase.from('solicitacoes').update({ status: newStatus }).eq('id', processId);
+    if (error) alert('Erro ao mover processo: ' + error.message);
+    else refreshProcesses();
+  };
+  
+  const handlePriorityChange = async (processId: string, newPriority: 'NORMAL' | 'HIGH' | 'CRITICAL') => { 
+    const { error } = await supabase.from('solicitacoes').update({ priority: newPriority }).eq('id', processId);
+    if (error) alert('Erro ao alterar prioridade: ' + error.message);
+    else refreshProcesses();
+  };
+  const handleBatchLaunch = (newProcesses: Process[], totalValue: number) => { 
+    // This is still local for now as it maps to MOCK in parent, but should ideally refresh from DB
+    refreshProcesses();
+    setBudget(prev => ({ ...prev, executedOrdinary: prev.executedOrdinary + totalValue })); 
+  };
 
   const getFilteredList = () => {
     let result = processes;
     if (categoryFilter !== 'ALL') result = result.filter(p => p.supplyCategory === categoryFilter);
     if (searchQuery) { const lowerQ = searchQuery.toLowerCase(); result = result.filter(p => p.protocolNumber.toLowerCase().includes(lowerQ) || p.interestedParty?.toLowerCase().includes(lowerQ)); }
     // Audit filter for Accountability tab
-    if (activeTab === 'ACCOUNTABILITY' && auditFilter !== 'ALL') {
+    if (activeTab === 'ACCOUNTABILITY') {
+        result = result.filter(p => p.type === ProcessType.ACCOUNTABILITY);
         if (auditFilter === 'CRITICAL') result = result.filter(p => p.sentinelaRisk === 'CRITICAL');
         else if (auditFilter === 'PENDING') result = result.filter(p => !p.sentinelaRisk || p.sentinelaRisk === 'PENDING');
     }
@@ -206,10 +249,108 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
 
   const renderDashboardCards = () => (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-      <div onClick={() => handleCardClick('LIST', 'INBOX')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-blue-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform"><Inbox size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Triagem</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.inbox}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-blue-600">Novos Recebidos</p><p className="text-[10px] text-slate-400 mt-1">Aguardando distribuição</p></div></div>
-      <div onClick={() => handleCardClick('LIST', 'MY_TASKS')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-purple-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform"><UserCog size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Minha Mesa</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.myTasks}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-purple-600">Atribuídos a Mim</p><p className="text-[10px] text-slate-400 mt-1">Sua fila de trabalho</p></div></div>
-      <div onClick={() => handleCardClick('LIST', 'ANALYSIS')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-amber-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform"><FileText size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Em Andamento</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.analysis}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-amber-600">Em Análise Técnica</p><p className="text-[10px] text-slate-400 mt-1">Concessão e Prestação</p></div></div>
-      <div onClick={() => handleCardClick('LIST', 'FINANCE')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform"><CheckSquare size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Finalizados</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.finance}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-emerald-600">Fase Financeira</p><p className="text-[10px] text-slate-400 mt-1">Empenho ou Arquivamento</p></div></div>
+      {/* 📥 NOVOS RECEBIDOS (SOL + PC) */}
+      <div 
+        onClick={() => {
+          setListFilter('INBOX');
+          setViewMode('LIST');
+        }} 
+        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"
+      >
+        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 group-hover:w-2 transition-all"></div>
+        <div className="flex justify-between items-start mb-4">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform">
+            <Inbox size={20}/>
+          </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Caixa de Entrada</span>
+        </div>
+        <div>
+          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.inbox.total}</h3>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-blue-600">Novos Recebidos</p>
+          <div className="flex gap-4 mt-2">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.inbox.solicitacoes} Sol.</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.inbox.prestacoes} PC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 👤 MINHA MESA */}
+      <div 
+        onClick={() => {
+          setListFilter('MY_TASKS');
+          setViewMode('LIST');
+        }} 
+        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"
+      >
+        <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 group-hover:w-2 transition-all"></div>
+        <div className="flex justify-between items-start mb-4">
+          <div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform">
+            <UserCog size={20}/>
+          </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Minha Mesa</span>
+        </div>
+        <div>
+          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.myTasks}</h3>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-purple-600">Atribuídos a Mim</p>
+          <p className="text-[10px] text-slate-400 mt-1">Sua fila de trabalho</p>
+        </div>
+      </div>
+
+      {/* 📤 AGUARDANDO ASSINATURA */}
+      <div 
+        onClick={() => {
+          setListFilter('ANALYSIS'); // Reuse analysis filter or create a new one
+          setViewMode('LIST');
+        }} 
+        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition-all cursor-pointer"
+      >
+        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 group-hover:w-2 transition-all"></div>
+        <div className="flex justify-between items-start mb-4">
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform">
+            <ShieldCheck size={20}/>
+          </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Fluxo SEPLAN</span>
+        </div>
+        <div>
+          <h3 className="text-3xl font-black text-slate-800 mb-1">{stats.awaitingSignature}</h3>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-amber-600">Aguard. Assinatura</p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+            <span className="text-[10px] font-bold text-slate-400">{stats.solicitacoesAnalysis} em Análise Técnica</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ AGUARDANDO PRESTAÇÃO DE CONTAS */}
+      <div 
+        onClick={() => {
+          setListFilter('FINANCE'); // Reuse finance filter or create a new one
+          setViewMode('LIST');
+        }} 
+        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer"
+      >
+        <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 group-hover:w-2 transition-all"></div>
+        <div className="flex justify-between items-start mb-4">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform">
+            <CheckSquare size={20}/>
+          </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Execuções</span>
+        </div>
+        <div>
+          <h3 className="text-3xl font-black text-slate-800 mb-1">{stats.awaitingPC}</h3>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-emerald-600">Aguard. PC</p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+            <span className="text-[10px] font-bold text-slate-400">{stats.prestacoesAudit} em Auditoria Sentinela</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -363,8 +504,17 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const isSiafeTab = activeTab === 'SIAFE';
   const isConcessionTab = activeTab === 'CONCESSION';
 
-  const handleSiafeUpdate = (processId: string, nl: string, date: string) => {
-    setProcesses(prev => prev.map(p => p.id === processId ? { ...p, status: AccountStatus.SIAFE_DONE, siafeNl: nl, siafeDate: date } : p));
+  const handleSiafeUpdate = async (processId: string, nl: string, date: string) => {
+    const { error } = await supabase
+      .from('solicitacoes')
+      .update({ 
+        status: 'SIAFE_DONE', // Or AccountStatus.SIAFE_DONE if mapped correctly
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', processId);
+    
+    if (error) alert('Erro ao atualizar SIAFE: ' + error.message);
+    else refreshProcesses();
   };
 
   if (auditProcess) return <SentinelaAudit process={auditProcess} onClose={() => setAuditProcess(null)} />;
@@ -400,8 +550,16 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
             </div>
             <FinancialRegistry processes={getFilteredList()} type={financeSubTab} isLoading={isLoading} onManageTables={() => setActiveTab('INSS_TABLES')}/>
           </div>
-        ) : isSupridoManagement ? (<div className="h-full overflow-y-auto custom-scrollbar"><SupridoManager /></div>) : isSiafeTab ? (<div className="h-full overflow-y-auto custom-scrollbar"><SiafeManager processes={processes} onUpdateStatus={handleSiafeUpdate} /></div>) : isOrdinaryManagement ? (<div className="h-full overflow-y-auto custom-scrollbar"><BudgetManager budget={budget} onLaunchBatch={handleBatchLaunch} /></div>) : isConcessionTab ? (
-          <ConcessionManager processes={processes} onUpdateStatus={handleMoveProcess} budgetCap={budget.totalCap} />
+                ) : isConcessionTab ? (
+          <ConcessionManager 
+            processes={processes} 
+            onUpdateStatus={handleMoveProcess} 
+            onUpdateExecutionNumbers={updateExecutionNumbers}
+            onTramitToSeplan={tramitToSeplan}
+            onCompleteExecution={completeExecution}
+            refresh={refreshProcesses}
+            budgetCap={budget.totalCap} 
+          />
         ) : isBudgetTab ? (
           <div className="h-full overflow-y-auto custom-scrollbar p-6">
             <BudgetPlanningDashboard />
@@ -443,6 +601,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
 
       {selectedProcess && <ProcessDetailsModal process={selectedProcess} onClose={() => setSelectedProcess(null)} initialTab={detailsModalTab} />}
       {assigningProcessId && <AssignmentModal staffMembers={STAFF_MEMBERS} processesCount={{}} onSelect={(staffId) => handleAssignUser(assigningProcessId, staffId)} onClose={() => setAssigningProcessId(null)} />}
+      {auditProcess && <SentinelaAudit process={auditProcess} onClose={() => setAuditProcess(null)} />}
       {renderRedistributionModal()}
     </div>
   );
