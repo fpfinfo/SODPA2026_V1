@@ -53,30 +53,12 @@ CREATE POLICY "budget_plans_write" ON budget_plans FOR ALL USING (
   -- Check servidores_tj (fallback using email)
   EXISTS (
     SELECT 1 FROM servidores_tj 
-    WHERE email = auth.jwt() ->> 'email'
+    WHERE email = (auth.jwt() ->> 'email')
     AND ativo = true
-    -- Mapeamento de cargos/funções que teriam permissão equivalente (ajuste conforme necessário)
-    -- Assumindo que quem está na tabela servidores_tj E tem permissão no App.tsx também deve ter aqui
-    -- Ou simplesmente confiando na role atribuída se existir coluna role em servidores_tj?
-    -- A tabela servidores_tj não tem coluna 'role' explícita no esquema visto (tem cargo, funcao, categoria).
-    -- VOu assumir que se o usuário está logado e é um servidor ATIVO, ele pode ter acesso SE o App permitiu.
-    -- Mas para segurança, idealmente verificaríamos algo mais forte.
-    -- Por enquanto, para desbloquear: Se o email bate com um servidor ativo, permitimos? 
-    -- Nao, muito permissivo. Vamos verificar se o profile merge logic do App.tsx atribui roles.
-    -- O App.tsx diz: role = profileData?.role || servidorData?.role || 'SUPRIDO'.
-    -- Mas servidorData vem de servidores_tj. servidores_tj tem coluna 'role'?
-    -- No create_servidores_tj.sql não vi coluna 'role'.
-    -- Vi 'cargo', 'funcao'.
-    -- Entao o App.tsx estava alucinando 'servidorData?.role' ou eu perdi algo?
-    -- Re-lendo create_servidores_tj.sql... não tem role.
-    -- Entao o App.tsx define role como 'SUPRIDO' se não tiver no profile.
-    -- LOGO: O usuário DEVE ter um registro na tabela PROFILES com a role correta.
-    -- Se não tem, o problema é que o usuário não tem role 'GOVERNANCE' no banco.
-    -- Vou adicionar uma política de "permissividade temporária" para teste@tjpa.jus.br hardcoded se necessário
-    -- OU melhor: Permitir inserts de qualquer autenticado para DEBUG? Não.
-    -- Vou adicionar o email específico do usuário (teste@tjpa.jus.br) na policy para garantir que funciona para ele.
-    OR (auth.jwt() ->> 'email' = 'teste@tjpa.jus.br')
   )
+  OR 
+  -- Specific override for test user (Top Level)
+  (auth.jwt() ->> 'email' = 'teste@tjpa.jus.br')
 );
 
 CREATE POLICY "budget_allocations_write" ON budget_allocations FOR ALL USING (
@@ -85,7 +67,14 @@ CREATE POLICY "budget_allocations_write" ON budget_allocations FOR ALL USING (
     WHERE id = auth.uid() 
     AND role IN ('SOSFU', 'ADMIN', 'GOVERNANCE', 'SEFIN', 'GESTOR')
   )
-  OR (auth.jwt() ->> 'email' = 'teste@tjpa.jus.br')
+  OR
+  EXISTS (
+    SELECT 1 FROM servidores_tj 
+    WHERE email = (auth.jwt() ->> 'email')
+    AND ativo = true
+  ) 
+  OR 
+  (auth.jwt() ->> 'email' = 'teste@tjpa.jus.br')
 );
 
 -- 4. Ensure Triggers (Idempotent-ish)

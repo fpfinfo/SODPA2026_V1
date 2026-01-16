@@ -47,6 +47,8 @@ export interface DotacaoItem {
   dotacao_code: string;      // Editable: "170", "180", etc.
   allocated_value: number;   // R$ value (Dotação Atual)
   committed_value: number;   // R$ value (Valor Empenhado) - New field
+  is_active: boolean;        // Active status
+  parent_id?: string;        // ID of the parent allocation if this is a replacement
 }
 
 // PTRES allocation container
@@ -101,6 +103,7 @@ export function createDefaultBudgetPlan(year: number): BudgetPlanConfig {
       dotacao_code: String(170 + idx), // Default dotação codes
       allocated_value: 0,
       committed_value: 0, // Initialize committed value
+      is_active: true,
     })),
   });
 

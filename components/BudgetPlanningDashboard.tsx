@@ -23,6 +23,11 @@ import {
   RefreshCw,
   Building2,
   Landmark,
+  MoreVertical,
+  Archive,
+  PlusCircle,
+  ArrowRight,
+  Power,
 } from 'lucide-react';
 import {
   BudgetPlanConfig,
@@ -37,6 +42,7 @@ import {
   parseBRL,
 } from '../types/budgetPlanning';
 import { useBudgetPlan } from '../hooks/useBudgetPlan';
+import { UNIT_PTRES_MAP, BudgetUnit } from '../constants';
 
 
 interface BudgetPlanningDashboardProps {
@@ -56,11 +62,26 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
   const [editingTotal, setEditingTotal] = useState(false);
   const [tempTotal, setTempTotal] = useState('');
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'SOSFU' | 'COMIL' | 'EJPA' | 'SETIC'>('SOSFU');
+  const [activeTab, setActiveTab] = useState<BudgetUnit | 'VISÃO GERAL'>('VISÃO GERAL');
   
   const { fetchBudgetPlan, saveBudgetPlan, loading } = useBudgetPlan(2026);
 
   const computed = useMemo(() => calculateBudgetValues(config), [config]);
+
+  const isGlobalView = activeTab === 'VISÃO GERAL';
+
+  const activeTabTotal = useMemo(() => {
+    if (isGlobalView) return config.total_budget;
+    
+    // Sum allocated_value for all PTRES in this unit
+    const targetPtres = UNIT_PTRES_MAP[activeTab as BudgetUnit];
+    return config.allocations
+      .filter(a => (targetPtres as readonly string[]).includes(a.ptres_code))
+      .reduce((sum, a) => {
+        const ptresSum = a.items.reduce((pSum, item) => pSum + (item.allocated_value || 0), 0);
+        return sum + ptresSum;
+      }, 0);
+  }, [config, activeTab, isGlobalView]);
 
   const togglePtres = useCallback((code: PtresCode) => {
     setExpandedPtres(prev => {
@@ -142,6 +163,91 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
           : alloc
       ),
     }));
+  }, []);
+
+  const handleToggleActive = useCallback((ptresCode: PtresCode, itemId: string) => {
+    setConfig(prev => {
+      const newAllocations = prev.allocations.map(alloc => {
+        if (alloc.ptres_code !== ptresCode) return alloc;
+
+        const targetItem = alloc.items.find(i => i.id === itemId);
+        if (!targetItem) return alloc;
+
+        // If trying to activate, we must deactivate the currently active one for this element
+        if (!targetItem.is_active) {
+            if (!confirm('Deseja reativar esta dotação? A dotação atualmente ativa para este elemento será arquivada.')) return alloc;
+        } else {
+            // Deactivating the active one directly? 
+            // Usually we only swap, but letting user turn off active one (leaving none active) might be valid but risky.
+            // Let's allow it with a warning, or imply it's "Archiving" without replacement?
+            // "Exhaust & Renew" handles archiving with replacement.
+            // This toggle is mostly for "Swap".
+            if (!confirm('Deseja desativar esta dotação? Nenhuma dotação ficará ativa para este elemento.')) return alloc;
+        }
+
+        const newItems = alloc.items.map(item => {
+          // If we are activating the target, deactivate others of same element
+          if (!targetItem.is_active && item.element_code === targetItem.element_code && item.id !== targetItem.id && item.is_active) {
+             return { ...item, is_active: false };
+          }
+          // Toggle the target
+          if (item.id === targetItem.id) {
+            return { ...item, is_active: !item.is_active };
+          }
+          return item;
+        });
+
+        return { ...alloc, items: newItems };
+      });
+      return { ...prev, allocations: newAllocations };
+    });
+  }, []);
+
+  const handleExhaustAndRenew = useCallback((ptresCode: PtresCode, itemId: string, transferBalance: boolean) => {
+    if (!confirm('Deseja realmente esgotar e renovar esta dotação? A dotação atual será arquivada.')) return;
+
+    setConfig(prev => {
+      const newAllocations = prev.allocations.map(alloc => {
+        if (alloc.ptres_code !== ptresCode) return alloc;
+
+        const targetItemIndex = alloc.items.findIndex(i => i.id === itemId);
+        if (targetItemIndex === -1) return alloc;
+
+        const targetItem = alloc.items[targetItemIndex];
+        const remainingBalance = targetItem.allocated_value - targetItem.committed_value;
+        const balanceToTransfer = transferBalance ? Math.max(0, remainingBalance) : 0;
+
+        // 1. Deactivate old item and clamp allocated to committed (exhaust it)
+        const updatedOldItem: DotacaoItem = {
+          ...targetItem,
+          allocated_value: targetItem.committed_value, // Remove unused budget from old
+          is_active: false,
+        };
+
+        // 2. Create new item
+        const newItem: DotacaoItem = {
+          ...targetItem,
+          id: `${targetItem.id}-renewed-${Date.now()}`,
+          dotacao_code: '', // Reset or keep? User usually wants a new code. Let's keep empty or old? Default blank to force entry.
+          allocated_value: balanceToTransfer,
+          committed_value: 0,
+          is_active: true,
+          parent_id: targetItem.id,
+        };
+
+        const newItems = [...alloc.items];
+        newItems[targetItemIndex] = updatedOldItem;
+        // Insert new item right after the old one
+        newItems.splice(targetItemIndex + 1, 0, newItem);
+
+        return {
+          ...alloc,
+          items: newItems,
+        };
+      });
+
+      return { ...prev, allocations: newAllocations };
+    });
   }, []);
 
   const handleReset = useCallback(() => {
@@ -254,7 +360,7 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <div className={`w-14 h-14 ${isGlobalView ? 'bg-blue-600' : 'bg-indigo-600'} rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 transition-colors`}>
                 <Wallet size={28} className="text-white" />
               </div>
               <div>
@@ -262,14 +368,14 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                   Planejamento Orçamentário {config.year}
                 </p>
                 <h2 className="text-2xl font-black text-white tracking-tight">
-                  Teto Global de Suprimento de Fundos
+                  {isGlobalView ? 'Teto Global de Suprimento de Fundos' : `Orçamento ${activeTab}`}
                 </h2>
               </div>
             </div>
 
-            {/* Total Budget Input */}
+            {/* Total Budget Input or Display */}
             <div className="flex items-center gap-4">
-              {editingTotal ? (
+              {editingTotal && isGlobalView ? (
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -289,11 +395,21 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                 </div>
               ) : (
                 <button
-                  onClick={() => { setTempTotal(String(config.total_budget)); setEditingTotal(true); }}
-                  className="flex items-center gap-3 px-6 py-3 bg-white/10 border border-white/20 rounded-xl hover:bg-white/20 transition-colors group"
+                  onClick={() => { 
+                    if (isGlobalView) {
+                      setTempTotal(String(config.total_budget)); 
+                      setEditingTotal(true); 
+                    }
+                  }}
+                  disabled={!isGlobalView}
+                  className={`flex items-center gap-3 px-6 py-3 bg-white/10 border border-white/20 rounded-xl transition-colors group ${
+                    isGlobalView ? 'hover:bg-white/20 cursor-pointer' : 'cursor-default'
+                  }`}
                 >
-                  <span className="text-3xl font-black text-white">{formatBRL(config.total_budget)}</span>
-                  <Edit3 size={18} className="text-white/50 group-hover:text-white transition-colors" />
+                  <span className="text-3xl font-black text-white">{formatBRL(activeTabTotal)}</span>
+                  {isGlobalView && (
+                    <Edit3 size={18} className="text-white/50 group-hover:text-white transition-colors" />
+                  )}
                 </button>
               )}
             </div>
@@ -302,22 +418,34 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
           {/* Progress Bar */}
           <div className="space-y-3">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-white/60 font-medium">Distribuição Orçamentária</span>
-              <span className={`font-black ${computed.is_over_budget ? 'text-red-400' : 'text-emerald-400'}`}>
-                {computed.percentage_used.toFixed(1)}% Alocado
+              <span className="text-white/60 font-medium">
+                {isGlobalView ? 'Distribuição Orçamentária' : `Participação no Global (${((activeTabTotal / config.total_budget) * 100).toFixed(1)}%)`}
               </span>
+              {isGlobalView ? (
+                <span className={`font-black ${computed.is_over_budget ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {computed.percentage_used.toFixed(1)}% Alocado
+                </span>
+              ) : (
+                <span className="font-black text-white">
+                  {formatBRL(activeTabTotal)} de {formatBRL(config.total_budget)}
+                </span>
+              )}
             </div>
             
             <div className="h-4 bg-white/10 rounded-full overflow-hidden relative">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  computed.is_over_budget
+                  isGlobalView && computed.is_over_budget
                     ? 'bg-gradient-to-r from-red-500 to-red-400'
                     : 'bg-gradient-to-r from-blue-600 via-emerald-500 to-emerald-400'
                 }`}
-                style={{ width: `${Math.min(computed.percentage_used, 100)}%` }}
+                style={{ 
+                  width: `${isGlobalView 
+                    ? Math.min(computed.percentage_used, 100) 
+                    : Math.min((activeTabTotal / config.total_budget) * 100, 100)}%` 
+                }}
               />
-              {computed.is_over_budget && (
+              {isGlobalView && computed.is_over_budget && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-[10px] font-black text-white uppercase tracking-wider animate-pulse">
                     ESTOURO DE ORÇAMENTO!
@@ -327,12 +455,21 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
             </div>
 
             <div className="flex justify-between text-xs font-bold">
-              <span className={computed.is_over_budget ? 'text-red-400' : 'text-white'}>
-                {formatBRL(computed.total_distributed)} Distribuído
-              </span>
-              <span className={computed.remaining < 0 ? 'text-red-400' : 'text-emerald-400'}>
-                {formatBRL(computed.remaining)} Restante
-              </span>
+              {isGlobalView ? (
+                <>
+                  <span className={computed.is_over_budget ? 'text-red-400' : 'text-white'}>
+                    {formatBRL(computed.total_distributed)} Distribuído
+                  </span>
+                  <span className={computed.remaining < 0 ? 'text-red-400' : 'text-emerald-400'}>
+                    {formatBRL(computed.remaining)} Restante
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-white">{activeTab} TOTAL</span>
+                  <span className="text-emerald-400">OK</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -340,6 +477,17 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
 
       {/* === TAB NAVIGATION === */}
       <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveTab('VISÃO GERAL')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'VISÃO GERAL'
+              ? 'bg-white shadow-md text-slate-800'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <PieChart size={18} />
+          VISÃO GERAL
+        </button>
         <button
           onClick={() => setActiveTab('SOSFU')}
           className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
@@ -419,6 +567,9 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
               else if (activeTab === 'COMIL') codes = ['8176', '8177', '8178'];
               else if (activeTab === 'EJPA') codes = ['8716', '8164'];
               else if (activeTab === 'SETIC') codes = ['8180', '8181', '8182'];
+              else if (activeTab === 'VISÃO GERAL') {
+                codes = Object.values(UNIT_PTRES_MAP).flat();
+              }
               
               setExpandedPtres(new Set(codes as PtresCode[]));
             }}
@@ -430,17 +581,11 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
 
         {config.allocations
           .filter(allocation => {
+            if (activeTab === 'VISÃO GERAL') return true;
+            
             const code = allocation.ptres_code;
-            if (activeTab === 'SOSFU') {
-              return ['8193', '8727', '8163'].includes(code);
-            } else if (activeTab === 'COMIL') {
-              return ['8176', '8177', '8178'].includes(code);
-            } else if (activeTab === 'EJPA') {
-              return ['8716', '8164'].includes(code);
-            } else {
-              // SETIC
-              return ['8180', '8181', '8182'].includes(code);
-            }
+            const targetCodes = UNIT_PTRES_MAP[activeTab as BudgetUnit];
+            return (targetCodes as readonly string[]).includes(code);
           })
           .map((allocation) => {
           const ptresCode = allocation.ptres_code as PtresCode;
@@ -524,7 +669,7 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                         strokeWidth="4"
                         strokeDasharray={`${(ptresValues?.percentage_of_global || 0) * 0.88} 88`}
                         className="transition-all duration-500"
-                        style={{ stroke: ['8193', '8176'].includes(ptresCode) ? '#2563eb' : ['8727', '8177'].includes(ptresCode) ? '#f59e0b' : '#9333ea' }}
+                        style={{ stroke: (UNIT_PTRES_MAP['SOSFU'] as readonly string[]).includes(ptresCode) ? '#2563eb' : (UNIT_PTRES_MAP['COMIL'] as readonly string[]).includes(ptresCode) ? '#f59e0b' : '#9333ea' }}
                       />
                     </svg>
                   </div>
@@ -558,6 +703,9 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                           Disponível
                         </th>
                         <th className="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">
+                          Actions
+                        </th>
+                        <th className="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">
                           % PTRES
                         </th>
                       </tr>
@@ -569,12 +717,16 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                         const available = (item.allocated_value || 0) - (item.committed_value || 0);
 
                         return (
-                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                          <tr key={item.id} className={`transition-colors ${item.is_active ? 'hover:bg-slate-50/50' : 'bg-slate-50/50 opacity-60 grayscale'}`}>
                             <td className="px-4 py-4">
                               <div className="flex items-start gap-2">
                                 <div>
-                                  <p className="text-sm font-bold text-slate-700">{item.element_code}</p>
+                                  <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                    {item.element_code}
+                                    {!item.is_active && <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider">Inativo</span>}
+                                  </p>
                                   <p className="text-xs text-slate-500">{item.element_name}</p>
+                                  {item.parent_id && <p className="text-[10px] text-blue-500 mt-0.5 flex items-center gap-1"><ArrowRight size={10} /> Renovação</p>}
                                 </div>
                               </div>
                             </td>
@@ -582,8 +734,9 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                               <input
                                 type="text"
                                 value={item.dotacao_code}
+                                disabled={!item.is_active}
                                 onChange={(e) => handleDotacaoCodeChange(ptresCode, item.element_code, e.target.value)}
-                                className="w-20 px-2 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-20 px-2 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
                                 placeholder="170"
                               />
                             </td>
@@ -593,8 +746,9 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                                 <input
                                   type="number"
                                   value={item.allocated_value || ''}
+                                  disabled={!item.is_active}
                                   onChange={(e) => handleValueChange(ptresCode, item.element_code, parseFloat(e.target.value) || 0)}
-                                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
                                   placeholder="0,00"
                                   step="100"
                                 />
@@ -606,8 +760,10 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                                 <input
                                   type="number"
                                   value={item.committed_value || ''}
+                                  // Committed value is often read-only or system managed, but per requirement keeping editable. But inactive items shouldn't change history.
+                                  disabled={!item.is_active} 
                                   onChange={(e) => handleCommittedValueChange(ptresCode, item.element_code, parseFloat(e.target.value) || 0)}
-                                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
                                   placeholder="0,00"
                                   step="100"
                                 />
@@ -617,6 +773,27 @@ export const BudgetPlanningDashboard: React.FC<BudgetPlanningDashboardProps> = (
                               <span className={`text-sm font-black ${available < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                                 {formatBRL(available)}
                               </span>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <div className="flex justify-end gap-1">
+                                {item.is_active ? (
+                                    <button 
+                                      title="Esgotar e Renovar"
+                                      onClick={() => handleExhaustAndRenew(ptresCode, item.id, true)} 
+                                      className="p-1.5 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors"
+                                    >
+                                      <Archive size={16} />
+                                    </button>
+                                ) : (
+                                  <button 
+                                    title="Reativar Dotação"
+                                    onClick={() => handleToggleActive(ptresCode, item.id)} 
+                                    className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors"
+                                  >
+                                    <Power size={16} />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-4 text-right">
                               <span className={`text-sm font-black ${

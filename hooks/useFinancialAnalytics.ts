@@ -210,6 +210,21 @@ export const useFinancialAnalytics = () => {
         .sort((a, b) => b.value - a.value)
         .slice(0, 5); // Take top 5
 
+      const { data: allocations, error: allocationError } = await supabase
+        .from('budget_allocations')
+        .select(`
+          ptres_code,
+          allocated_value,
+          committed_value,
+          budget_plans!inner(year)
+        `)
+        .eq('budget_plans.year', 2026);
+
+      if (allocationError) {
+        console.error('Error fetching allocations:', allocationError);
+        // Don't throw, just log and continue with empty allocations
+      }
+
       setData({
         budget: {
           total: TETO_ORCAMENTARIO_GLOBAL,
@@ -223,6 +238,11 @@ export const useFinancialAnalytics = () => {
         byPole: toArray(poloMap),
         byRegion: toArray(regiaoMap),
         topSupridos: topSupridosArray,
+        budgetAllocations: allocations?.map((a: any) => ({
+          ptres_code: a.ptres_code,
+          allocated_value: a.allocated_value,
+          committed_value: a.committed_value
+        })) || [],
         isLoading: false,
         error: null
       });
