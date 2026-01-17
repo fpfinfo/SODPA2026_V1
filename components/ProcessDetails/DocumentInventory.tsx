@@ -126,18 +126,6 @@ export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-2xl">
-        <h2 className="text-2xl font-black tracking-tight">Inventário de Peças Processuais</h2>
-        <p className="text-slate-400 text-sm mt-1">Volume consolidado para auditoria e prestação de contas.</p>
-        
-        <div className="flex gap-3 mt-6">
-          <button className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all">
-            <Eye size={16} /> VISUALIZAR PDF CONSOLIDADO
-          </button>
-        </div>
-      </div>
-
       {/* Document List */}
       <div className="space-y-4">
         {/* Static Pieces */}
