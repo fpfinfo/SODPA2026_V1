@@ -98,7 +98,15 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
             Visualizar PDF Consolidado
           </button>
           <button
-            onClick={handleViewConsolidated}
+            onClick={() => {
+              // Open PDF viewer first, then trigger browser print for export
+              setSelectedPreviewDoc(null);
+              setShowPdfViewer(true);
+              // Wait for PDF to render, then trigger print dialog
+              setTimeout(() => {
+                window.print();
+              }, 1000);
+            }}
             className="flex items-center gap-3 px-8 py-5 bg-white text-slate-900 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl"
           >
             <FileDown size={18} />
