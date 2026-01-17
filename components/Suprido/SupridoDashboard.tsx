@@ -675,11 +675,19 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
          console.error('Error fetching jury config:', error);
        }
 
-       // 2. Fetch History
+       // 2. Fetch History - Only user's own processes
+       const { data: { user: currentUser } } = await supabase.auth.getUser();
+       if (!currentUser) {
+         setHistory([]);
+         setIsLoading(false);
+         return;
+       }
+       
       try {
         const { data: solicitacoes, error: historyError } = await supabase
             .from('solicitacoes')
             .select('*')
+            .eq('user_id', currentUser.id)  // Filter by logged-in user
             .order('created_at', { ascending: false });
 
         if (historyError) throw historyError;
@@ -716,9 +724,13 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   // Refresh history function - can be called after save/submit
   const refreshHistory = async () => {
     try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+      
       const { data: solicitacoes, error: historyError } = await supabase
           .from('solicitacoes')
           .select('*')
+          .eq('user_id', currentUser.id)  // Filter by logged-in user
           .order('created_at', { ascending: false });
 
       if (historyError) throw historyError;
