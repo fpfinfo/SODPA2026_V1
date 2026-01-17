@@ -4084,7 +4084,11 @@ Assinado eletronicamente pelo servidor suprido.`,
                 canCreateDocument={true}
                 onTramitar={() => setShowTramitarModal(true)}
                 onGenerateAtesto={handleGenerateAtesto}
-                onCreateDocument={() => setShowDocumentWizard(true)}
+                onCreateDocument={() => {
+                  console.log('[DEBUG] setShowDocumentWizard(true) called');
+                  console.log('[DEBUG] selectedProcess:', selectedProcess);
+                  setShowDocumentWizard(true);
+                }}
               />
             )}
           </>
