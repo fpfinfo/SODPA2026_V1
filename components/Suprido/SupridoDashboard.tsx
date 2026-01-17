@@ -1871,7 +1871,6 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                              const docsToRender = selectedPreviewDoc ? [selectedPreviewDoc] : [
                                 { id: '1', title: 'Capa do Processo', type: 'STATIC_CAPA' },
                                 { id: '2', title: 'Requerimento Inicial', type: 'STATIC_REQ' },
-                                { id: '3', title: 'Certidão de Regularidade', type: 'STATIC_CERT' },
                                 ...dossierDocs.map((doc, idx) => ({
                                     id: doc.id,
                                     title: doc.nome || 'Documento Anexo',
