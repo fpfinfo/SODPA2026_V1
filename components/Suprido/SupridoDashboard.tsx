@@ -258,6 +258,20 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       console.error('Error in fetchTramitacaoHistory:', err);
     }
   };
+  // Refresh dossier when viewing process details
+  useEffect(() => {
+    if (selectedProcess?.id) {
+      fetchDossierDocs(selectedProcess.id);
+      fetchTramitacaoHistory(selectedProcess.id);
+    }
+  }, [selectedProcess?.id]);
+
+  // Refresh dossier when subView changes to dossier-related view
+  useEffect(() => {
+    if (subView === 'DOSSIER' && selectedProcess?.id) {
+      fetchDossierDocs(selectedProcess.id);
+    }
+  }, [subView]);
   
   // KPI States - calculated from history data
   const kpiData = useMemo(() => {
@@ -403,7 +417,11 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
   const fetchDossierDocs = async (processId: string) => {
     if (!processId) return;
-    const { data } = await supabase.from('documentos').select('*').eq('solicitacao_id', processId).order('created_at', { ascending: true });
+    const { data } = await supabase
+      .from('documentos')
+      .select('*, profiles:created_by(nome, cargo)')
+      .eq('solicitacao_id', processId)
+      .order('created_at', { ascending: true });
     if (data) setDossierDocs(data);
   };
 
