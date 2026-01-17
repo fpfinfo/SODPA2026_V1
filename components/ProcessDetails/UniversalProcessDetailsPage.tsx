@@ -6,7 +6,8 @@ import {
   History,
   Send,
   BadgeCheck,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { useProcessDetails } from './hooks/useProcessDetails';
 import { DetailsTab } from './Tabs/DetailsTab';
@@ -26,6 +27,9 @@ interface UniversalProcessDetailsPageProps {
   canGenerateAtesto?: boolean;
   canCreateDocument?: boolean;
   
+  // Loading states
+  isLoadingAtesto?: boolean;
+  
   // Profile-specific actions
   onTramitar?: () => void;
   onGenerateAtesto?: () => void;
@@ -39,6 +43,7 @@ export const UniversalProcessDetailsPage: React.FC<UniversalProcessDetailsPagePr
   canTramitar = false,
   canGenerateAtesto = false,
   canCreateDocument = false,
+  isLoadingAtesto = false,
   onTramitar,
   onGenerateAtesto,
   onCreateDocument,
@@ -109,10 +114,7 @@ export const UniversalProcessDetailsPage: React.FC<UniversalProcessDetailsPagePr
             <div className="flex items-center gap-3">
               {canCreateDocument && onCreateDocument && (
                 <button
-                  onClick={() => {
-                    console.log('[DEBUG] Novo Documento clicked');
-                    onCreateDocument();
-                  }}
+                  onClick={onCreateDocument}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-sm transition-all"
                 >
                   <Plus size={18} />
@@ -122,23 +124,18 @@ export const UniversalProcessDetailsPage: React.FC<UniversalProcessDetailsPagePr
               
               {canGenerateAtesto && onGenerateAtesto && (
                 <button
-                  onClick={() => {
-                    console.log('[DEBUG] Gerar Atesto clicked');
-                    onGenerateAtesto();
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm transition-all border border-amber-300"
+                  onClick={onGenerateAtesto}
+                  disabled={isLoadingAtesto}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm transition-all border border-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <BadgeCheck size={18} />
-                  <span className="hidden md:inline">Gerar Atesto</span>
+                  {isLoadingAtesto ? <Loader2 size={18} className="animate-spin" /> : <BadgeCheck size={18} />}
+                  <span className="hidden md:inline">{isLoadingAtesto ? 'Gerando...' : 'Gerar Atesto'}</span>
                 </button>
               )}
               
               {canTramitar && onTramitar && (
                 <button
-                  onClick={() => {
-                    console.log('[DEBUG] TRAMITAR clicked');
-                    onTramitar();
-                  }}
+                  onClick={onTramitar}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-lg transition-all"
                 >
                   <Send size={18} />

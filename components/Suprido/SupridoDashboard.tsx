@@ -64,6 +64,7 @@ import { TramitarModal } from '../TramitarModal';
 import { UniversalProcessDetailsPage } from '../ProcessDetails';
 import { TimelineHistory } from '../TimelineHistory';
 import { useRoleRequests, ROLE_LABELS, SystemRole } from '../../hooks/useRoleRequests';
+import { useToast } from '../ui/ToastProvider';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -160,6 +161,7 @@ interface SupridoDashboardProps {
 }
 
 export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, onInternalViewChange, onProfileUpdate, onRestoreModule }) => {
+  const { showToast } = useToast();
   const [currentView, setCurrentView] = useState<SupridoView>('DASHBOARD');
   const [subView, setSubView] = useState<SubViewMode>('DETAILS');
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
@@ -172,6 +174,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showDocumentWizard, setShowDocumentWizard] = useState(false);
+  const [isLoadingAtesto, setIsLoadingAtesto] = useState(false);
   
   // Estados para Paginação e Filtros
   const [currentPage, setCurrentPage] = useState(1);
@@ -3218,15 +3221,18 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   };
 
   const handleGenerateAtesto = async () => {
-    console.log('[ATESTO] handleGenerateAtesto called, selectedProcess:', selectedProcess);
-    
     if (!selectedProcess) {
-      console.error('[ATESTO] No selectedProcess!');
+      showToast({
+        type: 'error',
+        title: 'Erro',
+        message: 'Nenhum processo selecionado.'
+      });
       return;
     }
     
+    setIsLoadingAtesto(true);
+    
     try {
-      console.log('[ATESTO] Starting atesto generation for:', selectedProcess.id);
       const { data: { user } } = await supabase.auth.getUser();
       
       // Create atesto document in documentos table
@@ -3238,7 +3244,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         conteudo: `ATESTO DE RECEBIMENTO DE SUPRIMENTO DE FUNDOS
 
 Processo: ${selectedProcess.nup}
-Interessado: ${selectedProcess.suprido_nome || selectedProcess.interestedParty || profileData.nome}
+Interessado: ${selectedProcess.suprido_nome || selectedProcess.interestedParty || profileData?.nome || 'Servidor Suprido'}
 Valor: R$ ${Number(selectedProcess.valor_total || selectedProcess.val || 0).toFixed(2).replace('.', ',')}
 
 Atesto que recebi o suprimento de fundos conforme processo acima identificado, comprometendo-me a aplicar os recursos de acordo com a legislação vigente e a prestar contas dentro do prazo regulamentar.
@@ -3274,13 +3280,24 @@ Assinado eletronicamente pelo servidor suprido.`,
         data_tramitacao: new Date().toISOString()
       });
 
-      alert('✅ Atesto gerado com sucesso!');
+      showToast({
+        type: 'success',
+        title: 'Atesto gerado!',
+        message: 'Documento de atesto inserido no dossiê com sucesso.'
+      });
+      
       await refreshHistory();
       setCurrentView('DASHBOARD');
       setSelectedProcess(null);
     } catch (error) {
       console.error('Error generating atesto:', error);
-      alert('Erro ao gerar atesto. Tente novamente.');
+      showToast({
+        type: 'error',
+        title: 'Erro ao gerar atesto',
+        message: 'Não foi possível gerar o atesto. Tente novamente.'
+      });
+    } finally {
+      setIsLoadingAtesto(false);
     }
   };
 
@@ -4082,13 +4099,10 @@ Assinado eletronicamente pelo servidor suprido.`,
                   (selectedProcess?.status?.toLowerCase()?.includes('pendente') && selectedProcess?.status?.toLowerCase()?.includes('atesto'))
                 }
                 canCreateDocument={true}
+                isLoadingAtesto={isLoadingAtesto}
                 onTramitar={() => setShowTramitarModal(true)}
                 onGenerateAtesto={handleGenerateAtesto}
-                onCreateDocument={() => {
-                  console.log('[DEBUG] setShowDocumentWizard(true) called');
-                  console.log('[DEBUG] selectedProcess:', selectedProcess);
-                  setShowDocumentWizard(true);
-                }}
+                onCreateDocument={() => setShowDocumentWizard(true)}
               />
             )}
           </>
