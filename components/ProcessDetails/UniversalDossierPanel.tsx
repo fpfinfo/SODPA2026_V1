@@ -97,21 +97,6 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
             <Eye size={18} />
             Visualizar PDF Consolidado
           </button>
-          <button
-            onClick={() => {
-              // Open PDF viewer first, then trigger browser print for export
-              setSelectedPreviewDoc(null);
-              setShowPdfViewer(true);
-              // Wait for PDF to render, then trigger print dialog
-              setTimeout(() => {
-                window.print();
-              }, 1000);
-            }}
-            className="flex items-center gap-3 px-8 py-5 bg-white text-slate-900 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl"
-          >
-            <FileDown size={18} />
-            Exportar PDF Consolidado
-          </button>
         </div>
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
           <BookOpen size={200} />
