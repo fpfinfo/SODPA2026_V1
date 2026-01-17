@@ -345,6 +345,31 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         data_tramitacao: new Date().toISOString()
       });
 
+      // Create SEFIN signing tasks for each document
+      const docsToSign = [
+        { tipo: 'PORTARIA', titulo: `Portaria SF ${portariaNumero} - ${process.interestedParty || process.suprido_nome}` },
+        { tipo: 'CERTIDAO', titulo: `Certidão de Regularidade - ${process.interestedParty || process.suprido_nome}` },
+        { tipo: 'NOTA_EMPENHO', titulo: `Nota de Empenho ${neNumero} - ${process.nup}` },
+      ];
+
+      if (generatedDocs.DL) {
+        docsToSign.push({ tipo: 'LIQUIDACAO', titulo: `Documento de Liquidação ${dlNumero} - ${process.nup}` });
+      }
+      if (generatedDocs.OB) {
+        docsToSign.push({ tipo: 'ORDEM_BANCARIA', titulo: `Ordem Bancária ${obNumero} - ${process.nup}` });
+      }
+
+      for (const doc of docsToSign) {
+        await supabase.from('sefin_tasks').insert({
+          solicitacao_id: process.id,
+          tipo: doc.tipo,
+          titulo: doc.titulo,
+          origem: 'SOSFU',
+          valor: process.value || process.valor_total || 0,
+          status: 'PENDING',
+        });
+      }
+
       showToast({ 
         type: 'success', 
         title: 'Tramitado com sucesso!', 

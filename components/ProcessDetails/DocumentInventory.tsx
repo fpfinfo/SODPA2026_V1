@@ -126,8 +126,8 @@ export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Document List */}
-      <div className="space-y-4">
+      {/* Document List - with scroll for many documents */}
+      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
         {/* Static Pieces */}
         {staticPieces.map((piece) => (
           <div 
