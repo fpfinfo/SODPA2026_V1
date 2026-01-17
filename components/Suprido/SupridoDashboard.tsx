@@ -4071,8 +4071,9 @@ Assinado eletronicamente pelo servidor suprido.`,
                 }}
                 canTramitar={true}
                 canGenerateAtesto={
-                  selectedProcess?.status?.toUpperCase()?.includes('PENDENTE') && 
-                  selectedProcess?.status?.toUpperCase()?.includes('ATESTO')
+                  (selectedProcess?.status?.toLowerCase() === 'pendente_atesto') ||
+                  (selectedProcess?.status?.toLowerCase() === 'pendente atesto') ||
+                  (selectedProcess?.status?.toLowerCase()?.includes('pendente') && selectedProcess?.status?.toLowerCase()?.includes('atesto'))
                 }
                 canCreateDocument={true}
                 onTramitar={() => setShowTramitarModal(true)}
