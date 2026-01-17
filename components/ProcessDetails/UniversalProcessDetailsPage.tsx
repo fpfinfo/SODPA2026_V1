@@ -109,7 +109,10 @@ export const UniversalProcessDetailsPage: React.FC<UniversalProcessDetailsPagePr
             <div className="flex items-center gap-3">
               {canCreateDocument && onCreateDocument && (
                 <button
-                  onClick={onCreateDocument}
+                  onClick={() => {
+                    console.log('[DEBUG] Novo Documento clicked');
+                    onCreateDocument();
+                  }}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-sm transition-all"
                 >
                   <Plus size={18} />
@@ -119,7 +122,10 @@ export const UniversalProcessDetailsPage: React.FC<UniversalProcessDetailsPagePr
               
               {canGenerateAtesto && onGenerateAtesto && (
                 <button
-                  onClick={onGenerateAtesto}
+                  onClick={() => {
+                    console.log('[DEBUG] Gerar Atesto clicked');
+                    onGenerateAtesto();
+                  }}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm transition-all border border-amber-300"
                 >
                   <BadgeCheck size={18} />
@@ -129,7 +135,10 @@ export const UniversalProcessDetailsPage: React.FC<UniversalProcessDetailsPagePr
               
               {canTramitar && onTramitar && (
                 <button
-                  onClick={onTramitar}
+                  onClick={() => {
+                    console.log('[DEBUG] TRAMITAR clicked');
+                    onTramitar();
+                  }}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-lg transition-all"
                 >
                   <Send size={18} />
