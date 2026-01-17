@@ -255,8 +255,17 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                           {docItem.originalDoc?.conteudo || 'Conteúdo não disponível para visualização.'}
                         </div>
 
+
                         {/* Electronic Signature Section for Signed Documents */}
-                        {docItem.originalDoc?.status === 'ASSINADO' && (
+                        {docItem.type === 'DYNAMIC' && (() => {
+                          console.log('🔍 DEBUG Signature:', {
+                            status: docItem.originalDoc?.status,
+                            profiles: docItem.originalDoc?.profiles,
+                            created_by: docItem.originalDoc?.created_by,
+                            doc: docItem.originalDoc
+                          });
+                          return true;
+                        })() && docItem.originalDoc?.status === 'ASSINADO' && (
                           <div className="mt-16 pt-8 border-t-2 border-slate-200 break-inside-avoid">
                             <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-xl space-y-4">
                               <h5 className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
