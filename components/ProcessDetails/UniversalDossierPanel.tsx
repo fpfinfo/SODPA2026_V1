@@ -181,8 +181,7 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                       if (!selectedPreviewDoc?.originalDoc?.id) return;
                       
                       const result = await updateDocument(selectedPreviewDoc.originalDoc.id, {
-                        status: 'ASSINADO',
-                        signature_status: 'signed'
+                        status: 'ASSINADO'
                       });
                       
                       if (result.success) {
