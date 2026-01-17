@@ -120,7 +120,7 @@ export const UniversalProcessDetailsPage: React.FC<UniversalProcessDetailsPagePr
               {canGenerateAtesto && onGenerateAtesto && (
                 <button
                   onClick={onGenerateAtesto}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-sm transition-all"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm transition-all border border-amber-300"
                 >
                   <BadgeCheck size={18} />
                   <span className="hidden md:inline">Gerar Atesto</span>

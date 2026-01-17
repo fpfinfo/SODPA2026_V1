@@ -3217,6 +3217,67 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     }
   };
 
+  const handleGenerateAtesto = async () => {
+    if (!selectedProcess) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Create atesto document in documentos table
+      const { error: docError } = await supabase.from('documentos').insert({
+        solicitacao_id: selectedProcess.id,
+        nome: `ATESTO DE RECEBIMENTO - ${selectedProcess.nup}`,
+        tipo: 'ATESTO',
+        status: 'ASSINADO',
+        conteudo: `ATESTO DE RECEBIMENTO DE SUPRIMENTO DE FUNDOS
+
+Processo: ${selectedProcess.nup}
+Interessado: ${selectedProcess.suprido_nome || selectedProcess.interestedParty || profileData.nome}
+Valor: R$ ${Number(selectedProcess.valor_total || selectedProcess.val || 0).toFixed(2).replace('.', ',')}
+
+Atesto que recebi o suprimento de fundos conforme processo acima identificado, comprometendo-me a aplicar os recursos de acordo com a legislação vigente e a prestar contas dentro do prazo regulamentar.
+
+Data: ${new Date().toLocaleDateString('pt-BR')}
+
+Assinado eletronicamente pelo servidor suprido.`,
+        created_by: user?.id,
+      });
+
+      if (docError) throw docError;
+
+      // Update process status to ATESTADO
+      const { error: updateError } = await supabase
+        .from('solicitacoes')
+        .update({ 
+          status: 'ATESTADO',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedProcess.id);
+
+      if (updateError) throw updateError;
+
+      // Record in history
+      await supabase.from('historico_tramitacao').insert({
+        solicitacao_id: selectedProcess.id,
+        origem: 'SUPRIDO',
+        destino: 'SUPRIDO',
+        status_anterior: 'PENDENTE_ATESTO',
+        status_novo: 'ATESTADO',
+        observacao: 'Atesto de recebimento gerado pelo servidor suprido.',
+        tramitado_por: user?.id,
+        data_tramitacao: new Date().toISOString()
+      });
+
+      alert('✅ Atesto gerado com sucesso!');
+      await refreshHistory();
+      setCurrentView('DASHBOARD');
+      setSelectedProcess(null);
+    } catch (error) {
+      console.error('Error generating atesto:', error);
+      alert('Erro ao gerar atesto. Tente novamente.');
+    }
+  };
+
   const renderProfile = () => (
     <div className="p-10 max-w-[1400px] mx-auto space-y-8 animate-in fade-in pb-32">
       {/* Header */}
@@ -4009,10 +4070,13 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                   setCurrentView('DASHBOARD');
                 }}
                 canTramitar={true}
-                canGenerateAtesto={false}
+                canGenerateAtesto={
+                  selectedProcess?.status?.toUpperCase()?.includes('PENDENTE') && 
+                  selectedProcess?.status?.toUpperCase()?.includes('ATESTO')
+                }
                 canCreateDocument={true}
                 onTramitar={() => setShowTramitarModal(true)}
-                onGenerateAtesto={undefined}
+                onGenerateAtesto={handleGenerateAtesto}
                 onCreateDocument={() => setShowDocumentWizard(true)}
               />
             )}
