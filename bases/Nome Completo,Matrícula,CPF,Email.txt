@@ -1,0 +1,552 @@
+Nome Completo,Matrícula,CPF,Email
+Adelcides Vasconcelos Marinho,46701,617.469.242-68,adelcides.marinho@tjpa.jus.br
+Ademario Silva De Jesus,15130,097.705.772-00,ademario.jesus@tjpa.jus.br
+Adones De Sousa Andrade,110272,001.439.772-29,adones.andrade@tjpa.jus.br
+Adonis Vieira Da Silva,205265,960.064.802-63,adonis.silva@tjpa.jus.br
+Adriano Da Silva Schilling Oliveira,213217,682.692.692-04,adriano.soliveira@tjpa.jus.br
+Aglison Jose Pinheiro Rodrigues,110078,454.282.122-68,aglison.rodrigues@tjpa.jus.br
+Airton Barbosa Martins Filho,217093,020.489.602-94,airton.filho@tjpa.jus.br
+Airton Barbosa Martins Filho,189421,020.489.602-94,airton.filho@tjpa.jus.br
+Alacy Pena De Sousa,48984,377.650.192-87,alacy.sousa@tjpa.jus.br
+Alailton Cavalcante Feitosa,216607,255.349.202-20,alailton.feitosa@tjpa.jus.br
+Alan Maciel Silva,170739,984.192.422-68,alan.maciel@tjpa.jus.br
+Alberto Ferreira Cardoso Junior,169307,789.594.382-00,alberto.cardoso@tjpa.jus.br
+Aldenir Silva Da Rocha,88048,289.120.982-68,aldenir.rocha@tjpa.jus.br
+Aldo Araujo Marinho,115444,775.577.432-53,aldo.marinho@tjpa.jus.br
+Alessandra Gomes Heringer Da Rocha,46230,654.552.662-68,alessandra.heringer@tjpa.jus.br
+Alex Roberto Padovani,217760,297.643.398-40,alex.padovani@tjpa.jus.br
+Alexandre Dos Reis Conceicao,217069,713.920.842-53,alexandre.conceicao@tjpa.jus.br
+Aliane Da Costa Dias,195472,844.022.372-20,aliane.dias@tjpa.jus.br
+Aline Camila Reis De Souza,96288,892.443.462-49,aline.correa@tjpa.jus.br
+Aline Costa De Sousa,79502,885.457.251-91,aline.costa@tjpa.jus.br
+Aline Lucia Leao Lobato Salles,361,190.026.962-72,aline.salles@tjpa.jus.br
+Aline Oliveira Bentes,58491,440.605.642-49,aline.bentes@tjpa.jus.br
+Aline Santos De Oliveira,228273,936.567.262-72,aline.oliveira@tjpa.jus.br
+Amanda Caroline Melo Lemos,168602,945.934.342-20,amanda.melo2@tjpa.jus.br
+Amanda Danielle Gomes Santos,96504,791.769.172-15,amanda.santos@tjpa.jus.br
+Ana Carolina De Souza Carneiro,143421,671.010.112-68,ana.carneiro@tjpa.jus.br
+Ana Cassia De Souza Reis,66842,782.890.091-00,ana.reis@tjpa.jus.br
+Ana Claudia Goes Da Silva,59277,484.770.362-68,ana.goes@tjpa.jus.br
+Ana Cleia Da Silva Moura Ferreira,106828,335.019.392-72,cleia.ferreira@tjpa.jus.br
+Ana Lucia Bentes Lynch,5266,147.440.742-00,ana.lynch@tjpa.jus.br
+Ana Lucia Oliveira Da Fonseca,10570,172.247.052-68,lucia.fonseca@tjpa.jus.br
+Ana Paula Rosa Vargens,90484,640.080.532-04,ana.vargens@tjpa.jus.br
+Ana Paula Vaz Coimbra,63711,833.226.122-87,ana.coimbra@tjpa.jus.br
+Ana Priscia Dos Santos Rio,189553,020.495.222-07,ana.rio@tjpa.jus.br
+ANA PRISCIA DOS SANTOS RIO,162183,020.495.222-07,ana.rio@tjpa.jus.br
+Anaidis Do Socorro Da Silva Tavares,88137,572.018.972-68,anaidis.silva@tjpa.jus.br
+Anderson Alberto Silva De Oliveira,56847,734.320.162-04,anderson.oliveira@tjpa.jus.br
+Anderson Clay Batista Pereira,67075,705.683.832-49,anderson.pereira@tjpa.jus.br
+Anderson Luis Martins Flores,115053,839.630.062-34,anderson.flores@tjpa.jus.br
+Anderson Pinheiro Da Silva,177130,747.740.002-30,anderson.silva@tjpa.jus.br
+Andre Luiz Cordovil Serpa,103497,726.129.832-87,andre.serpa@tjpa.jus.br
+Andrea Girard Da Silva Alves,152111,884.897.362-00,andrea.alves@tjpa.jus.br
+Andrea Lima Cordeiro,152579,697.756.802-04,andrea.cordeiro@tjpa.jus.br
+Andrea Souza De Albuquerque,225185,564.984.112-87,andrea.albuquerque@tjpa.jus.br
+Andrew Michel Fernandes Freire,136581,763.811.452-34,andrew.freire@tjpa.jus.br
+Angela Maria Donatelli Do Nascimento,10081,719.586.067-15,angela.donatelli@tjpa.jus.br
+Angelica Lidia Freire Lopes Fonseca,58807,833.374.582-20,angelica.freire@tjpa.jus.br
+Angelina De Cassia Dos Santos Braga,102318,278.987.412-34,angelina.braga@tjpa.jus.br
+Antonio Benedito Rufino Dos Santos,11517,159.363.762-49,antonio.rufino@tjpa.jus.br
+antonio benedito rufino dos santos,11517,159.363.762-49,antonio.rufino@tjpa.jus.br
+Antonio Carlos Sampaio Martins De Barros Junior,58580,628.820.312-20,antonio.barros@tjpa.jus.br
+Antonio Dos Santos Batista,7013,154.098.722-15,antonio.batista@tjpa.jus.br
+Antonio Railson Silva Felix,195499,012.538.412-25,antonio.felix@tjpa.jus.br
+Antonio Silvaney Teixeira Duarte Junior,143171,000.299.812-20,antonio.junior3@tjpa.jus.br
+Antonio Vieira Pinheiro,175528,439.873.202-06,antonio.vpinheiro@tjpa.jus.br
+Artur Marques Do Rego Monteiro,172367,990.581.033-15,artur.monteiro@tjpa.jus.br
+Augusto Cesar Da Costa Macedo,57118,687.012.762-04,augusto.macedo@tjpa.jus.br
+BEATRIZ ERICA PANATO,23183,318.291.392-15,beatriz.panato@tjpa.jus.br
+Beatriz Erica Panato,23183,318.291.392-15,beatriz.panato@tjpa.jus.br
+Benedito Ragno Pires Da Silva,96610,879.073.482-34,benedito.pires@tjpa.jus.br
+BENEDITO RAGNO PIRES DA SILVA,96610,879.073.482-34,benedito.pires@tjpa.jus.br
+Bruna Caroline Goncalves Chaves,73342,517.265.722-34,bruna.chaves@tjpa.jus.br
+Bruney Nascimento Reis,86207,761.512.552-91,bruney.reis@tjpa.jus.br
+Bruno Almeida Da Silva,225380,952.764.672-34,bruno.asilva@tjpa.jus.br
+Bruno Botelho Cardoso,205257,703.810.972-34,bruno.bcardoso@tjpa.jus.br
+BRUNO DAMASCENO,97535,732.054.862-34,bruno.damasceno@tjpa.jus.br
+Bruno Rosa De Melo,45180,673.833.862-72,bruno.melo@tjpa.jus.br
+Bruno Vieira Dos Santos,116513,839.648.512-72,bruno.vieira@tjpa.jus.br
+CAMILA NOBRE LIMA MENDES,198102,002.313.752-55,camila.mendes@tjpa.jus.br
+Camila Nobre Lima Mendes,198102,002.313.752-55,camila.mendes@tjpa.jus.br
+Camilla Sousa Correa,189529,018.090.532-50,camilla.correa@tjpa.jus.br
+CARLA CRISTINA CABRAL ALVES,172421,514.724.902-82,carla.alves@tjpa.jus.br
+Carla Cristina Cabral Alves,172421,514.724.902-82,carla.alves@tjpa.jus.br
+Carla Cristina Marialva Camargo,169854,841.947.902-00,carla.camargo@tjpa.jus.br
+CARLO GUSTAVO DA CUNHA MARTINS,149772,437.164.582-87,carlo.martins@tjpa.jus.br
+Carlo Gustavo Da Cunha Martins,149772,437.164.582-87,carlo.martins@tjpa.jus.br
+CARLOS ALBERTO MAGALHAES BREMGARTNER,67342,460.439.342-72,carlos.bremgartner@tjpa.jus.br
+Carlos Alexandre Duarte Lopes,195146,027.125.033-09,carlos.adlopes@tjpa.jus.br
+CARLOS EDUARDO ALVES CARTAXO RODRIGUES,189626,953.179.702-10,carlos.acrodrigues@tjpa.jus.br
+Carlos Eduardo Alves Cartaxo Rodrigues,189626,953.179.702-10,carlos.acrodrigues@tjpa.jus.br
+CARLOS MAGNO GOMES DE OLIVEIRA,39020,575.801.702-72,carlos.magno@tjpa.jus.br
+Carlos Magno Gomes De Oliveira,39020,575.801.702-72,carlos.magno@tjpa.jus.br
+Carlos Roberto Da Silva Matias,63282,330.344.602-44,carlos.matias@tjpa.jus.br
+CARLOS ROBERTO DA SILVA MATIAS,63282,330.344.602-44,carlos.matias@tjpa.jus.br
+CARLOS RODRIGUES DA SILVA,110370,819.901.623-04,carlos.rodrigues@tjpa.jus.br
+Carlos Rodrigues Da Silva,110370,819.901.623-04,carlos.rodrigues@tjpa.jus.br
+CARLOS VIEIRA DA SILVA JUNIOR,105015,054.724.898-90,vieira.carlos@tjpa.jus.br
+Carlos Vieira Da Silva Junior,105015,054.724.898-90,vieira.carlos@tjpa.jus.br
+Carolina Amaral Vilhena Barbosa,146650,000.231.182-88,carolina.vilhena@tjpa.jus.br
+Cesar Lima Daguer,171425,488.807.602-20,cesar.daguer@tjpa.jus.br
+Charles Brito Figueira,154083,402.178.502-78,coord.militar@tjpa.jus.br
+Charles Menezes Barros,22969,123.410.268-42,charles.barros@tjpa.jus.br
+CHARLES MENEZES BARROS ,22969,123.410.268-42,charles.barros@tjpa.jus.br
+CHRISTIAN ANDREI RIBEIRO MALTEZ,58092,476.671.092-49,christian.maltez@tjpa.jus.br
+Christian Andrei Ribeiro Maltez,58092,476.671.092-49,christian.maltez@tjpa.jus.br
+Cilene Brito Anchieta,112895,562.744.242-53,cilene.anchieta@tjpa.jus.br
+Cinthia Tavares De Souza,205036,929.515.972-15,cinthia.tsouza@tjpa.jus.br
+Claudia Lucia Vasconcelos Da Silva,88480,457.902.642-04,claudia.silva@tjpa.jus.br
+Claudia Sadeck Burlamaqui,62537,559.291.412-15,claudia.burlamaqui@tjpa.jus.br
+Claudio De Araujo Saraiva,115061,926.635.162-87,claudio.saraiva@tjpa.jus.br
+Claudio Luis Da Silva Cabral,116467,575.815.682-53,claudio.cabral@tjpa.jus.br
+CLEITON RODRIGUES DA SILVA,221651,927.325.182-04,cleiton.rsilva@tjpa.jus.br
+Cleiton Rodrigues Da Silva,221651,927.325.182-04,cleiton.rsilva@tjpa.jus.br
+CRISTIANO BEZERRA DA SILVA,205095,044.202.304-95,cristiano.bsilva@tjpa.jus.br
+Cristiano Lopes Seglia,190357,112.430.737-05,cristiano.seglia@tjpa.jus.br
+Cristiano Neri Da Silva,207292,026.716.233-21,cristiano.neri@tjpa.jus.br
+CRISTIANO NERI DA SILVA,207292,026.716.233-21,cristiano.neri@tjpa.jus.br
+CRISTINA DO SOCORRO SOUZA ALVES DA SILVA,26085,263.323.962-53,cristina.silva@tjpa.jus.br
+Dailma Da Silva Medeiros,224936,601.273.172-87,dailma.medeiros@tjpa.jus.br
+Damorie Lima De Sousa,207098,935.293.332-04,damorie.sousa@tjpa.jus.br
+Daniel Benedito Das Neves Paz,152102,844.585.772-04,daniel.paz@tjpa.jus.br
+Daniele Sousa Simarro,157830,002.444.172-45,daniele.simarro@tjpa.jus.br
+Danielle Oliveira De Sa,146935,519.699.122-00,danielle.sa@tjpa.jus.br
+DANIELLE OLIVEIRA DE SÁ,146935,519.699.122-00,danielle.sa@tjpa.jus.br
+DANIELLE VALADARES DE OLIVEIRA,152064,797.136.292-72,danielle.valadares@tjpa.jus.br
+Danielle Valadares De Oliveira,152064,797.136.292-72,danielle.valadares@tjpa.jus.br
+Danielly Araujo Mericias,153516,842.350.122-15,danielly.mericias@tjpa.jus.br
+DANILO OLIVEIRA DA SILVA,205320,019.507.412-22,danilo.silva@tjpa.jus.br
+Danilo Oliveira Da Silva,205320,019.507.412-22,danilo.silva@tjpa.jus.br
+Davison Guimaraes Araujo Da Silva,69647,597.727.602-82,davison.silva@tjpa.jus.br
+Debora Goncalves Chaves,124036,744.067.362-04,debora.chaves@tjpa.jus.br
+DEBORA GONÇALVES CHAVES,124036,744.067.362-04,debora.chaves@tjpa.jus.br
+DENISE ELEM MARTINS RENTE PEREIRA,158721,776.036.722-87,denise.pereira@tjpa.jus.br
+Denise Elem Martins Rente Pereira,158721,776.036.722-87,denise.pereira@tjpa.jus.br
+DERIVAN AUGUSTO DOS SANTOS REIS,205354,002.253.432-66,derivan.reis@tjpa.jus.br
+Derivan Augusto Dos Santos Reis,205354,002.253.432-66,derivan.reis@tjpa.jus.br
+Derlon Geraldo Azevedo Silva,232505,509.263.732-34,derlon.silva@tjpa.jus.br
+Dhywerliton Silverio Fernandes,219401,028.703.891-24,dhywerliton.silverio@tjpa.jus.br
+Diego Fonseca Silva,196142,090.021.286-14,diego.fsilva@tjpa.jus.br
+DIOGO ALFREDO BARROS PINHEIRO,170046,803.072.562-00,diogo.pinheiro@tjpa.jus.br
+Diogo Alfredo Barros Pinheiro,170046,803.072.562-00,diogo.pinheiro@tjpa.jus.br
+Diogo Rafael Diniz Bastos Lima,161292,030.689.443-25,diogo.lima@tjpa.jus.br
+Dionatas Campos Teixeira,206938,017.956.032-83,dionatas.teixeira@tjpa.jus.br
+DIONISIO DE MELO SOARES,5355,423.398.202-00,dionisio.soares@tjpa.jus.br
+Dionisio De Melo Soares,5355,423.398.202-00,dionisio.soares@tjpa.jus.br
+DJALMA CARSON RODRIGUES GOES,207284,984.996.452-91,djalma.goes@tjpa.jus.br
+Djalma Carson Rodrigues Goes,207284,984.996.452-91,djalma.goes@tjpa.jus.br
+Djalma Da Costa Martins,63932,268.329.332-15,djalma.martins@tjpa.jus.br
+Djemenson Braga Mendes,211877,787.934.082-34,djemenson.mendes@tjpa.jus.br
+Edivaldo Saldanha Sousa,146421,516.903.062-20,edivaldo.silva@tjpa.jus.br
+EDMILSON DA COSTA TAVARES,58211,264.078.172-34,edmilson.tavares@tjpa.jus.br
+EDUARDO MELO CHAVES,55689,673.547.182-20,eduardo.chaves@tjpa.jus.br
+EDUARDO TOME SANTOS SILVA,29742,585.738.952-68,eduardo.tome@tjpa.jus.br
+Eduardo Tome Santos Silva,29742,585.738.952-68,eduardo.tome@tjpa.jus.br
+Edvaldo Dos Santos Lima Junior,41572,699.414.081-49,edvaldo.junior@tjpa.jus.br
+ELIDA REGINA MORAES GONCALVES MAIA,162418,748.378.342-72,elida.goncalves@tjpa.jus.br
+Elida Regina Moraes Goncalves Maia,162418,748.378.342-72,elida.goncalves@tjpa.jus.br
+ELIEL DA ROCHA SILVA,174297,631.791.992-53,eliel.silva@tjpa.jus.br
+Elisa Rafael Gomes Da Silva,207250,714.304.152-15,elisa.silva@tjpa.jus.br
+ELISABETE DE OLIVEIRA AQUINO SEQUEIRA,69450,378.434.357-00,elisabete.sequeira@tjpa.jus.br
+Elisabete De Oliveira Aquino Sequeira,69450,378.434.357-00,elisabete.sequeira@tjpa.jus.br
+Elisson Proner Storti,170127,064.886.149-08,elisson.storti@tjpa.jus.br
+Elizabeth Cristina Nascimento Branch,116777,433.428.842-15,elizabeth.branch@tjpa.jus.br
+ELIZABETH CRISTINA NASCIMENTO BRANCH,116777,433.428.842-15,elizabeth.branch@tjpa.jus.br
+ELIZABETH DA SILVA BARBOSA,156141,353.386.282-87,elizabeth.barbosa@tjpa.jus.br
+Elizabeth Da Silva Barbosa,156141,353.386.282-87,elizabeth.barbosa@tjpa.jus.br
+Elizane Ellen Chiarini De Moura,89605,871.451.542-34,elizane.moura@tjpa.jus.br
+ELIZANE ELLEN CHIARINI DE MOURA,89605,871.451.542-34,elizane.moura@tjpa.jus.br
+Eliziane Lima Goncalves,4235,410.964.442-91,eliziane.goncalves@tjpa.jus.br
+Ellen Maria Campos Da Silva Leite,150746,005.114.992-30,ellen.dasilva@tjpa.jus.br
+Emanuel Da Veracruz Dos Santos Gomes,6726,303.463.122-72,emanuel.gomes@tjpa.jus.br
+Enio De Oliveira Reboucas,42640,328.792.702-78,enio.reboucas@tjpa.jus.br
+Erick Costa Figueira,83097,564.310.822-49,erick.figueira@tjpa.jus.br
+ERIKA ALFAIA DA SILVA,208621,640.099.802-06,erika.alfaia@tjpa.jus.br
+ERON RIBEIRO DOS SANTOS,112194,701.411.422-00,eron.santos@tjpa.jus.br
+Eron Ribeiro Dos Santos,112194,701.411.422-00,eron.santos@tjpa.jus.br
+Eula Dionne Alencar Alves Dos Santos,98957,776.437.981-68,eula.alves@tjpa.jus.br
+Euller Fernandes Barroso,216551,027.951.552-90,euller.barroso@tjpa.jus.br
+Eunice Mafra Ramos,23280,356.545.622-15,eunice.ramos@tjpa.jus.br
+Evandro Luiz Batista Salomao,15016,086.449.422-04,evandro.salomao@tjpa.jus.br
+EVANDRO LUIZ BATISTA SALOMÃO,15016,086.449.422-04,evandro.salomao@tjpa.jus.br
+Evelise De Oliveira Rodrigues,46019,696.719.312-00,evelise.rodrigues@tjpa.jus.br
+Expedito Vaz Da Silva Neto,159549,926.099.452-72,expedito.neto@tjpa.jus.br
+EZINELMA TAPAJOS DE SIQUEIRA,1627,029.083.282-91,ezilda.mutran@tjpa.jus.br
+Ezinelma Tapajos De Siqueira Lira,170771,694.515.672-91,ezinelma.lira@tjpa.jus.br
+Fabiana Santiago Pereira,191078,613.023.412-00,fabiana.pereira@tjpa.jus.br
+FABIANA SANTIAGO PEREIRA,191078,613.023.412-00,fabiana.pereira@tjpa.jus.br
+FABIO DINIZ LIMA DE MENEZES,158119,686.801.202-00,fabio.menezes@tjpa.jus.br
+Fabio Diniz Lima De Menezes,158119,686.801.202-00,fabio.menezes@tjpa.jus.br
+Fabio Wiliam Nascimento Queiroz,207641,883.375.702-10,fabio.nqueiroz@tjpa.jus.br
+Fabricio Jose Uchoa Correa,104621,032.684.962-96,fabricio.mendes@tjpa.jus.br
+FERNANDO FERREIRA RABELO,189669,013.480.092-33,fernando.rabelo@tjpa.jus.br
+Fernando Ferreira Rabelo,189669,013.480.092-33,fernando.rabelo@tjpa.jus.br
+Flavio Bezerra De Abreu,122653,741.603.462-00,flavio.abreu@tjpa.jus.br
+FLAVIO MOUTINHO SILVA,121576,671.316.972-49,flavio.moutinho@tjpa.jus.br
+Flavio Moutinho Silva,121576,671.316.972-49,flavio.moutinho@tjpa.jus.br
+FLAVIO OLIVEIRA LAUANDE,149063,046.082.939-40,flavio.lauande@tjpa.jus.br
+FLORIANO DIAS DE LIMA,13722,223.864.912-34,floriano.dias@tjpa.jus.br
+Floriano Dias De Lima,13722,223.864.912-34,floriano.dias@tjpa.jus.br
+Fortunato Aben Athar Fernandes Junior,41100,411.620.992-91,fortunato.junior@tjpa.jus.br
+FRANCE SANTOS DA CRUZ,58432,377.437.672-72,france.cruz@tjpa.jus.br
+France Santos Da Cruz,58432,377.437.672-72,france.cruz@tjpa.jus.br
+Francelino Jose Costa Para Albuquerque,57878,452.358.642-04,francelino.para@tjpa.jus.br
+FRANCINALDO PEREIRA DA SILVA BARBOSA,64815,439.968.842-49,francinaldo.barbosa@tjpa.jus.br
+Francisco Chagas Oliveira,14028,254.562.702-00,chagas.oliveira@tjpa.jus.br
+FRANCISCO CLESSIO MARINHO OLIVEIRA,223042,954.526.133-15,clessio.oliveira@tjpa.jus.br
+Francisco Elvis Presley Dos Santos Sousa Toscano,169692,973.327.712-68,francisco.sousa1@tjpa.jus.br
+FRANCISCO ELVIS PRESLEY DOS SANTOS SOUSA TOSCANO,169692,973.327.712-68,francisco.sousa1@tjpa.jus.br
+Francisco Fabio Pires Braga,168190,962.317.182-04,francisco.fbraga@tjpa.jus.br
+FRANCISCO FABIO PIRES BRAGA,168190,962.317.182-04,francisco.fbraga@tjpa.jus.br
+FRANCISCO RONALDO DE ARAUJO,14478,158.708.042-72,francisco.araujo@tjpa.jus.br
+FRANCISCO ROQUE GUERREIRO DE OLIVEIRA,56405,376.148.602-25,francisco.roque@tjpa.jus.br
+Francisco Roque Guerreiro De Oliveira,56405,376.148.602-25,francisco.roque@tjpa.jus.br
+Frank Leonel Conceicao De Souza,203742,530.808.402-59,frank.souza@tjpa.jus.br
+GABRIEL HENRIQUE DA SILVA VENTURA,143782,008.367.222-21,gabriel.ventura@tjpa.jus.br
+GABRIELA AQUINO DOMINGUES,85791,752.152.762-34,gabriela.domingues@tjpa.jus.br
+Gabriela Aquino Domingues,85791,752.152.762-34,gabriela.domingues@tjpa.jus.br
+Gabriele Santos Da Silva,211958,026.148.382-09,gabriele.silva@tjpa.jus.br
+GABRIELE SANTOS DA SILVA,211958,026.148.382-09,gabriele.silva@tjpa.jus.br
+GALDINO RODRIGUES NETO,99139,394.963.172-00,galdino.neto@tjpa.jus.br
+Galdino Rodrigues Neto,99139,394.963.172-00,galdino.neto@tjpa.jus.br
+Georgina Taveira Dos Santos Barbosa,15709,307.695.742-20,georgina.barbosa@tjpa.jus.br
+GERSON FIGUEIREDO MARTINS JUNIOR,107638,989.185.402-72,gerson.martins@tjpa.jus.br
+GILBERTO SOUSA CORREA,169684,756.023.502-68,gilberto.correa@tjpa.jus.br
+Gilberto Sousa Correa,169684,756.023.502-68,gilberto.correa@tjpa.jus.br
+Gildasio Mendes Borges,32778,569.553.592-15,gildasio.borges@tjpa.jus.br
+Gilmara Rodrigues Rocha,154491,656.591.712-49,gilmara.rocha@tjpa.jus.br
+GIOVANNA AZEVEDO DE JESUS,213365,459.862.312-87,giovanna.jesus@tjpa.jus.br
+Giovanni Nogueira Rodrigues,228923,671.336.902-25,giovanni.rodrigues@tjpa.jus.br
+Glaucia Regina Centeno Cordeiro De Campos,98396,199.404.752-68,glaucia.cordeiro@tjpa.jus.br
+Glaucyllene De Oliveira Marques Parizotto,25941,267.869.232-91,glaucyllene.marques@tjpa.jus.br
+GLORIA FEITOSA DOS SANTOS,106411,687.693.422-53,gloria.santos@tjpa.jus.br
+Gloria Feitosa Dos Santos,106411,687.693.422-53,gloria.santos@tjpa.jus.br
+Graciella Martins Araujo,112658,604.789.342-20,graciella.lima@tjpa.jus.br
+Gualter Solano Costa Sampaio,112615,760.900.942-34,gualter.sampaio@tjpa.jus.br
+GUILHERME COELHO MARTINS,13269,329.982.362-00,guilherme.martins@tjpa.jus.br
+Guilherme Coelho Martins,13269,329.982.362-00,guilherme.martins@tjpa.jus.br
+Gustavo Silva Pacheco,172553,000.705.832-26,gustavo.pacheco@tjpa.jus.br
+HALLMAN CIRILO DE ARAUJO,171964,644.682.673-72,hallman.araujo@tjpa.jus.br
+Hallman Cirilo De Araujo,171964,644.682.673-72,hallman.araujo@tjpa.jus.br
+HANNE KELLEN MONTEIRO CALIMAN MOURA,36099,518.190.312-68,hanne.monteiro@tjpa.jus.br
+Hanne Kellen Monteiro Caliman Moura,36099,518.190.312-68,hanne.monteiro@tjpa.jus.br
+HELIO DA SILVA PINHEIRO,63622,361.517.502-68,helio.pinheiro@tjpa.jus.br
+HELTON TAVARES MALATO,15083,352.283.262-00, helton.malato@tjpa.jus.br
+Helton Tavares Malato,15083,352.283.262-00, helton.malato@tjpa.jus.br
+HERONILDES MARQUES BARBOSA,166014,682.874.532-91,heronildes.barbosa@tjpa.jus.br
+Heronildes Marques Barbosa,166014,682.874.532-91,heronildes.barbosa@tjpa.jus.br
+Hiago Vicente Tenorio Ribeiro,189286,095.315.384-33,hiago.ribeiro@tjpa.jus.br
+Hugo Portela Costa Santos Filho,168327,014.424.923-50,hugo.santos@tjpa.jus.br
+HUMBERTO DE SOUSA SARUBI JUNIOR,86487,669.085.402-78,humberto.sarubi@tjpa.jus.br
+Humberto De Sousa Sarubi Junior,86487,669.085.402-78,humberto.sarubi@tjpa.jus.br
+Iclenildo Marcio Santos Ribeiro,150690,596.478.922-68,iclenildo.ribeiro@tjpa.jus.br
+Igor Alcolumbre Pinto,171981,633.213.602-25,igor.pinto@tjpa.jus.br
+ILEIZA COHEN E SILVA,125300,508.168.702-25,ileiza.silva@tjpa.jus.br
+Ileiza Cohen E Silva,125300,508.168.702-25,ileiza.silva@tjpa.jus.br
+INEZ TRINDADE NUNES,59293,398.210.722-91,inez.nunes@tjpa.jus.br
+Inez Trindade Nunes,59293,398.210.722-91,inez.nunes@tjpa.jus.br
+Iran Jose Rodrigues Junior,32484,124.522.112-49,iran.junior@tjpa.jus.br
+ISAIAS DE ALMEIDA PINHEIRO FILHO,160725,789.134.622-49,isaias.filho@tjpa.jus.br
+IVAN DE SOUSA MOURA,20974,414.037.702-04,ivan.moura@tjpa.jus.br
+Ivan De Sousa Moura,20974,414.037.702-04,ivan.moura@tjpa.jus.br
+Jadiel De Moraes Fayal,160512,009.975.552-11,Jadiel.fayal@tjpa.jus.br
+JAILSON DE JESUS SOARES TAVARES,38290,428.055.972-49,jailson.tavares@tjpa.jus.br
+Jailson De Jesus Soares Tavares,38290,428.055.972-49,jailson.tavares@tjpa.jus.br
+Jailton Padilha Do Vale Junior,145581,939.940.602-49,jailton.junior@tjpa.jus.br
+Jair Francisco Vieira Aguirra,3743,298.020.162-68,jair.aguirra@tjpa.jus.br
+JAIR FRANCISCO VIEIRA AGUIRRA,3743,298.020.162-68,jair.aguirra@tjpa.jus.br
+Jamile Carvalho De Brito,213501,036.128.622-86,jamile.brito@tjpa.jus.br
+Janete Oliveira Goncalves,162973,863.616.352-87, janete.goncalves@tjpa.jus.br
+Jean Carlos Silva Dos Santos,175510,187.216.482-04,jares.fernandes@tjpa.jus.br
+Jedson Jean Ramalho De Sousa,217093,605.301.123-10,jedson.sousa@tjpa.jus.br
+Jefferson Dos Santos Melo,205877,620.230.712-91,jefferson.melo@tjpa.jus.br
+JERUSA MATOS DA SILVA,116645,591.730.172-72,jerusa.silva@tjpa.jus.br
+Jerusa Matos Da Silva,116645,591.730.172-72,jerusa.silva@tjpa.jus.br
+JESCILEIA PAULINO DE OLIVEIRA,203599,223.602.788-51,jescileia.oliveira@tjpa.jus.br
+Joanna Maria Araujo Pereira,217123,036.878.843-17,joanna.pereira@tjpa.jus.br
+Joao De Deus Cardoso,26247,282.035.002-00,joao.deus@tjpa.jus.br
+JOAO PAULO DE OLIVEIRA LEITE,153885,009.107.222-00,joao.leite@tjpa.jus.br
+Joao Paulo De Oliveira Leite,153885,009.107.222-00,joao.leite@tjpa.jus.br
+Joao Victor Ferreira Almeida,178098,743.396.562-91,joao.vfalmeida@tjpa.jus.br
+Joao Victor Paraguassu Da Cruz,216844,022.985.912-70,joao.cruz@tjpa.jus.br
+JOEL DOS SANTOS GOMES JUNIOR,90468,698.107.102-91,joel.junior@tjpa.jus.br
+Joel Dos Santos Gomes Junior,90468,698.107.102-91,joel.junior@tjpa.jus.br
+Joelma De Nazare Ferreira Paes,108031,663.625.122-00,joelma.paes@tjpa.jus.br
+JOICE BELO CASTRO MATOS,213667,815.078.102-10,joice.matos@tjpa.jus.br
+Jonas Carneiro Alexandre,55638,561.721.922-72,jonas.alexandre@tjpa.jus.br
+JONATHAS SERRA DE MIRANDA,66486,627.123.572-72,jonathas.miranda@tjpa.jus.br
+Jonathas Serra De Miranda,66486,627.123.572-72,jonathas.miranda@tjpa.jus.br
+Jony Alberto Correia,220817,067.520.869-66,jony.correia@tjpa.jus.br
+Jorge Alex Silva Tulosa,225576,007.503.202-30,jorge.tulosa@tjpa.jus.br
+Jorge Armando Oliveira Do Amaral,143847,509.464.712-15,jorge.amaral2@tjpa.jus.br
+JORGE LUIS BOTELHO LOBO,186066,680.331.332-87,jorge.lobo@tjpa.jus.br
+Jose Antonio De Oliveira Santos Junior,88277,656.237.032-91,jose.antonio@tjpa.jus.br
+Jose Antonio Ferreira Cavalcante,2526,058.002.422-91,jose.cavalcante@tjpa.jus.br
+Jose Clauber Souza Dos Santos,44630,324.406.262-87,jose.clauber@tjpa.jus.br
+JOSE DA TRINDADE BORGES,203700,907.968.292-68,jose.borges@tjpa.jus.br
+Jose Da Trindade Borges,203700,907.968.292-68,jose.borges@tjpa.jus.br
+JOSE EDILSON DE OLIVEIRA,15350,261.711.472-49,jose.edilson@tjpa.jus.br
+Jose Edilson De Oliveira,15350,261.711.472-49,jose.edilson@tjpa.jus.br
+JOSE EDILSON MELO OLEASTRE,69396,690.049.782-91,jose.oleastre@tjpa.jus.br
+Jose Edilson Melo Oleastre,69396,690.049.782-91,jose.oleastre@tjpa.jus.br
+Jose Emmerson Ferreira Rodrigues,107417,885.313.502-63,jose.emmerson@tjpa.jus.br
+JOSE FERNANDO FERREIRA DE ARAUJO,68667,646.318.502-72,fernando.araujo@tjpa.jus.br
+Jose Fernando Ferreira De Araujo,68667,646.318.502-72,fernando.araujo@tjpa.jus.br
+Jose Gomes De Araujo Filho,190471,617.373.482-68,jose.neto@tjpa.jus.br
+Jose Luiz Sarmento De Araujo,40720,302.881.002-63,jose.araujo@tjpa.jus.br
+JOSE MARIA DA ROCHA CORREA,152480,689.792.402-44,jose.rcorrea@tjpa.jus.br
+Jose Maria Da Rocha Correa,152480,689.792.402-44,jose.rcorrea@tjpa.jus.br
+Jose Nasareno De Macedo Silva,62430,763.738.943-04,nasareno.silva@tjpa.jus.br
+Jose Rafael Araujo Montoril,68349,737.722.752-49,jose.montoril@tjpa.jus.br
+Jose Rafael Araujo Montoril,17469,737.722.752-49,jose.montoril@tjpa.jus.br
+Jose Ribamar Paiva de Assis Filho,231355,021.722.802-08,coord.militar@tjpa.jus.br
+Jose Ribeiro Da Costa Filho,147303,430.089.762-04,jose.filho3@tjpa.jus.br
+JOSE ROBERTO MAIA GORDO,10707,261.827.502-00,jose.gordo@tjpa.jus.br
+Jose Roberto Maia Gordo,10707,261.827.502-00,jose.gordo@tjpa.jus.br
+JOSE RODRIGO KEMPNER,143952,658.012.702-30,jose.kempner@tjpa.jus.br
+Jose Rodrigo Kempner,143952,658.012.702-30,jose.kempner@tjpa.jus.br
+Jose Ronilson Assuncao,40170,709.130.722-49,jose.assuncao@tjpa.jus.br
+JOSE RONILSON ASSUNÇAO,40170,709.130.722-49,jose.assuncao@tjpa.jus.br
+Jose Waldir Alves Rodrigues,3867,070.080.152-91,waldir.rodrigues@tjpa.jus.br
+Josefa Antonia De Sousa Dutra,59900,210.817.272-68,josefa.dutra@tjpa.jus.br
+Josias Alves Da Silva,16209,044.459.292-04,josias.silva@tjpa.jus.br
+Josielma Freitas Miranda,160580,664.634.912-68,Josielma.miranda@tjpa.jus.br
+Josimar Tavares Brito,195138,799.792.892-87,josimar.brito@tjpa.jus.br
+Josue Vieira Costa,206962,992.396.122-20,josue.vcosta@tjpa.jus.br
+Joyce Da Silva Araujo,59285,655.985.712-34,joyce.araujo@tjpa.jus.br
+Jozelma Fernandes Do Nascimento,89061,460.759.172-68,joselma.nascimento@tjpa.jus.br
+Jucineide Almeida Vieira Pereira,88056,457.758.692-49,jucineide.vieira@tjpa.jus.br
+JULIO CESAR DE JESUS RODRIGUES,216569,516.462.502-49,julio.rodrigues@tjpa.jus.br
+Julio Cesar De Jesus Rodrigues,216569,516.462.502-49,julio.rodrigues@tjpa.jus.br
+Julio Soares Damasceno Junior,48828,576.010.112-91,julio.junior@tjpa.jus.br
+Kamilla De Mendonca Gondim Prince,88498,660.305.953-34,kamilla.gondim@tjpa.jus.br
+Katia Patricia De Sousa Aguiar,94757,681.252.752-15,katia.aguiar@tjpa.jus.br
+Klebia Silvia Nogueira Nunes Oliveira,124176,624.705.822-53,klebia.nunes@tjpa.jus.br
+Lane Duarte Gama Dos Santos,126934,642.383.502-00,lane.santos@tjpa.jus.br
+Lauricelio Cavalcante De Araujo,11371,186.295.632-49,lauricelio.araujo@tjpa.jus.br
+Lea Santos Martins,11100,170.784.072-53,lea.martins@tjpa.jus.br
+Leandro Pereira Nascimento,216976,899.367.792-15,leandro.nascimento@tjpa.jus.br
+LEANDRO VICENZO SILVA CONSENTINO,149012,214.425.948-88,leandro.consentino@tjpa.jus.br
+Leandro Vicenzo Silva Consentino,149012,214.425.948-88,leandro.consentino@tjpa.jus.br
+LECILIA DUARTE TIBURTINO,146676,635.458.292-00,lecilia.tiburtino@tjpa.jus.br
+Lecilia Duarte Tiburtino,146676,635.458.292-00,lecilia.tiburtino@tjpa.jus.br
+Leonardo De Menezes Dos Santos,195995,645.705.412-91,leonardo.duarte@tjpa.jus.br
+Leticia De Medeiros Scortegagna,226181,008.208.372-02,leticia.scortegagna@tjpa.jus.br
+LETÍCIA DE MEDEIROS SCORTEGAGNA,226181,008.208.372-02,leticia.scortegagna@tjpa.jus.br
+Leyde Lelma Vieira Da Conceicao,130451,647.157.362-68,leyde.lelma@tjpa.jus.br
+LICIO COELHO ANDRADE,214116,665.871.662-53,licio.andrade@tjpa.jus.br
+Licio Coelho Andrade,214116,665.871.662-53,licio.andrade@tjpa.jus.br
+Lidiane Mara Marques Da Silva,103411,795.660.302-15,lidiane.silva@tjpa.jus.br
+Lindalberto De Jesus Anteiro,189871,013.367.562-92,lindalberto.anteiro@tjpa.jus.br
+Lismar Queiroz Cardoso Junior,170682,639.483.112-34,lismar.junior@tjpa.jus.br
+LIZABELLE BRAGA CARLUCCI,221562,714.783.532-87,lizabelle.carlucci@tjpa.jus.br
+Lorena Ramos Do Vale,69680,742.410.442-04,lorena.vale@tjpa.jus.br
+Lucelia Augusta Andrade Sarubbi,168751,764.193.122-72,lucelia.sarubbi@tjpa.jus.br
+LUCELIA AUGUSTA ANDRADE SARUBBI ,168751,764.193.122-72,lucelia.sarubbi@tjpa.jus.br
+Luciano Chagas Silva,33421,633.296.202-00,luciano.silva@tjpa.jus.br
+Luciany Maria Cassiano Silva,144088,171.323.712-15,luciany.cassiano@tjpa.jus.br
+Luciene Afonso Ferreira,205397,303.327.702-06,luciene.ferreira@tjpa.jus.br
+Lucivaldo Rodrigues Moreira,4146,157.417.612-91,lucivaldo.moreira@tjpa.jus.br
+Luis Carlos Bitencourt Ramos,26379,225.796.018-13,luis.tuon@tjpa.jus.br
+LUIS FELIPE DOS SANTOS MARTINS,226165,012.817.952-08,luis.smartins@tjpa.jus.br
+Luis Felipe Dos Santos Martins,226165,012.817.952-08,luis.smartins@tjpa.jus.br
+LUIZ AFONSO DOS SANTOS,20075,289.356.402-04,luiz.santos@tjpa.jus.br
+Luiz Afonso Dos Santos,20075,289.356.402-04,luiz.santos@tjpa.jus.br
+LUIZ CARLOS SANTOS DA SILVA,152854,637.775.682-87,luiz.carlos@tjpa.jus.br
+Luiz Carlos Santos Da Silva,152854,637.775.682-87,luiz.carlos@tjpa.jus.br
+Luiz Gutemberg Peres Da Silva,195502,046.173.291-29,luiz.gpsilva@tjpa.jus.br
+Luiz Maria De Oliveira,7234,093.766.152-04,luiz.oliveira@tjpa.jus.br
+Luiza Valquiria Fontes Macedo Santos,189154,879.877.402-68,coord.militar@tjpa.jus.br
+Maina Jailson Sampaio Cunha,166103,001.057.582-05,maina.cunha@tjpa.jus.br
+Manoel De Deus Alcantara Pereira,152561,467.098.192-72,manoel.alcantara@tjpa.jus.br
+MANOEL DE DEUS ALCANTARA PEREIRA,152561,467.098.192-72,manoel.alcantara@tjpa.jus.br
+MANOEL VARGAS LUCINDO,116254,097.804.047-32,manoel.lucindo@tjpa.jus.br
+Manoel Vargas Lucindo,116254,097.804.047-32,manoel.lucindo@tjpa.jus.br
+Marcel Espirito Santo Carvalho Lobato,32840,262.857.972-34,marcel.lobato@tjpa.jus.br
+Marcelia Aparecida Lima Barcelos,204285,858.032.432-72,marcelia.barcelos@tjpa.jus.br
+MARCELO AUGUSTO SOUSA RODRIGUES,54437,377.489.802-25,marcelo.rodrigues@tjpa.jus.br
+Marcelo De Carvalho Dos Santos,207322,593.352.891-91,marcelo.andrei@tjpa.jus.br
+MARCELUS CUNHA MOURA,176613,018.718.817-30,marcelus.moura@tjpa.jus.br
+Marcelus Cunha Moura,176613,018.718.817-30,marcelus.moura@tjpa.jus.br
+Marciane Cruz Do Nascimento,210404,169.903.152-53,marcia.mendes@tjpa.jus.br
+Marcio Antonio Neves Ruela,49484,600.157.212-72,marcio.ruela@tjpa.jus.br
+Marcio Damazio Farias Da Costa,40420,600.157.212-72,marcio.ruela@tjpa.jus.br
+Marcio Lucas Cardoso Cordeiro,182541,331.152.142-00,marcio.goes@tjpa.jus.br
+Marcio Ricardo Borges De Lima,148024,331.152.142-00,marcio.goes@tjpa.jus.br
+Marco Antonio Guimaraes Moraes,216445,608.935.162-87,marco.gmoraes@tjpa.jus.br
+MARCOS CAMPOS MEIRELES,177296,946.751.392-72,marcos.meireles@tjpa.jus.br
+MARCOS EDSON BRASIL NETO,157872,099.635.207-40,marcos.neto@tjpa.jus.br
+Marcos Edson Brasil Neto,157872,099.635.207-40,marcos.neto@tjpa.jus.br
+MARIA ALICE CARIPUNA DOS SANTOS,12823,146.870.972-00,maria.caripuna@tjpa.jus.br
+Maria Alice Caripuna Dos Santos,12823,146.870.972-00,maria.caripuna@tjpa.jus.br
+Maria Ana Dos Santos Lima,90760,236.747.172-04,amelia.costa@tjpa.jus.br
+Maria Aparecida De Oliveira Lobo,906,388.414.441-34,maria.lobo@tjpa.jus.br
+Maria Aparecida Pereira De Brito Silva,20257,288.924.882-87,maria.brito@tjpa.jus.br
+MARIA DE FATIMA BENTES DE SOUSA,17469,110.944.512-15,fatima.bentes@tjpa.jus.br
+MARIA DO SOCORRO RUFINO GUEDES,20049,558.159.602-68,maria.guedes@tjpa.jus.br
+Maria Do Socorro Rufino Guedes,20049,558.159.602-68,maria.guedes@tjpa.jus.br
+MARIA JEANE SOUSA VIEIRA,152072,774.351.252-53,jeane.vieira@tjpa.jus.br
+MARIA OLINDA BOAVENTURA DE BARROS,16373,260.282.122-53,maria.boaventura@tjpa.jus.br
+Maria Olinda Boaventura De Barros,16373,260.282.122-53,maria.boaventura@tjpa.jus.br
+MARIANA FREITAS REBELO LUZ,111465,684.307.012-49,mariana.rebelo@tjpa.jus.br
+Mariana Freitas Rebelo Luz,111465,684.307.012-49,mariana.rebelo@tjpa.jus.br
+MARIO LEO DE SOUSA BRITO,63916,301.036.492-04,mario.mendes@tjpa.jus.br
+MARISANGELA BARBOSA CARVALHO,172961,677.751.102-44,marisangela.carvalho@tjpa.jus.br
+Marisangela Barbosa Carvalho,172961,677.751.102-44,marisangela.carvalho@tjpa.jus.br
+MARLENA BENTO VASCONCELOS CHAVES,75850,667.318.602-04,marlena.chaves@tjpa.jus.br
+Marlisson Sousa De Andrade,213659,012.629.882-33,marlisson.andrade@tjpa.jus.br
+Marlon Da Gama Sanches,145424,007.151.342-64,marlon.sanches@tjpa.jus.br
+MARTA MACIEL PIMENTEL,116564,611.750.482-91,marta.pimentel@tjpa.jus.br
+Marta Maciel Pimentel,116564,611.750.482-91,marta.pimentel@tjpa.jus.br
+MATHEUS GONÇALVES ROCHA,195111,019.075.662-44,matheus.rocha@tjpa.jus.br
+MAURA CAROLINA GALVÃO MIRANDA TAVEIRA,151980,796.924.272-34,maura.miranda@tjpa.jus.br
+MAURICIO LEAO DE ALMEIDA,144291,943.022.942-72,mauricio.almeida@tjpa.jus.br
+Mauricio Leao De Almeida,144291,943.022.942-72,mauricio.almeida@tjpa.jus.br
+Mauro Osvaldo De Oliveira Pereira,96334,448.772.692-15,mauro.pereira@tjpa.jus.br
+MAURO OSVALDO DE OLIVEIRA PEREIRA,96334,448.772.692-15,mauro.pereira@tjpa.jus.br
+Mauro Vitor Silva Pedroso,121959,759.787.332-87,mauro.pedroso@tjpa.jus.br
+Max Jorge Machado Santos,161411,296.636.792-04,max.nogueira@tjpa.jus.br
+Mayla Neno Marques Do Nascimento,166065,716.562.352-34,mayla.nascimento@tjpa.jus.br
+Melina Pinto De Souza Caldeira Gomes,126217,805.962.312-53,melina.caldeira@tjpa.jus.br
+Miguel Kleser Gomes Pantoja,162183,612.853.822-34,miguel.pantoja@tjpa.jus.br
+MIGUEL KLESER GOMES PANTOJA,162183,612.853.822-34,miguel.pantoja@tjpa.jus.br
+MIGUEL NAZARENO BAIA FERREIRA,162931,589.702.232-15,miguel.baia@tjpa.jus.br
+Miguel Nazareno Baia Ferreira,162931,589.702.232-15,miguel.baia@tjpa.jus.br
+MOISES CRISTINO DE OLIVEIRA,67334,745.578.402-30,moises.oliveira@tjpa.jus.br
+Moises Cristino De Oliveira,67334,745.578.402-30,moises.oliveira@tjpa.jus.br
+Monica Alexandra Da Costa Pinto,211346,263.125.732-49,monica.pinto@tjpa.jus.br
+Myrla Cristina Gomes Soares,213179,763.295.502-04,myrla.soares@tjpa.jus.br
+Naiara Cristina Serrao Miranda,152161,008.300.222-79,naiara.serrao@tjpa.jus.br
+NAIARA CRISTINA SERRÃO MIRANDA,152161,008.300.222-79,naiara.serrao@tjpa.jus.br
+Nathalia Lucia Mendes Azevedo,169455,962.190.922-87,nathalia.azevedo@tjpa.jus.br
+Nazare Costa Bessa,89460,173.904.862-87,nazare.bessa@tjpa.jus.br
+Nelson Marques Da Cunha,205168,008.668.572-49,nelma.goncalves@tjpa.jus.br
+Nereu Coelho Martins,13366,647.738.682-87,nelyana.balieiro@tjpa.jus.br
+Newton Ricardo Lima De Oliveira,12548,369.600.712-91,neusa.borgaro@tjpa.jus.br
+Neyla Rosy Freire De Souza,175684,517.119.822-53,neyla.souza@tjpa.jus.br
+Nilce Longhi Ramoa,191761,426.306.142-04,nilce.ramoa@tjpa.jus.br
+Nilton Silva Vinholte,4839,128.551.462-91,nilton.vinholte@tjpa.jus.br
+Odenilza Carvalho Serra,170275,018.898.372-45,oday.junior@tjpa.jus.br
+Orlene Rafaela Santos Rodrigues,216780,014.176.252-79,orlene.rodrigues@tjpa.jus.br
+Osmar Santa Brigida Dos Santos,181731,410.651.742-68,coord.militar@tjpa.jus.br
+Otton Willian Castro Silva,117056,725.378.842-72,otton.silva@tjpa.jus.br
+Paola Watrin Pimenta Menescal,62022,658.209.082-87,paola.pimenta@tjpa.jus.br
+Paula Giselle Moraes Coldovino,101281,832.431.002-91,paula.gomes@tjpa.jus.br
+Paulo Emilio Correia Lima Paes Barreto,117111,665.143.982-00,paulo.paes@tjpa.jus.br
+Paulo Marcelo De Araujo Hildebrando,48887,468.181.462-87,paulo.hildebrando@tjpa.jus.br
+Paulo Roberto Brito Cartagenes,68454,227.733.472-34,paulo.cartagenes@tjpa.jus.br
+Paulo Roberto Ramos Moreira,170453,595.596.242-53,paulo.moreira@tjpa.jus.br
+Paulo Sergio Fernandes,144738,025.799.642-74,paulo.solima@tjpa.jus.br
+Pedro Everaldo Goncalves De Souza,6742,123.835.702-49,1melgaco@tjpa.jus.br
+Peterson Gomes Tavares,157384,592.109.072-72,coord.militar@tjpa.jus.br
+Pojuca Henrique De Castro Sena,38300,642.455.602-82,pojuca.sena@tjpa.jus.br
+Poliana De Araujo Da Costa,224928,014.954.892-30,poliana.costa@tjpa.jus.br
+PRISCILA FONSECA TAVARES SILVA,224570,044.510.496-10,priscila.fonseca@tjpa.jus.br
+Priscila Fonseca Tavares Silva,224570,044.510.496-10,priscila.fonseca@tjpa.jus.br
+Rachel Henrique Tavares De Melo Rodrigues Mendes,125555,615.636.332-72,rachel.mendes@tjpa.jus.br
+Rafael Alves De Matos,110337,990.667.933-68,rafael.matos@tjpa.jus.br
+RAFAEL ALVES DE MATOS,110337,990.667.933-68,rafael.matos@tjpa.jus.br
+Rafael Da Silva Maia,82929,540.569.182-87,rafael.vilela@tjpa.jus.br
+Rafael Rogerio Barros Viana,218693,741.638.842-20,coord.militar@tjpa.jus.br
+Rafaella Moreira Lima Kurashima,149144,898.505.992-00,rafaella.kurashima@tjpa.jus.br
+Raimunda Do Socorro Ferreira Da Silva,65943,303.082.322-91,raimunda.ferreira@tjpa.jus.br
+Raimundo Marcio Pinto De Jesus,58378,482.282.572-87,marcio.pinto@tjpa.jus.br
+Raimundo Nonato Alves Favacho,98981,070.767.032-20,raimundo.favacho@tjpa.jus.br
+Raissa Morais Lara Martins,221759,103.599.916-10,raissa.martins@tjpa.jus.br
+Raquel Moura Ribeiro,144134,124.169.937-20,raquel.ribeiro@tjpa.jus.br
+Renan Gabriel Nascimento Gomes,153486,000.452.422-59,renan.gomes@tjpa.jus.br
+Renata Da Mota Giordano,51292,592.147.752-49,renata.giordano@tjpa.jus.br
+Renato Da Costa Barros,85847,587.736.572-04,renato.barros@tjpa.jus.br
+Renildo Alves Dos Santos,14699,244.269.702-53,renildo.santos@tjpa.jus.br
+Riane Conceicao Ferreira Freitas,41920,690.090.072-00,riane.freitas@tjpa.jus.br
+Ricardo Alex Aben Athar Rodrigues,106097,746.048.802-04,ricardo.alex@tjpa.jus.br
+Ricardo Da Costa Daltro,172600,930.450.002-82,ricardo.daltro@tjpa.jus.br
+Ricardo Flavio Costa Da Silva,157741,708.776.372-53,ricardo.fcsilva@tjpa.jus.br
+Ricardo Rodrigues Jeronimo,207004,911.910.682-34,ricardo.jeronimo@tjpa.jus.br
+Roberto Antonio De Lima Souza,226289,058.719.619-08,roberto.asouza@tjpa.jus.br
+Robson Denilson Alvarenga Da Rocha,191311,476.929.011-04,robison.silva@tjpa.jus.br
+Robson Nazare Da Silva,212903,476.929.011-04,robison.silva@tjpa.jus.br
+Rodolfo Dantas Leite,190608,476.929.011-04,robison.silva@tjpa.jus.br
+Rodrigo Soledade Felipe,168742,886.269.972-72, rodrigo.soledade@tjpa.jus.br
+ROGERIO DE SA REZEGUE,189952,905.234.152-49,rogerio.rezegue@tjpa.jus.br
+Rogerio De Sa Rezegue,189952,905.234.152-49,rogerio.rezegue@tjpa.jus.br
+Romulo Alves Ferreira Santos,203751,796.705.202-15,romulo.afsantos@tjpa.jus.br
+Romulo Nogueira De Brito,70777,524.926.133-72,romulo.brito@tjpa.jus.br
+Ronaldo Da Silva Araujo,5037,256.007.532-68,ronaldo.araujo@tjpa.jus.br
+Ronaldo Da Silva Castro,23949,281.690.502-00,ronaldo.castro@tjpa.jus.br
+Ronaldo Luiz Tavares Pampolha,493,176.016.062-87,ronaldo.pampolha@tjpa.jus.br
+Ronney Carvalho Dos Santos,91103,610.284.012-72,rone.santos@tjpa.jus.br
+Roosevelt Ireno Pimentel De Andrade,55859,610.284.012-72,rone.santos@tjpa.jus.br
+Roosevelt Pinto De Jesus,32310,610.284.012-72,rone.santos@tjpa.jus.br
+Rosa Maria Cardoso Da Silva,4618,137.416.162-49,rosa.silva@tjpa.jus.br
+Rosana Maria Souza De Barros,3824,252.178.362-53,rosana.macedo@tjpa.jus.br
+Rosinaldo Arnaud Borges,26433,228.872.452-87,rosinaldo.borges@tjpa.jus.br
+Rosyhanne De Matos Favacho,170984,654.004.702-97,Rosyhanne.favacho@tjpa.jus.br
+Rosyhanne De Matos Favacho,209139,654.004.702-97,Rosyhanne.favacho@tjpa.jus.br
+Rosylaine Siqueira Da Penha Cardoso,158232,654.004.702-97,Rosyhanne.favacho@tjpa.jus.br
+Salete Cardoso Tenorio Pedroso,118125,508.640.092-91,salete.pedroso@tjpa.jus.br
+Samuel Martins Silva,176397,030.711.053-20,samuel.silva@tjpa.jus.br
+Samuel Martins Silva,209139,030.711.053-20,samuel.silva@tjpa.jus.br
+Sandra Da Silva Vieira,78778,942.747.381-91,sandra.vieira@tjpa.jus.br
+Saulo Saraty De Oliveira,91111,685.586.782-00,saulo.oliveira@tjpa.jus.br
+Saulo Saraty De Oliveira,209139,685.586.782-00,saulo.oliveira@tjpa.jus.br
+Selma Figueiredo Fernandes,32859,180.288.532-34,selma.fernandes@tjpa.jus.br
+Selma Figueiredo Fernandes,209139,180.288.532-34,selma.fernandes@tjpa.jus.br
+Selma Sousa Costa Silva,173827,632.300.972-20,selma.silva@tjpa.jus.br
+Sergio Andre Santos Moraes,56260,584.148.192-49,sergio.moraes@tjpa.jus.br
+Sergio Paulo De Assis Cardoso,13986,355.166.232-00,sergio.cardoso@tjpa.jus.br
+Shirley Andrey Lima Da Silva,110281,640.774.462-87,shirley.lima@tjpa.jus.br
+Sidcley Newton Barbosa Da Costa,89133,048.121.232-91,sidalia.amaral@tjpa.jus.br
+Silvia Danielly Do Espirito Santo Cabral,225428,005.341.322-94,silvia.cabral@tjpa.jus.br
+Silvia Silva Vargas,96245,771.119.822-15,silvia.vargas@tjpa.jus.br
+Silvio Jose Printes Gomes,17086,182.115.262-04,silvio.gomes@tjpa.jus.br
+Simone Maria Pamplona Moreira,63037,638.606.352-04,simone.moreira@tjpa.jus.br
+Sinesio Nogueira De Souza,45040,148.357.498-98,sinesio.souza@tjpa.jus.br
+Socorro De Fatima Camara Feijo,23590,528.414.562-34,helpfeijo@outlook.com
+Sonia De Fatima Dias Da Silva,205346,251.296.862-68,sonia.silva@tjpa.jus.br
+Soraya Muniz Calixto De Oliveira,204161,932.456.882-53,soraya.kyushima@tjpa.jus.br
+Sue Ellen Fonseca Da Rocha,226220,852.483.712-87,stela.neves@tjpa.jus.br
+Suzane Leao Vaz,152021,005.507.702-16,suzane.vaz@tjpa.jus.br
+Suzane Leao Vaz,209139,005.507.702-16,suzane.vaz@tjpa.jus.br
+Sydiney Maximiliano Moraes De Souza,205940,450.682.162-91,sydney.souza@tjpa.jus.br
+Sylvio Magnus Silva Ferreira,46825,430.138.802-87,sylvio.magnus@tjpa.jus.br
+Synthia Maria Guimaraes Angelim,126322,332.972.662-87,sonia.cristo@tjpa.jus.br
+Taise Celeste Nery Lopes,166022,816.076.602-53,taise.lopes@tjpa.jus.br
+Tamar Kanemitsu Parente,126594,569.783.912-04,tamar.parente@tjpa.jus.br
+Tancredo Campelo Dos Passos Neto,225631,002.747.743-64,tancredo.neto@tjpa.jus.br
+Tancredo Campelo Dos Passos Neto,209139,002.747.743-64,tancredo.neto@tjpa.jus.br
+Tathyane Ribeiro De Oliveira Costa,65870,778.271.392-72,tathyane.oliveira@tjpa.jus.br
+Thiago Da Silva Modesto,207551,010.498.782-05,thiago.modesto@tjpa.jus.br
+Thiago Esber Sant Anna,102300,708.098.102-63,thiago.esber@tjpa.jus.br
+THIAGO ESBER SANT'ANNA,102300,708.098.102-63,thiago.esber@tjpa.jus.br
+Thiago Peres De Quinta,206806,652.983.302-15,thiago.gato@tjpa.jus.br
+Tiago Henrique Lemos De Araujo,198498,015.973.012-05,tiago.lemos@tjpa.jus.br
+Tiago Henrique Lemos de Araujo,198498,015.973.012-05,tiago.lemos@tjpa.jus.br
+Tiara Guedes Aires,95931,763.148.122-91,tiara.guedes@tjpa.jus.br
+Uliana Salazar Costa Silva Barros,85898,005.185.243-88,uliana.costa@tjpa.jus.br
+Uliana Salazar Costa Silva Barros,209139,005.185.243-88,uliana.costa@tjpa.jus.br
+Valber Jose Alves Ferreira,5517,306.449.412-00,valber.ferreira@tjpa.jus.br
+Valcileide De Fatima Da Silva Bezerra,166375,563.337.302-20,valcileide.bezerra@tjpa.jus.br
+Valdeide Sousa Mota Nascimento,23221,329.009.532-00,valdeide.mota@tjpa.jus.br
+Valdirene Farias Da Silva Lauande,86592,343.688.092-20,valdirene.lauande@tjpa.jus.br
+Vanderlucia Elias Mattos Portela,173274,848.400.992-00,vanderlucia.portela@tjpa.jus.br
+Vanderlucia Elias Mattos Portela,209139,848.400.992-00,vanderlucia.portela@tjpa.jus.br
+Victor Cardoso De Lima,205222,003.058.292-03,victor.lima@tjpa.jus.br
+Vitor Jose Goncalves Dias Filho,124290,601.875.732-04,vitor.filho@tjpa.jus.br
+Viviane Rodrigues Pereira,173193,660.581.712-53,viviane.pinheiro@tjpa.jus.br
+Viviane Rodrigues Pereira,209139,660.581.712-53,viviane.pinheiro@tjpa.jus.br
+Viviani Monteiro Pinheiro,66427,660.581.982-91,viviane.monteiro@tjpa.jus.br
+Waldson Jose Da Silva Barros,214540,330.889.772-53,wal.navarro@tjpa.jus.br
+Wallace Carneiro De Sousa,190306,330.889.772-53,wal.navarro@tjpa.jus.br
+Wallace De Jesus Sanches Portilho,211796,330.889.772-53,wal.navarro@tjpa.jus.br
+Walter Junho da Silva Botelho,232343,428.908.292-00,walter.botelho@tjpa.jus.br
+Wangles Martins De Carvalho,117986,696.993.561-20,wangles.carvalho@tjpa.jus.br
+Wellen Pimentel Fontes De Oliveira,161799,727.368.792-87,wellen.oliveira@tjpa.jus.br
+Wellington Souza Moraes,67970,816.616.222-91,wellington.moraes@tjpa.jus.br
+Wilker Ramon Salomao Fernandes,171549,864.065.152-34,wilker.fernandes@tjpa.jus.br
+Willanea Raimunda Da Silva E Silva,15369,222.104.402-97,willanea.silva@tjpa.jus.br
+William Ribeiro Campos,92291,716.677.682-04,willas.lima@tjpa.jus.br
+Yan Yuri Ferreira Lima,150584,005.237.732-69,yan.lima@tjpa.jus.br
+Yasser Felix Gazel,189294,813.951.322-91,yasser.gazel@tjpa.jus.br
+Yuri Barbosa Teixeira,207152,000.881.082-60,yuri.teixeira@tjpa.jus.br

@@ -23,6 +23,7 @@ export interface ProcessData {
   suprido_cargo?: string;
   unidade?: string;
   comarca?: string;
+  lotacao?: string;
   
   // Júri specific
   juri_participantes?: number;
@@ -61,7 +62,8 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
             nome,
             cargo,
             unidade_id,
-            comarca_id
+            comarca_id,
+            email
           )
         `)
         .eq('id', processId)
@@ -72,12 +74,26 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
       if (data) {
         // Flatten profile data
         const profileData = data.profiles as any;
+        let lotacao = null;
+
+        // Fetch lotacao from servidores_tj using email
+        if (profileData?.email) {
+          const { data: servidorData } = await supabase
+            .from('servidores_tj')
+            .select('lotacao')
+            .eq('email', profileData.email)
+            .maybeSingle();
+          
+          lotacao = servidorData?.lotacao;
+        }
+
         const flattenedData: ProcessData = {
           ...data,
           suprido_nome: profileData?.nome,
           suprido_cargo: profileData?.cargo,
           unidade: profileData?.unidade_id,
-                     comarca: profileData?.comarca_id,
+          comarca: profileData?.comarca_id,
+          lotacao: lotacao,
         };
         
         setProcessData(flattenedData);

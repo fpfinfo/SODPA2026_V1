@@ -151,10 +151,10 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
             </div>
             
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unidade</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lotação</label>
               <div className="flex items-center gap-2 mt-1">
                 <Building2 size={16} className="text-slate-400" />
-                <p className="text-base text-slate-700">{process.unidade || process.comarca || 'N/A'}</p>
+                <p className="text-base text-slate-700">{process.lotacao || process.unidade || process.comarca || 'N/A'}</p>
               </div>
             </div>
           </div>
