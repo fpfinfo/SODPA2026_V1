@@ -80,7 +80,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
     try {
       const { data, error } = await supabase
         .from('documentos')
-        .select('*')
+        .select('*, profiles:created_by(nome, cargo)')
         .eq('solicitacao_id', process.id)
         .order('created_at', { ascending: true });
       
@@ -280,10 +280,21 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                               }`}>
                                 {doc.status || 'MINUTA'}
                               </span>
+                              {isDocOwner(doc) && (
+                                <span className="text-[9px] font-bold text-blue-500 px-2 py-0.5 bg-blue-50 rounded">
+                                  Você criou
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-slate-500">
-                              {doc.tipo} • Criado em {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                              {doc.tipo} • Criado em {new Date(doc.created_at).toLocaleDateString('pt-BR')} às {new Date(doc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                             </p>
+                            {doc.profiles?.nome && (
+                              <p className="text-xs text-slate-400 mt-1">
+                                por <strong className="text-slate-600">{doc.profiles.nome}</strong>
+                                {doc.profiles.cargo && ` • ${doc.profiles.cargo}`}
+                              </p>
+                            )}
                             {doc.conteudo && (
                               <p className="text-xs text-slate-400 mt-2 line-clamp-2">
                                 {doc.conteudo.substring(0, 150)}...

@@ -1733,10 +1733,15 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                           id: doc.id,
                           num: (idx + 4).toString().padStart(2, '0'),
                           title: doc.nome || 'Documento Anexo',
-                          desc: `Documento do tipo ${doc.tipo} - Status: ${doc.status}`,
+                          desc: `${doc.tipo || 'DOCUMENTO'} - ${doc.status || 'MINUTA'}`,
                           icon: FileText,
                           type: 'DYNAMIC',
-                          originalDoc: doc
+                          originalDoc: doc,
+                          authorName: doc.profiles?.nome,
+                          authorCargo: doc.profiles?.cargo,
+                          status: doc.status || 'MINUTA',
+                          date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : '',
+                          isOwner: doc.created_by === profileData?.id
                       }))
                    ].map((item) => (
                       <div key={item.id} className="group flex items-center gap-8 bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm hover:shadow-2xl hover:border-blue-200 transition-all cursor-pointer">
@@ -1747,21 +1752,43 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                          <div className="flex-1">
                             <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{item.title}</h4>
                             <p className="text-xs text-slate-400 font-medium">{item.desc}</p>
+                            {/* Show author and ownership for dynamic docs */}
+                            {item.type === 'DYNAMIC' && (
+                              <div className="flex items-center gap-2 mt-2">
+                                {(item as any).status === 'ASSINADO' ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-full border border-emerald-100 uppercase">
+                                    ✓ Assinado
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-black rounded-full border border-amber-100 uppercase">
+                                    Minuta
+                                  </span>
+                                )}
+                                {(item as any).authorName && (
+                                  <span className="text-[10px] text-slate-400">
+                                    por <strong className="text-slate-600">{(item as any).authorName}</strong>
+                                  </span>
+                                )}
+                                {(item as any).isOwner && (
+                                  <span className="text-[10px] text-blue-500 font-bold">• Você criou</span>
+                                )}
+                              </div>
+                            )}
                          </div>
                          <button onClick={() => {
                              setSelectedPreviewDoc(item);
                              setShowPdfViewer(true);
                          }} className="p-4 bg-slate-50 text-slate-300 rounded-2xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-all" title="Visualizar"><Eye size={24}/></button>
                          
-                         {/* Edit/Delete buttons for DYNAMIC docs only */}
-                         {item.type === 'DYNAMIC' && (item as any).originalDoc && (
+                         {/* Edit/Delete buttons for DYNAMIC docs owned by current user only */}
+                         {item.type === 'DYNAMIC' && (item as any).originalDoc && (item as any).isOwner && (
                            <>
                              <button 
                                onClick={(e) => {
                                  e.stopPropagation();
                                  handleOpenEditDoc((item as any).originalDoc);
                                }} 
-                               className="p-4 bg-slate-50 text-slate-300 rounded-2xl hover:bg-amber-50 hover:text-amber-600 transition-all" 
+                               className="p-4 bg-amber-50 text-amber-500 rounded-2xl hover:bg-amber-100 hover:text-amber-600 transition-all" 
                                title="Editar"
                              >
                                <Edit size={24}/>
@@ -1771,7 +1798,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                                  e.stopPropagation();
                                  setDeleteConfirmDocId((item as any).originalDoc.id);
                                }} 
-                               className="p-4 bg-slate-50 text-slate-300 rounded-2xl hover:bg-red-50 hover:text-red-600 transition-all" 
+                               className="p-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-100 hover:text-red-600 transition-all" 
                                title="Excluir"
                              >
                                <Trash2 size={24}/>
