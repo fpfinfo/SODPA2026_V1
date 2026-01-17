@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { FilterTab, ViewMode, ProcessType, Process, ProcessStatus, ConcessionStatus, AccountStatus, SupplyCategory, AnnualBudget, BudgetDistribution, AdminBudget, BudgetRule } from '../types';
-import { MOCK_PROCESSES, STAFF_MEMBERS, CURRENT_USER_ID, INITIAL_BUDGET, MOCK_BUDGET_MATRIX, MOCK_ADMIN_BUDGETS, MOCK_BUDGET_RULES } from '../constants';
+import { MOCK_PROCESSES, CURRENT_USER_ID, INITIAL_BUDGET, MOCK_BUDGET_MATRIX, MOCK_ADMIN_BUDGETS, MOCK_BUDGET_RULES } from '../constants';
 import { KPIHeader } from './KPIHeader';
 import { KanbanBoard } from './KanbanBoard';
 import { ListView } from './ListView';
@@ -151,6 +151,18 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
 
   // Fetch real team members from database
   const { teamMembers: realTeamMembers, isLoading: isLoadingTeam, refresh: refreshTeamMembers } = useTeamMembers();
+
+  // Transform teamMembers to match STAFF_MEMBERS interface for backwards compatibility
+  const STAFF_MEMBERS = useMemo(() => 
+    realTeamMembers.map(m => ({
+      id: m.id,
+      name: m.nome,
+      role: m.role,
+      avatarUrl: m.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.nome)}`,
+      email: m.email,
+      cargo: m.cargo,
+      lotacao: m.lotacao,
+    })), [realTeamMembers]);
 
   const teamLoad = useMemo(() => {
     const BASE_CAPACITY = 10;
