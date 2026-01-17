@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowRight, 
   CheckCircle2, 
@@ -7,8 +7,10 @@ import {
   RotateCcw, 
   Clock,
   Send,
-  FileCheck
+  FileCheck,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface TramitationEvent {
   id: string;
@@ -22,7 +24,8 @@ interface TramitationEvent {
 }
 
 interface TimelineHistoryProps {
-  events: TramitationEvent[];
+  events?: TramitationEvent[];
+  processId?: string;
   compactMode?: boolean;
 }
 
@@ -84,7 +87,59 @@ const formatDate = (dateStr: string) => {
   }
 };
 
-export const TimelineHistory: React.FC<TimelineHistoryProps> = ({ events, compactMode = false }) => {
+export const TimelineHistory: React.FC<TimelineHistoryProps> = ({ events: propEvents, processId, compactMode = false }) => {
+  const [fetchedEvents, setFetchedEvents] = useState<TramitationEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch history from database if processId is provided and events are not
+  useEffect(() => {
+    if (processId && !propEvents) {
+      const fetchHistory = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('historico_tramitacao')
+            .select('*')
+            .eq('solicitacao_id', processId)
+            .order('data_tramitacao', { ascending: false });
+
+          if (fetchError) throw fetchError;
+          setFetchedEvents(data || []);
+        } catch (err) {
+          console.error('Error fetching tramitacao history:', err);
+          setError((err as Error).message);
+          setFetchedEvents([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchHistory();
+    }
+  }, [processId, propEvents]);
+
+  // Use provided events or fetched events
+  const events = propEvents || fetchedEvents;
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8 text-slate-400">
+        <Loader2 size={32} className="mx-auto mb-2 animate-spin text-blue-500" />
+        <p className="text-sm">Carregando histórico...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-red-400">
+        <AlertTriangle size={32} className="mx-auto mb-2" />
+        <p className="text-sm">Erro ao carregar histórico: {error}</p>
+      </div>
+    );
+  }
+
   if (!events || events.length === 0) {
     return (
       <div className="text-center py-8 text-slate-400">
