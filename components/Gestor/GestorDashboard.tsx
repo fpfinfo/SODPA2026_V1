@@ -1050,13 +1050,6 @@ export const GestorDashboard: React.FC = () => {
                           <FileSearchIcon size={18} />
                           Visualizar PDF Consolidado
                        </button>
-                       <button 
-                         onClick={() => { setIsExporting(true); setTimeout(() => { setIsExporting(false); showToast({ type: 'success', title: 'PDF Exportado!', message: 'Documento salvo com sucesso.' }); }, 2000); }}
-                         className="flex items-center gap-3 px-8 py-5 bg-white text-slate-900 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl"
-                       >
-                          {isExporting ? <RefreshCw size={18} className="animate-spin" /> : <FileDown size={18} />}
-                          Exportar PDF Consolidado
-                       </button>
                     </div>
                     <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform duration-1000"><TableOfContents size={200}/></div>
                  </div>

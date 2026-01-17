@@ -135,9 +135,6 @@ export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
           <button className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all">
             <Eye size={16} /> VISUALIZAR PDF CONSOLIDADO
           </button>
-          <button className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all">
-            <FileDown size={16} /> EXPORTAR PDF CONSOLIDADO
-          </button>
         </div>
       </div>
 
