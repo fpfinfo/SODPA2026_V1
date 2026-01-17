@@ -223,6 +223,51 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                         <div className="font-serif text-base leading-loose text-justify whitespace-pre-wrap">
                           {docItem.originalDoc?.conteudo || 'Conteúdo não disponível para visualização.'}
                         </div>
+
+                        {/* Electronic Signature Section for Signed Documents */}
+                        {docItem.originalDoc?.status === 'ASSINADO' && (
+                          <div className="mt-16 pt-8 border-t-2 border-slate-200 break-inside-avoid">
+                            <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-xl space-y-4">
+                              <h5 className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                ASSINATURA ELETRÔNICA CERTIFICADA
+                              </h5>
+                              <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-black text-sm shrink-0">
+                                  OK
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                  <p className="text-base font-bold text-emerald-900 uppercase">
+                                    {docItem.originalDoc?.profiles?.nome || 'Usuário do Sistema'}
+                                  </p>
+                                  <p className="text-xs text-emerald-700 mt-1">
+                                    {docItem.originalDoc?.profiles?.cargo || 'Servidor'}
+                                  </p>
+                                  <div className="mt-3 text-[11px] font-medium text-emerald-800 space-y-1">
+                                    <p>
+                                      <strong>Data:</strong> {new Date(docItem.originalDoc.created_at).toLocaleDateString('pt-BR')} às {new Date(docItem.originalDoc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                    <p>
+                                      <strong>Hash de Verificação:</strong> {docItem.originalDoc.id.substring(0, 16).toUpperCase()}...
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="text-[9px] text-emerald-600 mt-4 leading-relaxed border-t border-emerald-200 pt-3">
+                                A autenticidade deste documento pode ser conferida no sistema SISUP através do ID {docItem.originalDoc.id}. 
+                                Assinado eletronicamente conforme MP 2.200-2/2001.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Footer for Digital Documents */}
+                        <div className="text-center pt-12 mt-auto border-t border-slate-100 text-[9px] text-slate-400 uppercase tracking-widest">
+                          Documento gerado pelo Sistema SISUP - TJPA <br />
+                          ID: {docItem.originalDoc?.id} • NUP: {processData.nup}
+                        </div>
                       </>
                     )}
 
