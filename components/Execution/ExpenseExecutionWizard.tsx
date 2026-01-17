@@ -384,7 +384,7 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
       }
 
       for (const doc of docsToSign) {
-        await supabase.from('sefin_tasks').insert({
+        const { error: insertError } = await supabase.from('sefin_tasks').insert({
           solicitacao_id: process.id,
           tipo: doc.tipo,
           titulo: doc.titulo,
@@ -392,6 +392,11 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
           valor: process.value || process.valor_total || 0,
           status: 'PENDING',
         });
+        if (insertError) {
+          console.error('Error inserting sefin_task:', insertError);
+        } else {
+          console.log('Successfully inserted sefin_task:', doc.titulo);
+        }
       }
 
       showToast({ 
