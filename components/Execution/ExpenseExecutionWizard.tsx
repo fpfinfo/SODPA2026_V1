@@ -260,6 +260,8 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
 
     setIsProcessing(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       await supabase
         .from('solicitacoes')
         .update({
@@ -268,6 +270,16 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);
+
+      // Insert DL document into dossier
+      await supabase.from('documentos').insert({
+        solicitacao_id: process.id,
+        nome: `DOCUMENTO DE LIQUIDAÇÃO Nº ${dlNumero}`,
+        tipo: 'LIQUIDACAO',
+        status: 'MINUTA',
+        conteudo: `DOCUMENTO DE LIQUIDAÇÃO Nº ${dlNumero}\n\nProcesso: ${process.nup}\nInteressado: ${process.interestedParty || process.suprido_nome}\nValor: R$ ${Number(process.value || process.valor_total || 0).toFixed(2).replace('.', ',')}\nData de Emissão: ${dlData || new Date().toLocaleDateString('pt-BR')}\n\nA liquidação da despesa refere-se ao suprimento de fundos concedido conforme portaria em anexo.`,
+        created_by: user?.id,
+      });
 
       setGeneratedDocs(prev => ({ ...prev, DL: true }));
       showToast({ type: 'success', title: 'DL registrado!', message: `Número: ${dlNumero}` });
@@ -288,6 +300,8 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
 
     setIsProcessing(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       await supabase
         .from('solicitacoes')
         .update({
@@ -296,6 +310,16 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);
+
+      // Insert OB document into dossier
+      await supabase.from('documentos').insert({
+        solicitacao_id: process.id,
+        nome: `ORDEM BANCÁRIA Nº ${obNumero}`,
+        tipo: 'ORDEM_BANCARIA',
+        status: 'MINUTA',
+        conteudo: `ORDEM BANCÁRIA Nº ${obNumero}\n\nProcesso: ${process.nup}\nInteressado: ${process.interestedParty || process.suprido_nome}\nValor: R$ ${Number(process.value || process.valor_total || 0).toFixed(2).replace('.', ',')}\nData de Emissão: ${obData || new Date().toLocaleDateString('pt-BR')}\n\nOrdem de pagamento ao servidor suprido conforme liquidação e documentação em anexo.`,
+        created_by: user?.id,
+      });
 
       setGeneratedDocs(prev => ({ ...prev, OB: true }));
       showToast({ type: 'success', title: 'OB registrada!', message: `Número: ${obNumero}` });
