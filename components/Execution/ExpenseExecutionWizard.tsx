@@ -64,7 +64,9 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
   
   // Form states
   const [selectedPtres, setSelectedPtres] = useState(process.ptres_code || '');
-  const [selectedDotacao, setSelectedDotacao] = useState(process.dotacao_code || '');
+  const [selectedDotacoes, setSelectedDotacoes] = useState<string[]>(
+    process.dotacao_code ? process.dotacao_code.split(';') : []
+  );
   const [neNumero, setNeNumero] = useState(process.ne_numero || '');
   const [neData, setNeData] = useState('');
   const [dlNumero, setDlNumero] = useState(process.dl_numero || '');
@@ -127,9 +129,18 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
     }
   };
 
+  // Toggle dotação selection
+  const toggleDotacao = (dotacaoCode: string) => {
+    setSelectedDotacoes(prev => 
+      prev.includes(dotacaoCode)
+        ? prev.filter(d => d !== dotacaoCode)
+        : [...prev, dotacaoCode]
+    );
+  };
+
   const handleGeneratePortaria = async () => {
-    if (!selectedPtres || !selectedDotacao) {
-      showToast({ type: 'warning', title: 'Campos obrigatórios', message: 'Selecione o PTRES e a Dotação.' });
+    if (!selectedPtres || selectedDotacoes.length === 0) {
+      showToast({ type: 'warning', title: 'Campos obrigatórios', message: 'Selecione o PTRES e pelo menos uma Dotação.' });
       return;
     }
 
@@ -139,12 +150,13 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
       const year = new Date().getFullYear();
       const portariaNum = `${Math.floor(Math.random() * 900) + 100}/${year}-SF`;
       
-      // Save to database
+      // Save to database - join multiple dotacoes with ;
+      const dotacaoString = selectedDotacoes.join(';');
       await supabase
         .from('solicitacoes')
         .update({
           ptres_code: selectedPtres,
-          dotacao_code: selectedDotacao,
+          dotacao_code: dotacaoString,
           portaria_sf_numero: portariaNum,
           execution_started_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -158,7 +170,7 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         nome: `Portaria SF ${portariaNum}`,
         titulo: `Portaria de Suprimento de Fundos`,
         status: 'MINUTA',
-        conteudo: generatePortariaContent(portariaNum, selectedPtres, selectedDotacao),
+        conteudo: generatePortariaContent(portariaNum, selectedPtres, selectedDotacoes),
         created_by: (await supabase.auth.getUser()).data.user?.id
       });
 
@@ -349,11 +361,15 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
     }
   };
 
-  const generatePortariaContent = (numero: string, ptres: string, dotacao: string) => {
+  const generatePortariaContent = (numero: string, ptres: string, dotacoes: string[]) => {
     const nup = process.nup || process.protocolNumber || 'N/I';
     const interessado = process.interestedParty || 'Servidor não identificado';
     const valor = process.value || 0;
     const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+    
+    const dotacaoText = dotacoes.length === 1 
+      ? `Dotação Orçamentária ${dotacoes[0]}`
+      : `Dotações Orçamentárias: ${dotacoes.join(', ')}`;
 
     return `PORTARIA DE SUPRIMENTO DE FUNDOS Nº ${numero}
 
@@ -361,7 +377,7 @@ O SECRETÁRIO EXECUTIVO DE FINANÇAS DO TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ,
 
 RESOLVE:
 
-Art. 1º AUTORIZAR a concessão de Suprimento de Fundos ao servidor ${interessado}, a ser executado através do PTRES ${ptres} e Dotação Orçamentária ${dotacao}, conforme especificações constantes no NUP ${nup}.
+Art. 1º AUTORIZAR a concessão de Suprimento de Fundos ao servidor ${interessado}, a ser executado através do PTRES ${ptres} e ${dotacaoText}, conforme especificações constantes no NUP ${nup}.
 
 Art. 2º O valor total do presente Suprimento de Fundos é de ${valorFormatado}, obedecendo aos limites estabelecidos pela Resolução CNJ nº 169/2013.
 
@@ -475,31 +491,63 @@ Seção de Suprimento de Fundos`;
 
                   <div>
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                      Dotação Orçamentária *
+                      Dotações Orçamentárias * <span className="text-slate-400 font-medium normal-case">(selecione uma ou mais)</span>
                     </label>
-                    <select
-                      value={selectedDotacao}
-                      onChange={(e) => setSelectedDotacao(e.target.value)}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-medium"
-                      disabled={!selectedPtres || isLoadingBudget}
-                    >
-                      <option value="">Selecione a Dotação...</option>
-                      {dotacaoOptions.map(opt => (
-                        <option key={opt.code} value={opt.code}>
-                          {opt.code} - {opt.description}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={`bg-white border border-slate-200 rounded-xl p-4 max-h-48 overflow-y-auto ${!selectedPtres ? 'opacity-50' : ''}`}>
+                      {!selectedPtres ? (
+                        <p className="text-sm text-slate-400 italic">Selecione um PTRES primeiro</p>
+                      ) : isLoadingBudget ? (
+                        <p className="text-sm text-slate-400">Carregando dotações...</p>
+                      ) : dotacaoOptions.length === 0 ? (
+                        <p className="text-sm text-slate-400 italic">Nenhuma dotação disponível para este PTRES</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {dotacaoOptions.map(opt => (
+                            <label 
+                              key={opt.code} 
+                              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                                selectedDotacoes.includes(opt.code)
+                                  ? 'bg-blue-50 border border-blue-200'
+                                  : 'bg-slate-50 border border-transparent hover:bg-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedDotacoes.includes(opt.code)}
+                                onChange={() => toggleDotacao(opt.code)}
+                                className="w-4 h-4 text-blue-600 rounded border-slate-300"
+                              />
+                              <div className="flex-1">
+                                <p className="text-sm font-bold text-slate-700">{opt.code}</p>
+                                <p className="text-[10px] text-slate-500">{opt.description}</p>
+                              </div>
+                              <span className="text-[10px] font-medium text-emerald-600">
+                                {formatCurrency(opt.availableAmount)}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {selectedDotacoes.length > 0 && (
+                      <p className="text-[10px] text-blue-600 font-medium mt-2">
+                        {selectedDotacoes.length} dotação(ões) selecionada(s)
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {selectedPtres && selectedDotacao && (
+                {selectedPtres && selectedDotacoes.length > 0 && (
                   <div className="mt-6 p-4 bg-white rounded-xl border border-slate-200">
                     <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Prévia do Art. 1º</p>
                     <p className="text-sm text-slate-700">
                       <strong>Art. 1º</strong> AUTORIZAR a concessão de Suprimento de Fundos ao servidor {process.interestedParty}, 
                       a ser executado através do <strong className="text-blue-600">PTRES {selectedPtres}</strong> e 
-                      <strong className="text-blue-600"> Dotação Orçamentária {selectedDotacao}</strong>.
+                      {selectedDotacoes.length === 1 ? (
+                        <strong className="text-blue-600"> Dotação Orçamentária {selectedDotacoes[0]}</strong>
+                      ) : (
+                        <strong className="text-blue-600"> Dotações Orçamentárias: {selectedDotacoes.join(', ')}</strong>
+                      )}.
                     </p>
                   </div>
                 )}
@@ -507,7 +555,7 @@ Seção de Suprimento de Fundos`;
 
               <button
                 onClick={handleGeneratePortaria}
-                disabled={!selectedPtres || !selectedDotacao || isProcessing || generatedDocs.PORTARIA}
+                disabled={!selectedPtres || selectedDotacoes.length === 0 || isProcessing || generatedDocs.PORTARIA}
                 className="w-full py-4 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
