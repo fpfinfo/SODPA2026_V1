@@ -127,7 +127,15 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     fetchUserId();
   }, []);
 
-  useEffect(() => { if (forceTab) { setActiveTab(forceTab); if (onInternalTabChange) onInternalTabChange(); } }, [forceTab, onInternalTabChange]);
+  useEffect(() => { 
+    if (forceTab) { 
+      setActiveTab(forceTab); 
+      // Delay the callback to ensure the tab change has rendered
+      if (onInternalTabChange) {
+        setTimeout(() => onInternalTabChange(), 100);
+      }
+    } 
+  }, [forceTab, onInternalTabChange]);
   useEffect(() => { setIsLoading(true); const timer = setTimeout(() => setIsLoading(false), 400); return () => clearTimeout(timer); }, [activeTab, listFilter, viewMode]);
 
   const stats = sosfuStats;
