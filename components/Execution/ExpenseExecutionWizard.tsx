@@ -87,7 +87,7 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
     ptresOptions, 
     dotacaoOptions, 
     isLoading: isLoadingBudget,
-    fetchPTRESForElements,
+    fetchAllPTRES,
     fetchDotacoesForPTRES
   } = useBudgetAllocations();
 
@@ -99,10 +99,10 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
     return ['3.3.90.30', '3.3.90.39']; // Fallback common elements
   }, [process.itens_despesa]);
 
-  // Fetch PTRES options on mount
+  // Fetch all PTRES options on mount
   useEffect(() => {
-    fetchPTRESForElements(elementCodes);
-  }, [elementCodes, fetchPTRESForElements]);
+    fetchAllPTRES();
+  }, [fetchAllPTRES]);
 
   // Fetch dotacoes when PTRES changes
   useEffect(() => {
