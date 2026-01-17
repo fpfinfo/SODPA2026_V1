@@ -35,7 +35,7 @@ const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/obj
 export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => {
   const formatCurrency = (value?: number) => {
     if (!value) return 'R$ 0,00';
-    return `R$ ${(value / 100).toFixed(2).replace('.', ',')}`;
+    return `R$ ${value.toFixed(2).replace('.', ',')}`;
   };
 
   const formatDate = (date?: string) => {
