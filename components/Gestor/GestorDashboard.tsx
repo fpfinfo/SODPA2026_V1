@@ -397,8 +397,12 @@ export const GestorDashboard: React.FC = () => {
 
   // Base static pieces + dynamic documents from dossierDocs
   const baseStaticPieces: DocPiece[] = [
-    { id: '1', num: '01', title: 'Capa do Processo', desc: 'Identificação oficial.', icon: FileCode, key: 'COVER' },
-    { id: '2', num: '02', title: 'Requerimento Inicial', desc: 'Solicitação do servidor.', icon: FileText, key: 'REQUEST' }
+    { id: '1', num: '01', title: 'Capa do Processo', desc: 'Identificação oficial.', icon: FileCode, key: 'COVER', 
+      content: `PODER JUDICIÁRIO\nTRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nNÚMERO ÚNICO DE PROTOCOLO\n${selectedProcess?.nup || 'N/A'}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nInteressado: ${selectedProcess?.interested || selectedProcess?.suprido_nome || 'N/A'}\nModalidade: ${selectedProcess?.type || selectedProcess?.tipo || 'EXTRA-EMERGENCIAL'}\nValor: R$ ${((selectedProcess?.value || selectedProcess?.valor_total || 0) / 100).toFixed(2).replace('.', ',')}\nData: ${selectedProcess?.date || new Date().toLocaleDateString('pt-BR')}`
+    },
+    { id: '2', num: '02', title: 'Requerimento Inicial', desc: 'Solicitação do servidor.', icon: FileText, key: 'REQUEST',
+      content: `REQUERIMENTO DE SUPRIMENTO DE FUNDOS\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n1. DADOS DA SOLICITAÇÃO\n\nTipo: ${selectedProcess?.type || selectedProcess?.tipo || 'EXTRA-EMERGENCIAL'}\nNUP: ${selectedProcess?.nup || 'N/A'}\nData: ${selectedProcess?.date || new Date().toLocaleDateString('pt-BR')}\nValor Solicitado: R$ ${((selectedProcess?.value || selectedProcess?.valor_total || 0) / 100).toFixed(2).replace('.', ',')}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n2. JUSTIFICATIVA\n\n${selectedProcess?.descricao || selectedProcess?.description || 'Despesas emergenciais de pequeno vulto conforme regulamento interno.'}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n3. INTERESSADO\n\nNome: ${selectedProcess?.interested || selectedProcess?.suprido_nome || 'N/A'}\nUnidade: ${selectedProcess?.unit || selectedProcess?.unidade || 'N/A'}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nAssinado eletronicamente pelo servidor interessado.\nDocumento gerado pelo Sistema SISUP - TJPA.`
+    }
   ];
   
   // Combine static pieces with dynamic dossier docs
