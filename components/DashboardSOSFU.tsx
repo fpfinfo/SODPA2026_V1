@@ -10,6 +10,9 @@ import { INSSTableManager } from './INSSTableManager';
 import { SentinelaAudit } from './SentinelaAudit';
 import { SystemSettings } from './SystemSettings';
 import { ProcessDetailsModal } from './ProcessDetailsModal';
+import { UniversalProcessDetailsPage } from './ProcessDetails';
+import { TramitarModal } from './TramitarModal';
+import { DocumentCreationWizard } from './DocumentCreationWizard';
 import { AssignmentModal } from './AssignmentModal';
 import { BudgetManager } from './BudgetManager';
 import { BudgetDistributionMatrix } from './BudgetDistributionMatrix';
@@ -108,6 +111,21 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const [showMatrix, setShowMatrix] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [financeSubTab, setFinanceSubTab] = useState<'TAX_INSS' | 'GDR_CONTROL'>('TAX_INSS');
+  
+  // States for UniversalProcessDetailsPage integration
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showTramitarModal, setShowTramitarModal] = useState(false);
+  const [showDocumentWizard, setShowDocumentWizard] = useState(false);
+  const [viewProcessDetails, setViewProcessDetails] = useState(false);
+  
+  // Fetch current user ID on mount
+  React.useEffect(() => {
+    const fetchUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) setCurrentUserId(user.id);
+    };
+    fetchUserId();
+  }, []);
 
   useEffect(() => { if (forceTab) { setActiveTab(forceTab); if (onInternalTabChange) onInternalTabChange(); } }, [forceTab, onInternalTabChange]);
   useEffect(() => { setIsLoading(true); const timer = setTimeout(() => setIsLoading(false), 400); return () => clearTimeout(timer); }, [activeTab, listFilter, viewMode]);
@@ -599,7 +617,54 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
         )}
       </div>
 
-      {selectedProcess && <ProcessDetailsModal process={selectedProcess} onClose={() => setSelectedProcess(null)} initialTab={detailsModalTab} />}
+      {/* Universal Process Details Page - replaces ProcessDetailsModal */}
+      {selectedProcess && (
+        <div className="fixed inset-0 z-[100] bg-white">
+          <UniversalProcessDetailsPage
+            processId={selectedProcess.id}
+            currentUserId={currentUserId || ''}
+            onClose={() => setSelectedProcess(null)}
+            canTramitar={true}
+            canGenerateAtesto={true}
+            canCreateDocument={true}
+            onTramitar={() => setShowTramitarModal(true)}
+            onGenerateAtesto={() => alert('Atesto gerado com sucesso!')}
+            onCreateDocument={() => setShowDocumentWizard(true)}
+          />
+        </div>
+      )}
+
+      {/* Tramitar Modal */}
+      {showTramitarModal && selectedProcess && (
+        <TramitarModal
+          isOpen={true}
+          onClose={() => setShowTramitarModal(false)}
+          processId={selectedProcess.id}
+          processNup={selectedProcess.protocolNumber}
+          currentStatus={selectedProcess.status || 'INBOX'}
+          currentModule="SOSFU"
+          onSuccess={() => {
+            setShowTramitarModal(false);
+            setSelectedProcess(null);
+            refreshProcesses();
+          }}
+        />
+      )}
+
+      {/* Document Creation Wizard */}
+      {showDocumentWizard && selectedProcess && (
+        <DocumentCreationWizard
+          isOpen={true}
+          processId={selectedProcess.id}
+          nup={selectedProcess.protocolNumber}
+          currentUser={null}
+          onClose={() => setShowDocumentWizard(false)}
+          onSuccess={() => {
+            setShowDocumentWizard(false);
+          }}
+        />
+      )}
+
       {assigningProcessId && <AssignmentModal staffMembers={STAFF_MEMBERS} processesCount={{}} onSelect={(staffId) => handleAssignUser(assigningProcessId, staffId)} onClose={() => setAssigningProcessId(null)} />}
       {auditProcess && <SentinelaAudit process={auditProcess} onClose={() => setAuditProcess(null)} />}
       {renderRedistributionModal()}

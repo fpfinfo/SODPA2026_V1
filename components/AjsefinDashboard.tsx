@@ -1,4 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { UniversalProcessDetailsPage } from './ProcessDetails';
+import { TramitarModal } from './TramitarModal';
+import { DocumentCreationWizard } from './DocumentCreationWizard';
 import { 
   Scale, 
   Gavel, 
@@ -88,6 +92,21 @@ export const AjsefinDashboard: React.FC = () => {
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [redistributionSourceId, setRedistributionSourceId] = useState<string | null>(null);
+  
+  // States for UniversalProcessDetailsPage integration
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showTramitarModal, setShowTramitarModal] = useState(false);
+  const [showDocumentWizard, setShowDocumentWizard] = useState(false);
+  const [selectedProcessForDetails, setSelectedProcessForDetails] = useState<LegalProcess | null>(null);
+  
+  // Fetch current user ID on mount
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) setCurrentUserId(user.id);
+    };
+    fetchUserId();
+  }, []);
 
   const stats = useMemo(() => ({
     newInbox: processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo).length,
@@ -233,6 +252,53 @@ export const AjsefinDashboard: React.FC = () => {
         {viewMode === 'EDITOR' && <div className="absolute inset-0 z-30">{renderEditor()}</div>}
         {renderRedistributionModal()}
       </div>
+
+      {/* Universal Process Details Page */}
+      {selectedProcessForDetails && (
+        <div className="fixed inset-0 z-[100] bg-white">
+          <UniversalProcessDetailsPage
+            processId={selectedProcessForDetails.id}
+            currentUserId={currentUserId || ''}
+            onClose={() => setSelectedProcessForDetails(null)}
+            canTramitar={true}
+            canGenerateAtesto={false}
+            canCreateDocument={true}
+            onTramitar={() => setShowTramitarModal(true)}
+            onGenerateAtesto={undefined}
+            onCreateDocument={() => setShowDocumentWizard(true)}
+          />
+        </div>
+      )}
+
+      {/* Tramitar Modal */}
+      {showTramitarModal && selectedProcessForDetails && (
+        <TramitarModal
+          isOpen={true}
+          onClose={() => setShowTramitarModal(false)}
+          processId={selectedProcessForDetails.id}
+          processNup={selectedProcessForDetails.protocol}
+          currentStatus={selectedProcessForDetails.status || 'TRIAGEM'}
+          currentModule="AJSEFIN"
+          onSuccess={() => {
+            setShowTramitarModal(false);
+            setSelectedProcessForDetails(null);
+          }}
+        />
+      )}
+
+      {/* Document Creation Wizard */}
+      {showDocumentWizard && selectedProcessForDetails && (
+        <DocumentCreationWizard
+          isOpen={true}
+          processId={selectedProcessForDetails.id}
+          nup={selectedProcessForDetails.protocol}
+          currentUser={null}
+          onClose={() => setShowDocumentWizard(false)}
+          onSuccess={() => {
+            setShowDocumentWizard(false);
+          }}
+        />
+      )}
     </div>
   );
 };
