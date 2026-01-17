@@ -77,6 +77,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     stats: sosfuStats, 
     isLoading: isProcessesLoading, 
     refresh: refreshProcesses,
+    currentUserId,
     getCategory,
     assignToUser,
     updateExecutionNumbers,
@@ -113,19 +114,10 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const [financeSubTab, setFinanceSubTab] = useState<'TAX_INSS' | 'GDR_CONTROL'>('TAX_INSS');
   
   // States for UniversalProcessDetailsPage integration
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showTramitarModal, setShowTramitarModal] = useState(false);
   const [showDocumentWizard, setShowDocumentWizard] = useState(false);
   const [viewProcessDetails, setViewProcessDetails] = useState(false);
-  
-  // Fetch current user ID on mount
-  React.useEffect(() => {
-    const fetchUserId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) setCurrentUserId(user.id);
-    };
-    fetchUserId();
-  }, []);
+
 
   useEffect(() => { 
     if (forceTab) { 
@@ -257,7 +249,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     }
     switch (listFilter) {
       case 'INBOX': return result.filter(p => !p.assignedToId);
-      case 'MY_TASKS': return result.filter(p => p.assignedToId === CURRENT_USER_ID);
+      case 'MY_TASKS': return currentUserId ? result.filter(p => p.assignedToId === currentUserId) : [];
       case 'ANALYSIS': return result.filter(p => p.status === ConcessionStatus.ANALYSIS || p.status === AccountStatus.AUDIT);
       case 'FINANCE': return result.filter(p => p.status === ConcessionStatus.FINANCE);
       case 'TEAM_MEMBER': return result.filter(p => p.assignedToId === selectedMemberId);

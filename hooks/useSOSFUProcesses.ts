@@ -256,6 +256,7 @@ export const useSOSFUProcesses = () => {
     stats,
     isLoading,
     error,
+    currentUserId,
     getCategory,
     getSolicitacoes,
     getPrestacoes,
