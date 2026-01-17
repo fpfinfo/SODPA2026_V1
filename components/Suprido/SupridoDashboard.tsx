@@ -1728,10 +1728,9 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                    {[
                       { id: '1', num: '01', title: 'Capa do Processo', desc: 'Identificação oficial do protocolo e metadados estruturais.', icon: FileCode, type: 'STATIC_CAPA' },
                       { id: '2', num: '02', title: 'Requerimento Inicial', desc: 'Justificativa e plano de aplicação assinado digitalmente.', icon: FileText, type: 'STATIC_REQ' },
-                      { id: '3', num: '03', title: 'Certidão de Regularidade', desc: 'Validação automática de adimplência do suprido.', icon: BadgeCheck, type: 'STATIC_CERT' },
                       ...dossierDocs.map((doc, idx) => ({
                           id: doc.id,
-                          num: (idx + 4).toString().padStart(2, '0'),
+                          num: (idx + 3).toString().padStart(2, '0'),
                           title: doc.nome || 'Documento Anexo',
                           desc: `${doc.tipo || 'DOCUMENTO'} - ${doc.status || 'MINUTA'}`,
                           icon: FileText,
