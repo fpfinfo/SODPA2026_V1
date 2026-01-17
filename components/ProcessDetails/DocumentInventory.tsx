@@ -36,6 +36,7 @@ interface DocumentInventoryProps {
   onRefresh: () => void;
   onViewDocument: (doc: DocumentItem) => void;
   onEditDocument: (doc: DocumentItem) => void;
+  onViewStaticDocument?: (type: 'COVER' | 'REQUEST') => void;
 }
 
 export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
@@ -44,7 +45,8 @@ export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
   processId,
   onRefresh,
   onViewDocument,
-  onEditDocument
+  onEditDocument,
+  onViewStaticDocument
 }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -145,8 +147,12 @@ export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
                   <p className="text-xs text-slate-400 mt-1">{piece.desc}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500">
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => onViewStaticDocument?.(piece.id === 'static-cover' ? 'COVER' : 'REQUEST')}
+                  className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"
+                  title="Visualizar"
+                >
                   <Eye size={16} />
                 </button>
               </div>
@@ -195,7 +201,7 @@ export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
               </div>
               
               {/* Action Buttons */}
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2">
                 <button 
                   onClick={() => onViewDocument(doc)}
                   className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500"

@@ -65,6 +65,16 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
     setShowPdfViewer(true);
   };
 
+  const handleViewStaticDocument = (type: 'COVER' | 'REQUEST') => {
+    // Create a virtual document object for the static document
+    setSelectedPreviewDoc({
+      id: type === 'COVER' ? 'static-cover' : 'static-request',
+      type: type === 'COVER' ? 'STATIC_CAPA' : 'STATIC_REQ',
+      title: type === 'COVER' ? 'Capa do Processo' : 'Requerimento Inicial',
+    });
+    setShowPdfViewer(true);
+  };
+
   // Build documents list for PDF
   const docsToRender = selectedPreviewDoc
     ? [selectedPreviewDoc]
@@ -127,6 +137,7 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
           onRefresh={refreshDocs}
           onViewDocument={handleViewDocument}
           onEditDocument={onDocumentEdit || (() => {})}
+          onViewStaticDocument={handleViewStaticDocument}
         />
       )}
 
