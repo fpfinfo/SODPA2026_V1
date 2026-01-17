@@ -457,6 +457,50 @@ export const GestorDashboard: React.FC = () => {
     setView('EDIT_DOC');
   };
 
+  // Use Universal Process Details Page when process is selected
+  if (selectedProcess) {
+    return (
+      <>
+        <UniversalProcessDetailsPage
+          processId={selectedProcess.id}
+          currentUserId={currentUserId}
+          onClose={() => {
+            setSelectedProcess(null);
+            setView('LIST');
+          }}
+          canTramitar={true}
+          canGenerateAtesto={true}
+          canCreateDocument={true}
+          onTramitar={() => setShowTramitarModal(true)}
+          onGenerateAtesto={handleGenerateAtesto}
+          onCreateDocument={() => setShowDocumentWizard(true)}
+        />
+        {showTramitarModal && (
+          <TramitarModal
+            process={selectedProcess}
+            onClose={() => setShowTramitarModal(false)}
+            onSuccess={() => {
+              setShowTramitarModal(false);
+              setSelectedProcess(null);
+              fetchPendingProcesses();
+            }}
+          />
+        )}
+        {showDocumentWizard && (
+          <DocumentCreationWizard
+            processId={selectedProcess.id}
+            onClose={() => setShowDocumentWizard(false)}
+            onSuccess={() => {
+              setShowDocumentWizard(false);
+              fetchDossierDocuments(selectedProcess.id);
+            }}
+          />
+        )}
+      </>
+    );
+  }
+
+
   const handleSaveAtesto = async () => {
     if (editingDoc && selectedProcess) {
       try {
