@@ -117,7 +117,18 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
         </div>
       ) : (
         <DocumentInventory
-          documents={dossierDocs}
+          documents={dossierDocs.filter(doc => 
+            // Filter out auto-created static documents (Capa and Requerimento)
+            // They only appear in PDF Consolidado, not in inventory
+            !doc.nome?.includes('Capa do Processo') && 
+            !doc.nome?.includes('CAPA DO PROCESSO') &&
+            !doc.nome?.includes('Requerimento Inicial') &&
+            !doc.nome?.includes('REQUERIMENTO INICIAL') &&
+            !doc.titulo?.includes('Capa do Processo') &&
+            !doc.titulo?.includes('CAPA DO PROCESSO') &&
+            !doc.titulo?.includes('Requerimento Inicial') &&
+            !doc.titulo?.includes('REQUERIMENTO INICIAL')
+          )}
           currentUserId={currentUserId}
           processId={processId}
           onRefresh={refreshDocs}
