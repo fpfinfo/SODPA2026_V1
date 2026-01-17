@@ -42,6 +42,7 @@ import { TramitarModal } from '../TramitarModal';
 import { DocumentCreationWizard } from '../DocumentCreationWizard';
 import { useToast } from '../ui/ToastProvider';
 import { TimelineHistory } from '../TimelineHistory';
+import { UniversalProcessDetailsPage } from '../ProcessDetails';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
