@@ -3218,9 +3218,15 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   };
 
   const handleGenerateAtesto = async () => {
-    if (!selectedProcess) return;
+    console.log('[ATESTO] handleGenerateAtesto called, selectedProcess:', selectedProcess);
+    
+    if (!selectedProcess) {
+      console.error('[ATESTO] No selectedProcess!');
+      return;
+    }
     
     try {
+      console.log('[ATESTO] Starting atesto generation for:', selectedProcess.id);
       const { data: { user } } = await supabase.auth.getUser();
       
       // Create atesto document in documentos table
