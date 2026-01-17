@@ -135,28 +135,6 @@ export const UniversalProcessPanel: React.FC<UniversalProcessPanelProps> = ({
               <FileSearch size={18} /> Detalhes do Processo
             </button>
             
-            <button 
-              onClick={() => onSubViewChange('COVER')} 
-              className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${
-                subView === 'COVER' 
-                  ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' 
-                  : 'text-slate-400 hover:bg-slate-50'
-              }`}
-            >
-              <FileCode size={18} /> Capa do Processo
-            </button>
-            
-            <button 
-              onClick={() => onSubViewChange('REQUEST')} 
-              className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${
-                subView === 'REQUEST' 
-                  ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' 
-                  : 'text-slate-400 hover:bg-slate-50'
-              }`}
-            >
-              <FileText size={18} /> Requerimento Inicial
-            </button>
-            
             <div className="h-px bg-slate-100 my-4"></div>
             
             <button 
