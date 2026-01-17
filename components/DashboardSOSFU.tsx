@@ -70,7 +70,7 @@ interface DashboardSOSFUProps {
 }
 
 type SosfuViewMode = 'DASHBOARD' | 'LIST' | 'KANBAN';
-type ListFilterType = 'INBOX' | 'MY_TASKS' | 'ANALYSIS' | 'FINANCE' | 'TEAM_MEMBER';
+type ListFilterType = 'INBOX' | 'MY_TASKS' | 'ANALYSIS' | 'FINANCE' | 'TEAM_MEMBER' | 'AWAITING_SIGN';
 
 export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInternalTabChange, onProcessesChange }) => {
   // Real data fetched from hook
@@ -258,6 +258,10 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
       case 'MY_TASKS': return currentUserId ? result.filter(p => p.assignedToId === currentUserId) : [];
       case 'ANALYSIS': return result.filter(p => p.status === ConcessionStatus.ANALYSIS || p.status === AccountStatus.AUDIT);
       case 'FINANCE': return result.filter(p => p.status === ConcessionStatus.FINANCE);
+      case 'AWAITING_SIGN': return result.filter(p => {
+        const s = (p.status as string)?.toUpperCase() || '';
+        return s.includes('AGUARDANDO ASSINATURA') || s.includes('AWAITING_SIGNATURE') || s === 'AGUARDANDO ASSINATURA';
+      });
       case 'TEAM_MEMBER': return result.filter(p => p.assignedToId === selectedMemberId);
       default: return result;
     }
@@ -341,7 +345,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
       {/* 📤 AGUARDANDO ASSINATURA */}
       <div 
         onClick={() => {
-          setListFilter('ANALYSIS'); // Reuse analysis filter or create a new one
+          setListFilter('AWAITING_SIGN');
           setViewMode('LIST');
         }} 
         className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition-all cursor-pointer"
