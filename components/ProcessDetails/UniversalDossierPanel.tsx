@@ -39,7 +39,7 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
   currentUserId,
   onDocumentEdit,
 }) => {
-  const { dossierDocs, isLoading, refreshDocs, deleteDocument } = useDossierData({
+  const { dossierDocs, isLoading, refreshDocs, deleteDocument, updateDocument } = useDossierData({
     processId,
     currentUserId,
   });
@@ -171,6 +171,38 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                     +
                   </button>
                 </div>
+                
+                {/* Sign Document Button - Only for MINUTA documents created by current user */}
+                {selectedPreviewDoc?.type === 'DYNAMIC' && 
+                 selectedPreviewDoc?.originalDoc?.status === 'MINUTA' &&
+                 selectedPreviewDoc?.originalDoc?.created_by === currentUserId && (
+                  <button
+                    onClick={async () => {
+                      if (!selectedPreviewDoc?.originalDoc?.id) return;
+                      
+                      const result = await updateDocument(selectedPreviewDoc.originalDoc.id, {
+                        status: 'ASSINADO',
+                        signature_status: 'signed'
+                      });
+                      
+                      if (result.success) {
+                        // Refresh to show signature
+                        await refreshDocs();
+                        setShowPdfViewer(false);
+                        setTimeout(() => {
+                          handleViewDocument(selectedPreviewDoc);
+                        }, 300);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all shadow-lg"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                    Assinar Documento
+                  </button>
+                )}
+                
                 <button
                   onClick={() => setShowPdfViewer(false)}
                   className="p-2 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
