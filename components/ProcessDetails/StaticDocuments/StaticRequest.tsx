@@ -12,6 +12,7 @@ interface ProcessData {
   interested?: string;
   unidade?: string;
   unit?: string;
+  lotacao?: string;
   date?: string;
   created_at?: string;
   data_inicio?: string;
@@ -35,7 +36,7 @@ const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/obj
 export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => {
   const formatCurrency = (value?: number) => {
     if (!value) return 'R$ 0,00';
-    return `R$ ${value.toFixed(2).replace('.', ',')}`;
+    return `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
   };
 
   const formatDate = (date?: string) => {
@@ -78,7 +79,7 @@ export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => 
             </p>
           )}
           <p className="text-sm">
-            <strong>Unidade:</strong> {processData.unidade || processData.unit || 'N/A'}
+            <strong>Lotação:</strong> {processData.lotacao || processData.unidade || processData.unit || 'N/A'}
           </p>
         </div>
       </div>
