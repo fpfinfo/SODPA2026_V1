@@ -32,7 +32,10 @@ import {
   AlertCircle,
   CheckSquare,
   ThumbsDown,
-  Send as SendIcon
+  Send as SendIcon,
+  Edit,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { TramitarModal } from '../TramitarModal';
@@ -97,6 +100,8 @@ export const GestorDashboard: React.FC = () => {
   
   // Dossier documents from Supabase
   const [dossierDocs, setDossierDocs] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   
   // Document viewer state
   const [viewingDoc, setViewingDoc] = useState<any>(null);
@@ -312,7 +317,7 @@ export const GestorDashboard: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('documentos')
-        .select('*')
+        .select('*, profiles:created_by(nome, cargo)')
         .eq('solicitacao_id', processId)
         .order('created_at', { ascending: true });
       
@@ -320,6 +325,51 @@ export const GestorDashboard: React.FC = () => {
       if (data) setDossierDocs(data);
     } catch (error) {
       console.error('Error fetching dossier docs:', error);
+    }
+  };
+
+  // Fetch current user on mount
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+    };
+    fetchCurrentUser();
+  }, []);
+
+  // Check if current user owns the document
+  const isDocOwner = (doc: any) => doc.created_by === currentUserId;
+
+  // Delete document with audit logging
+  const handleDeleteDocument = async (docId: string) => {
+    setDeletingDocId(docId);
+    try {
+      const docToDelete = dossierDocs.find(d => d.id === docId);
+      
+      // Log to audit trail
+      await supabase.from('historico_documentos').insert({
+        documento_id: docId,
+        acao: 'DELETE',
+        usuario_id: currentUserId,
+        dados_anteriores: docToDelete
+      });
+
+      // Delete the document
+      const { error } = await supabase
+        .from('documentos')
+        .delete()
+        .eq('id', docId);
+
+      if (error) throw error;
+      
+      // Refresh documents
+      if (selectedProcess?.id) fetchDossierDocs(selectedProcess.id);
+      showToast({ type: 'success', title: 'Documento excluído', message: 'Documento removido com sucesso.' });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      showToast({ type: 'error', title: 'Erro', message: 'Não foi possível excluir o documento.' });
+    } finally {
+      setDeletingDocId(null);
     }
   };
 
@@ -364,7 +414,13 @@ export const GestorDashboard: React.FC = () => {
       content: doc.conteudo,
       type: doc.tipo,
       author: doc.created_by,
-      date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : ''
+      authorName: doc.profiles?.nome || 'Usuário',
+      authorCargo: doc.profiles?.cargo || 'Servidor',
+      date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : '',
+      time: doc.created_at ? new Date(doc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+      status: doc.status || 'MINUTA',
+      signatureStatus: doc.signature_status,
+      isOwner: doc.created_by === currentUserId
     }))
   ];
 
@@ -997,25 +1053,75 @@ export const GestorDashboard: React.FC = () => {
 
                  <div className="space-y-6">
                     {processPieces.map(piece => (
-                       <div key={piece.id} className="group flex items-center gap-8 bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm hover:shadow-2xl hover:border-blue-300 transition-all cursor-pointer">
-                          <div className="w-20 h-20 bg-slate-50 rounded-3xl flex flex-col items-center justify-center group-hover:bg-blue-600 group-hover:text-white shadow-inner"><span className="text-[10px] font-black uppercase opacity-40 mb-1">Fls.</span><span className="text-2xl font-black">{piece.num}</span></div>
+                       <div key={piece.id} className="group flex items-center gap-8 bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm hover:shadow-2xl hover:border-blue-300 transition-all">
+                          <div className={`w-20 h-20 rounded-3xl flex flex-col items-center justify-center shadow-inner ${
+                            piece.status === 'ASSINADO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-600 group-hover:text-white'
+                          }`}>
+                            <span className="text-[10px] font-black uppercase opacity-40 mb-1">Fls.</span>
+                            <span className="text-2xl font-black">{piece.num}</span>
+                          </div>
                           <div className="flex-1">
                              <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{piece.title}</h4>
                              <p className="text-xs text-slate-400 font-medium">{piece.desc}</p>
-                             {piece.key === 'CUSTOM' && <span className="inline-block mt-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-full border border-emerald-100 uppercase tracking-widest">Assinado</span>}
+                             {/* Show signature info for DB documents */}
+                             {piece.key === 'DB_DOC' && (
+                               <div className="flex items-center gap-3 mt-2">
+                                 {piece.status === 'ASSINADO' ? (
+                                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-full border border-emerald-100 uppercase tracking-widest">
+                                     <CheckCircle2 size={12}/> Assinado
+                                   </span>
+                                 ) : (
+                                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 text-[9px] font-black rounded-full border border-amber-100 uppercase tracking-widest">
+                                     <Clock size={12}/> Minuta
+                                   </span>
+                                 )}
+                                 {piece.authorName && (
+                                   <span className="text-[10px] text-slate-400">
+                                     por <strong className="text-slate-600">{piece.authorName}</strong>
+                                   </span>
+                                 )}
+                                 {piece.isOwner && (
+                                   <span className="text-[10px] text-blue-500 font-bold">• Você criou</span>
+                                 )}
+                               </div>
+                             )}
                           </div>
-                          <button 
-                            onClick={() => {
-                              if (piece.key === 'COVER' || piece.key === 'REQUEST') {
-                                setSubView(piece.key as SubViewMode);
-                              } else if (piece.content || piece.key === 'DB_DOC') {
-                                setViewingDoc(piece);
-                              }
-                            }}
-                            className="p-4 bg-slate-50 text-slate-300 rounded-2xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-all" title="Visualizar"
-                          >
-                            <Eye size={24}/>
-                          </button>
+                          
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => {
+                                if (piece.key === 'COVER' || piece.key === 'REQUEST') {
+                                  setSubView(piece.key as SubViewMode);
+                                } else if (piece.content || piece.key === 'DB_DOC') {
+                                  setViewingDoc(piece);
+                                }
+                              }}
+                              className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-50 hover:text-blue-600 transition-all" title="Visualizar"
+                            >
+                              <Eye size={20}/>
+                            </button>
+                            
+                            {/* Edit/Delete only for document owner */}
+                            {piece.key === 'DB_DOC' && piece.isOwner && (
+                              <>
+                                <button 
+                                  className="p-4 bg-amber-50 text-amber-600 rounded-2xl hover:bg-amber-100 transition-all" 
+                                  title="Editar"
+                                >
+                                  <Edit size={20}/>
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteDocument(piece.id)}
+                                  disabled={deletingDocId === piece.id}
+                                  className="p-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-100 transition-all disabled:opacity-50" 
+                                  title="Excluir"
+                                >
+                                  {deletingDocId === piece.id ? <Loader2 size={20} className="animate-spin"/> : <Trash2 size={20}/>}
+                                </button>
+                              </>
+                            )}
+                          </div>
                        </div>
                     ))}
                  </div>
@@ -1310,11 +1416,33 @@ export const GestorDashboard: React.FC = () => {
                    </div>
 
                    {/* Footer Signature */}
-                   {viewingDoc.author && (
-                      <div className="mt-32 pt-8 border-t border-slate-900/10 flex flex-col items-center break-inside-avoid">
-                         <div className="w-64 h-px bg-slate-900 mb-4"></div>
-                         <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Assinado Eletronicamente</p>
-                         <p className="text-[10px] text-slate-500 uppercase mt-1">{viewingDoc.date}</p>
+                   {viewingDoc.key === 'DB_DOC' && (
+                      <div className="mt-32 pt-8 border-t-2 border-slate-200 break-inside-avoid">
+                        {viewingDoc.status === 'ASSINADO' ? (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center">
+                            <div className="w-16 h-16 bg-emerald-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                              <CheckCircle2 size={32} className="text-emerald-600"/>
+                            </div>
+                            <p className="text-lg font-black text-emerald-800 uppercase tracking-wider">Assinado Eletronicamente</p>
+                            <div className="w-48 h-px bg-emerald-300 mx-auto my-4"></div>
+                            <p className="text-base font-bold text-emerald-900 uppercase">{viewingDoc.authorName || 'Usuário'}</p>
+                            <p className="text-xs text-emerald-700 mt-1">{viewingDoc.authorCargo || 'Servidor'}</p>
+                            <div className="mt-4 text-xs text-emerald-600">
+                              <p>Data: <strong>{viewingDoc.date}</strong> às <strong>{viewingDoc.time}</strong></p>
+                              <p className="text-[10px] text-emerald-500 mt-2 font-mono">Documento assinado nos termos da Lei nº 14.063/2020</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 text-center">
+                            <div className="w-16 h-16 bg-amber-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                              <Clock size={32} className="text-amber-600"/>
+                            </div>
+                            <p className="text-lg font-black text-amber-800 uppercase tracking-wider">Minuta - Pendente de Assinatura</p>
+                            <div className="w-48 h-px bg-amber-300 mx-auto my-4"></div>
+                            <p className="text-xs text-amber-600">Criado por: <strong>{viewingDoc.authorName || 'Usuário'}</strong></p>
+                            <p className="text-xs text-amber-500 mt-1">{viewingDoc.date} às {viewingDoc.time}</p>
+                          </div>
+                        )}
                       </div>
                    )}
                 </div>
