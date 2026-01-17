@@ -395,14 +395,6 @@ export const GestorDashboard: React.FC = () => {
     fetchExpenseElements();
   }, []);
 
-  // Check if process has a Certidão de Atesto to enable tramitar button
-  const hasAtesto = dossierDocs.some(doc => 
-    doc.tipo === 'CERTIDAO_ATESTO' || 
-    doc.tipo === 'CERTIDAO' ||
-    doc.nome?.toLowerCase().includes('atesto') ||
-    doc.titulo?.toLowerCase().includes('atesto')
-  );
-
   // Base static pieces + dynamic documents from dossierDocs
   const baseStaticPieces: DocPiece[] = [
     { id: '1', num: '01', title: 'Capa do Processo', desc: 'Identificação oficial.', icon: FileCode, key: 'COVER', 
@@ -436,7 +428,13 @@ export const GestorDashboard: React.FC = () => {
     }))
   ];
 
-  const hasAtesto = processPieces.some(p => p.type === 'Certidão de Atesto');
+  // Check if process has Certidão de Atesto (enables Tramitar button)
+  const hasAtesto = dossierDocs.some(doc => 
+    doc.tipo === 'CERTIDAO_ATESTO' || 
+    doc.tipo === 'CERTIDAO' ||
+    doc.nome?.toLowerCase().includes('atesto') ||
+    doc.titulo?.toLowerCase().includes('atesto')
+  );
   const isChecklistComplete = Object.values(checklist).every(Boolean);
 
   const handleGenerateAtesto = () => {
