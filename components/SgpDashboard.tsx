@@ -28,14 +28,25 @@ import {
   MoreHorizontal,
   Briefcase,
   ScrollText,
-  Loader2
+  Loader2,
+  Gavel,
+  LayoutList,
+  Info,
+  BookOpen,
+  Clock,
+  FileCode,
+  Eye,
+  Zap
 } from 'lucide-react';
 import { useSgpTasks, DeductionTask } from '../hooks/useSgpTasks';
+import { DocumentInventory } from './ProcessDetails/DocumentInventory';
+import { supabase } from '../lib/supabaseClient';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
 type SgpView = 'DASHBOARD' | 'LIST' | 'WORKSTATION';
 type ListFilterType = 'INBOX' | 'MY_TASKS' | 'PROCESSED' | 'TEAM_MEMBER';
+type SgpSubView = 'DETAILS' | 'SERVER' | 'DECISION' | 'DOSSIER' | 'CALCULATION' | 'HISTORY';
 
 const SGP_TEAM = [
   { id: '1', name: 'Marta Rocha', role: 'Gerente de Folha', avatar: 'https://i.pravatar.cc/150?u=marta', capacity: 15 },
@@ -59,6 +70,20 @@ export const SgpDashboard: React.FC = () => {
   const [deductionForm, setDeductionForm] = useState({ rubrica: '9201 - RESTITUIÇÃO AO ERÁRIO', refMonth: '03/2026', installments: 1 });
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [redistributionSourceId, setRedistributionSourceId] = useState<string | null>(null);
+  
+  // New state for improved workstation
+  const [subView, setSubView] = useState<SgpSubView>('DETAILS');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [dossierDocs, setDossierDocs] = useState<any[]>([]);
+
+  // Fetch current user
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
   // Sync from Supabase
   useEffect(() => {
@@ -124,20 +149,307 @@ export const SgpDashboard: React.FC = () => {
 
   const renderWorkstation = () => {
     if (!selectedTask) return null;
-    return (
-      <div className="flex h-full animate-in slide-in-from-right-10 duration-300 bg-slate-50 overflow-hidden">
-        <div className="w-[55%] flex flex-col h-full border-r border-slate-200 bg-slate-100">
-          <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center"><div className="flex items-center gap-4"><button onClick={() => { setSelectedTask(null); setViewMode('LIST'); }} className="p-2 bg-slate-100 text-slate-500 rounded-xl hover:text-rose-600 hover:shadow-sm transition-all"><ArrowLeft size={20} /></button><h2 className="text-lg font-black text-slate-800">Dossiê Digital</h2></div><div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200"><button onClick={() => setActiveDocTab('DECISAO')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeDocTab === 'DECISAO' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Decisão SEFIN</button><button onClick={() => setActiveDocTab('DESPACHO')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeDocTab === 'DESPACHO' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Despacho SOSFU</button></div></div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-10 flex justify-center"><div className="w-full max-w-2xl bg-white shadow-xl rounded-sm p-16 min-h-[800px] relative text-slate-800 font-serif leading-relaxed"><div className="opacity-10 absolute inset-0 flex items-center justify-center pointer-events-none"><img src={BRASAO_TJPA_URL} className="w-64 grayscale" /></div><div className="text-center mb-10 border-b-2 border-slate-800 pb-6"><img src={BRASAO_TJPA_URL} className="w-16 mx-auto mb-4" /><h3 className="font-bold uppercase tracking-widest text-sm">Poder Judiciário - TJPA</h3>{activeDocTab === 'DECISAO' ? (<h1 className="font-black uppercase text-xl mt-2">{selectedTask.decisionNumber}</h1>) : (<h1 className="font-black uppercase text-xl mt-2">DESPACHO DE ENCAMINHAMENTO</h1>)}</div>{activeDocTab === 'DECISAO' ? (<div className="space-y-6 text-justify"><p><strong>ASSUNTO:</strong> Determinação de desconto em folha de pagamento.</p><p>O <strong>SECRETÁRIO DE FINANÇAS</strong>, no uso de suas atribuições legais, e considerando a decisão proferida nos autos do processo administrativo <strong>{selectedTask.protocol}</strong>, que julgou irregulares as contas apresentadas/identificou despesas não elegíveis:</p><p><strong>DETERMINA</strong> à Secretaria de Gestão de Pessoas (SGP) que proceda a averbação de desconto na folha de pagamento do servidor <strong>{selectedTask.serverName}</strong> (Matrícula: {selectedTask.matricula}), no valor total de <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedTask.value)}</strong>.</p><p>O montante refere-se a <strong>{selectedTask.type}</strong> identificada na prestação de contas de suprimento de fundos. O desconto deve observar os limites da margem consignável prevista em lei.</p><p>Após a efetivação, restituam-se os autos a esta Secretaria para baixa da responsabilidade.</p><div className="mt-20 pt-10 border-t border-slate-300 text-center"><div className="font-bold uppercase">Ordenador de Despesas</div><div className="text-xs uppercase text-slate-500">Assinado Digitalmente</div></div></div>) : (<div className="space-y-6 text-justify"><p><strong>PARA:</strong> Secretaria de Gestão de Pessoas (SGP)</p><p><strong>DE:</strong> Serviço de Suprimento de Fundos (SOSFU)</p><p>Senhor(a) Secretário(a),</p><p>Encaminhamos o presente processo administrativo (<strong>{selectedTask.protocol}</strong>), devidamente instruído, contendo a Decisão do Ordenador de Despesas que determinou a glosa de valores na prestação de contas do servidor <strong>{selectedTask.serverName}</strong>.</p><p>Certificamos que o prazo recursal transcorreu sem manifestação do interessado (Certidão de Trânsito em Julgado Administrativo anexa às fls. XX).</p><p>Solicitamos, portanto, o cumprimento da decisão, com a implantação do desconto em folha e a emissão da respectiva certidão de averbação para fins de baixa da responsabilidade contábil.</p><div className="mt-20 pt-10 border-t border-slate-300 text-center"><div className="font-bold uppercase">Chefe da SOSFU</div><div className="text-xs uppercase text-slate-500">Assinado Digitalmente</div></div></div>)}</div></div>
-        </div>
-        <div className="flex-1 bg-white flex flex-col h-full shadow-2xl z-10">
-          <div className="p-8 border-b border-slate-100 bg-rose-50/30"><h3 className="text-lg font-black text-rose-800 uppercase tracking-tight flex items-center gap-3"><Calculator size={20}/> Terminal de Averbação</h3><p className="text-xs text-rose-600 mt-1">Integração Folha de Pagamento (MentorH)</p></div>
-          <div className="flex-1 p-8 space-y-8 overflow-y-auto">
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex items-start gap-4"><div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center border border-slate-100 shadow-sm"><UserMinus size={24} className="text-slate-400" /></div><div><h4 className="font-black text-slate-800">{selectedTask.serverName}</h4><p className="text-xs font-medium text-slate-500 uppercase tracking-widest mt-1">Matrícula: {selectedTask.matricula}</p><p className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-1"><Building size={10}/> {selectedTask.lotacao}</p></div></div>
-            <div className="space-y-6"><div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rubrica de Desconto</label><select className="w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-50 transition-all text-sm" value={deductionForm.rubrica} onChange={e => setDeductionForm({...deductionForm, rubrica: e.target.value})}><option>9201 - RESTITUIÇÃO AO ERÁRIO</option><option>9202 - INDENIZAÇÃO DANO AO PATRIMÔNIO</option><option>9205 - DEVOLUÇÃO SUPRIMENTO DE FUNDOS</option></select></div><div className="grid grid-cols-2 gap-6"><div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mês de Referência</label><div className="relative"><Calendar className="absolute left-4 top-3.5 text-slate-400" size={16} /><input type="text" value={deductionForm.refMonth} onChange={e => setDeductionForm({...deductionForm, refMonth: e.target.value})} className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-50 transition-all text-sm"/></div></div><div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parcelas</label><input type="number" min="1" max="12" value={deductionForm.installments} onChange={e => setDeductionForm({...deductionForm, installments: parseInt(e.target.value)})} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-50 transition-all text-sm"/></div></div><div className="bg-rose-50 border border-rose-100 p-6 rounded-2xl space-y-4"><div className="flex justify-between items-center text-rose-800"><span className="text-xs font-bold uppercase">Valor Total</span><span className="text-xl font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedTask.value)}</span></div><div className="w-full h-px bg-rose-200"></div><div className="flex justify-between items-center text-rose-600"><span className="text-xs font-medium uppercase">Desconto Mensal Est.</span><span className="text-sm font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedTask.value / deductionForm.installments)}</span></div></div></div>
+    
+    const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+    // Render Decision Summary Card (prominent display)
+    const renderDecisionCard = () => (
+      <div className="bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-200 rounded-[32px] p-8 shadow-lg animate-in fade-in">
+        <div className="flex items-start gap-6 mb-6">
+          <div className="p-4 bg-red-100 rounded-2xl shadow-sm">
+            <Gavel className="text-red-600" size={32} />
           </div>
-          <div className="p-8 border-t border-slate-100 bg-slate-50"><button onClick={handleProcessDeduction} disabled={isProcessing} className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">{isProcessing ? (<>Processando Averbação...</>) : (<><Save size={18} /> Confirmar Averbação e Retornar à SOSFU</>)}</button><p className="text-[10px] text-slate-400 text-center mt-4 mx-8 leading-relaxed">Ao confirmar, o sistema gerará automaticamente a <strong>Certidão de Averbação</strong> e tramitará o processo de volta à origem para baixa da responsabilidade.</p></div>
+          <div className="flex-1">
+            <h2 className="text-xl font-black text-red-800 uppercase tracking-tight">Decisão do Ordenador de Despesas</h2>
+            <p className="text-red-600 font-bold text-sm mt-1">{selectedTask.decisionNumber}</p>
+            <p className="text-xs text-red-500 mt-1">Processo: {selectedTask.protocol}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Valor a Descontar</p>
+            <p className="text-3xl font-black text-red-700">{formatCurrency(selectedTask.value)}</p>
+          </div>
         </div>
+        
+        <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm">
+          <p className="text-red-900 font-serif text-lg leading-relaxed">
+            "<strong className="text-red-700">DETERMINA</strong> à Secretaria de Gestão de Pessoas (SGP) que proceda a 
+            <strong className="text-red-700"> averbação de desconto</strong> na folha de pagamento do servidor 
+            <strong className="text-red-700"> {selectedTask.serverName}</strong> (Matrícula: {selectedTask.matricula}), 
+            no valor total de <strong className="text-red-700">{formatCurrency(selectedTask.value)}</strong>."
+          </p>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase ${
+              selectedTask.type === 'GLOSA' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-red-100 text-red-700 border border-red-200'
+            }`}>
+              {selectedTask.type}
+            </span>
+            <span className="text-xs text-red-500">Origem: {selectedTask.origin}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-red-600">
+            <FileCheck size={14} />
+            <span>Assinado Digitalmente</span>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Render Server Profile Card
+    const renderServerProfile = () => (
+      <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm animate-in fade-in">
+        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <User size={16}/> Dados do Servidor
+        </h3>
+        <div className="flex items-start gap-6">
+          <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
+            <UserMinus size={40} className="text-slate-400" />
+          </div>
+          <div className="flex-1 space-y-4">
+            <div>
+              <p className="text-2xl font-black text-slate-800">{selectedTask.serverName}</p>
+              <p className="text-sm font-medium text-slate-500 mt-1">Matrícula: {selectedTask.matricula}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 p-4 rounded-xl">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lotação</p>
+                <p className="text-sm font-bold text-slate-700 mt-1 flex items-center gap-2">
+                  <Building size={14}/> {selectedTask.lotacao}
+                </p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Origem</p>
+                <p className="text-sm font-bold text-slate-700 mt-1">{selectedTask.origin}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Render Full Decision Document
+    const renderDecisionDocument = () => (
+      <div className="animate-in fade-in">
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-6 w-fit">
+          <button onClick={() => setActiveDocTab('DECISAO')} className={`px-6 py-3 rounded-lg text-xs font-bold transition-all ${activeDocTab === 'DECISAO' ? 'bg-white text-red-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Gavel size={14} className="inline mr-2"/> Decisão SEFIN
+          </button>
+          <button onClick={() => setActiveDocTab('DESPACHO')} className={`px-6 py-3 rounded-lg text-xs font-bold transition-all ${activeDocTab === 'DESPACHO' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+            <FileText size={14} className="inline mr-2"/> Despacho SOSFU
+          </button>
+        </div>
+        
+        <div className="bg-white shadow-xl rounded-2xl p-12 max-w-3xl mx-auto border border-slate-200">
+          <div className="text-center mb-10 border-b-2 border-slate-800 pb-6">
+            <img src={BRASAO_TJPA_URL} className="w-16 mx-auto mb-4" />
+            <h3 className="font-bold uppercase tracking-widest text-sm">Poder Judiciário - TJPA</h3>
+            {activeDocTab === 'DECISAO' ? (
+              <h1 className="font-black uppercase text-xl mt-2 text-red-700">{selectedTask.decisionNumber}</h1>
+            ) : (
+              <h1 className="font-black uppercase text-xl mt-2">Despacho de Encaminhamento</h1>
+            )}
+          </div>
+          
+          {activeDocTab === 'DECISAO' ? (
+            <div className="space-y-6 text-justify font-serif text-slate-800 leading-relaxed">
+              <p><strong>ASSUNTO:</strong> Determinação de desconto em folha de pagamento.</p>
+              <p>O <strong>SECRETÁRIO DE FINANÇAS</strong>, no uso de suas atribuições legais, e considerando a decisão proferida nos autos do processo administrativo <strong>{selectedTask.protocol}</strong>, que julgou irregulares as contas apresentadas/identificou despesas não elegíveis:</p>
+              <p className="bg-red-50 p-4 rounded-xl border border-red-100"><strong className="text-red-700">DETERMINA</strong> à Secretaria de Gestão de Pessoas (SGP) que proceda a averbação de desconto na folha de pagamento do servidor <strong>{selectedTask.serverName}</strong> (Matrícula: {selectedTask.matricula}), no valor total de <strong className="text-red-700">{formatCurrency(selectedTask.value)}</strong>.</p>
+              <p>O montante refere-se a <strong>{selectedTask.type}</strong> identificada na prestação de contas de suprimento de fundos. O desconto deve observar os limites da margem consignável prevista em lei.</p>
+              <p>Após a efetivação, restituam-se os autos a esta Secretaria para baixa da responsabilidade.</p>
+              <div className="mt-16 pt-10 border-t border-slate-300 text-center">
+                <div className="font-bold uppercase">Ordenador de Despesas</div>
+                <div className="text-xs uppercase text-slate-500">Assinado Digitalmente</div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6 text-justify font-serif text-slate-800 leading-relaxed">
+              <p><strong>PARA:</strong> Secretaria de Gestão de Pessoas (SGP)</p>
+              <p><strong>DE:</strong> Serviço de Suprimento de Fundos (SOSFU)</p>
+              <p>Senhor(a) Secretário(a),</p>
+              <p>Encaminhamos o presente processo administrativo (<strong>{selectedTask.protocol}</strong>), devidamente instruído, contendo a Decisão do Ordenador de Despesas que determinou a glosa de valores na prestação de contas do servidor <strong>{selectedTask.serverName}</strong>.</p>
+              <p>Certificamos que o prazo recursal transcorreu sem manifestação do interessado (Certidão de Trânsito em Julgado Administrativo anexa às fls. XX).</p>
+              <p>Solicitamos, portanto, o cumprimento da decisão, com a implantação do desconto em folha e a emissão da respectiva certidão de averbação para fins de baixa da responsabilidade contábil.</p>
+              <div className="mt-16 pt-10 border-t border-slate-300 text-center">
+                <div className="font-bold uppercase">Chefe da SOSFU</div>
+                <div className="text-xs uppercase text-slate-500">Assinado Digitalmente</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+
+    // Render Calculation Form
+    const renderCalculationForm = () => (
+      <div className="space-y-8 animate-in fade-in">
+        <div className="bg-rose-50 border-2 border-rose-200 rounded-[32px] p-8">
+          <h3 className="text-lg font-black text-rose-800 uppercase tracking-tight flex items-center gap-3 mb-6">
+            <Calculator size={24}/> Terminal de Averbação
+          </h3>
+          <p className="text-xs text-rose-600 mb-8">Integração com Folha de Pagamento (MentorH)</p>
+          
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Rubrica de Desconto</label>
+              <select className="w-full p-4 bg-white border border-rose-200 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-50 transition-all text-sm" value={deductionForm.rubrica} onChange={e => setDeductionForm({...deductionForm, rubrica: e.target.value})}>
+                <option>9201 - RESTITUIÇÃO AO ERÁRIO</option>
+                <option>9202 - INDENIZAÇÃO DANO AO PATRIMÔNIO</option>
+                <option>9205 - DEVOLUÇÃO SUPRIMENTO DE FUNDOS</option>
+              </select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Mês de Referência</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-3.5 text-rose-400" size={16} />
+                  <input type="text" value={deductionForm.refMonth} onChange={e => setDeductionForm({...deductionForm, refMonth: e.target.value})} className="w-full pl-12 pr-4 py-3 bg-white border border-rose-200 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-50 transition-all text-sm"/>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Parcelas</label>
+                <input type="number" min="1" max="12" value={deductionForm.installments} onChange={e => setDeductionForm({...deductionForm, installments: parseInt(e.target.value) || 1})} className="w-full p-3 bg-white border border-rose-200 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-50 transition-all text-sm"/>
+              </div>
+            </div>
+            
+            <div className="bg-white border border-rose-200 p-6 rounded-2xl space-y-4">
+              <div className="flex justify-between items-center text-rose-800">
+                <span className="text-xs font-bold uppercase">Valor Total</span>
+                <span className="text-2xl font-black">{formatCurrency(selectedTask.value)}</span>
+              </div>
+              <div className="w-full h-px bg-rose-200"></div>
+              <div className="flex justify-between items-center text-rose-600">
+                <span className="text-xs font-medium uppercase">Desconto Mensal Est.</span>
+                <span className="text-lg font-bold">{formatCurrency(selectedTask.value / (deductionForm.installments || 1))}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <button onClick={handleProcessDeduction} disabled={isProcessing} className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+          {isProcessing ? (
+            <><Loader2 className="animate-spin" size={18}/> Processando Averbação...</>
+          ) : (
+            <><Save size={18} /> Confirmar Averbação e Retornar à SOSFU</>
+          )}
+        </button>
+        <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+          Ao confirmar, o sistema gerará automaticamente a <strong>Certidão de Averbação</strong> e tramitará o processo de volta à origem para baixa da responsabilidade.
+        </p>
+      </div>
+    );
+
+    return (
+      <div className="flex h-full bg-[#f8fafc] overflow-hidden animate-in fade-in">
+        {/* Sidebar - Árvore do Processo */}
+        <aside className="w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm z-10">
+          <div className="p-8 border-b border-slate-100 bg-slate-50/50">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <LayoutList size={14} /> Árvore do Processo
+            </p>
+            <div className="space-y-3">
+              <button onClick={() => setSubView('DETAILS')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'DETAILS' ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <Info size={18} /> Detalhes do Processo
+              </button>
+              <button onClick={() => setSubView('SERVER')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'SERVER' ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <User size={18} /> Dados do Servidor
+              </button>
+              <button onClick={() => setSubView('DECISION')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${subView === 'DECISION' ? 'bg-red-600 text-white shadow-xl' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-200'}`}>
+                <Gavel size={18} /> Decisão ⭐
+              </button>
+              <div className="h-px bg-slate-100 my-4"></div>
+              <button onClick={() => setSubView('DOSSIER')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${subView === 'DOSSIER' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <BookOpen size={18}/> Dossiê Digital
+              </button>
+              <button onClick={() => setSubView('CALCULATION')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'CALCULATION' ? 'bg-rose-50 text-rose-600 shadow-sm border border-rose-100' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <Calculator size={18}/> Averbação
+              </button>
+              <button onClick={() => setSubView('HISTORY')} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-xs font-bold transition-all ${subView === 'HISTORY' ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <Clock size={18}/> Histórico
+              </button>
+            </div>
+          </div>
+          <div className="p-8 mt-auto">
+            <button onClick={() => { setSelectedTask(null); setViewMode('LIST'); setSubView('DETAILS'); }} className="w-full py-5 bg-slate-100 text-slate-600 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
+              <ArrowLeft size={16} /> Voltar à Lista
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-10 space-y-8 bg-[#f1f5f9]">
+          {/* Header Bar */}
+          <div className="bg-white/80 backdrop-blur-xl p-4 rounded-[32px] shadow-2xl border border-white flex flex-col md:flex-row items-center justify-between sticky top-0 z-[100] gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-lg">
+                <Zap size={24} />
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">SGP • {selectedTask.protocol}</span>
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mt-1">Terminal de Averbação</h2>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 bg-slate-100/50 p-2 rounded-2xl border border-slate-200/50">
+              <button onClick={() => setSubView('DETAILS')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${subView === 'DETAILS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'}`}>
+                <Info size={14}/> Detalhes
+              </button>
+              <button onClick={() => setSubView('DECISION')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${subView === 'DECISION' ? 'bg-red-100 text-red-700 shadow-sm' : 'text-red-600 hover:bg-red-50'}`}>
+                <Gavel size={14}/> Decisão
+              </button>
+              <button onClick={() => setSubView('CALCULATION')} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-rose-600 text-white hover:bg-rose-700 transition-all">
+                <Calculator size={14}/> Averbar
+              </button>
+            </div>
+          </div>
+
+          {/* Content based on subView */}
+          {subView === 'DETAILS' && (
+            <div className="space-y-8">
+              {renderDecisionCard()}
+              {renderServerProfile()}
+            </div>
+          )}
+          
+          {subView === 'SERVER' && renderServerProfile()}
+          
+          {subView === 'DECISION' && renderDecisionDocument()}
+          
+          {subView === 'DOSSIER' && (
+            <div className="space-y-6">
+              <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-2xl">
+                <h2 className="text-2xl font-black tracking-tight">Dossiê Digital</h2>
+                <p className="text-slate-400 text-sm mt-1">Documentos anexados ao processo de desconto em folha.</p>
+              </div>
+              <div className="bg-white p-8 rounded-[32px] border border-slate-200">
+                <div className="text-center py-12 text-slate-400">
+                  <FileText size={48} className="mx-auto mb-4 opacity-20"/>
+                  <p className="font-bold text-slate-600">Documentos do Processo</p>
+                  <p className="text-xs mt-1">Decisão SEFIN, Despacho SOSFU, Certidão de Averbação</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {subView === 'CALCULATION' && renderCalculationForm()}
+          
+          {subView === 'HISTORY' && (
+            <div className="space-y-6">
+              <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-2xl">
+                <h2 className="text-2xl font-black tracking-tight">Histórico / Auditoria</h2>
+                <p className="text-slate-400 text-sm mt-1">Registro completo de tramitações e alterações.</p>
+              </div>
+              <div className="bg-white p-8 rounded-[32px] border border-slate-200">
+                <div className="text-center py-12 text-slate-400">
+                  <Clock size={48} className="mx-auto mb-4 opacity-20"/>
+                  <p className="font-bold text-slate-600">Timeline de Eventos</p>
+                  <p className="text-xs mt-1">Tramitação SOSFU → SGP • Averbação em andamento</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     );
   };

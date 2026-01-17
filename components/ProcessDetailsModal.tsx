@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Process, ProcessType, Role, AccountStatus } from '../types';
 import { STAFF_MEMBERS } from '../constants';
+import { supabase } from '../lib/supabaseClient';
 import { 
   X, 
   Calendar, 
@@ -36,7 +37,9 @@ import {
   Landmark,
   Scale,
   Send,
-  Timer
+  Timer,
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 interface ProcessDetailsModalProps {
@@ -51,6 +54,78 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   const [showRegularityModal, setShowRegularityModal] = useState(false);
   const [checkStep, setCheckStep] = useState<'IDLE' | 'SCANNING' | 'RESULTS'>('IDLE');
   const [scanProgress, setScanProgress] = useState(0);
+  const [dossierDocs, setDossierDocs] = useState<any[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+
+  // Fetch current user on mount
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+    };
+    fetchCurrentUser();
+  }, []);
+
+  // Fetch dossier documents when tab changes to DOSSIER
+  useEffect(() => {
+    if (activeTab === 'DOSSIER' && process.id) {
+      fetchDossierDocs();
+    }
+  }, [activeTab, process.id]);
+
+  const fetchDossierDocs = async () => {
+    setIsLoadingDocs(true);
+    try {
+      const { data, error } = await supabase
+        .from('documentos')
+        .select('*')
+        .eq('solicitacao_id', process.id)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      if (data) setDossierDocs(data);
+    } catch (error) {
+      console.error('Error fetching dossier docs:', error);
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  // Check if current user owns the document
+  const isDocOwner = (doc: any) => doc.created_by === currentUserId;
+
+  // Delete document with audit logging
+  const handleDeleteDocument = async (docId: string) => {
+    setDeletingDocId(docId);
+    try {
+      const docToDelete = dossierDocs.find(d => d.id === docId);
+      
+      // Log to audit trail
+      await supabase.from('historico_documentos').insert({
+        documento_id: docId,
+        acao: 'DELETE',
+        usuario_id: currentUserId,
+        dados_anteriores: docToDelete
+      });
+
+      // Delete the document
+      const { error } = await supabase
+        .from('documentos')
+        .delete()
+        .eq('id', docId);
+
+      if (error) throw error;
+      
+      // Refresh documents
+      fetchDossierDocs();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
 
   const assignedStaff = STAFF_MEMBERS.find(s => s.id === process.assignedToId);
   const isConcession = process.type === ProcessType.CONCESSION;
@@ -58,6 +133,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   const slaDate = new Date(process.slaDeadline || process.createdAt);
   const isCritical = slaDate < new Date();
   const budgetStats = { unitName: 'Comarca de Mãe do Rio', unitCode: '03.01.05.02', annualLimit: 50000.00, executed: 32450.00, currentRequest: process.value };
+
 
   const handleToggleCheck = (key: keyof typeof checklist) => { if (key === 'regularidade' && !checklist.regularidade) { setShowRegularityModal(true); runRegularityScan(); } else { setChecklist(prev => ({ ...prev, [key]: !prev[key] })); } };
   const runRegularityScan = () => { setCheckStep('SCANNING'); setScanProgress(0); const interval = setInterval(() => { setScanProgress(prev => { if (prev >= 100) { clearInterval(interval); setCheckStep('RESULTS'); return 100; } return prev + 2; }); }, 30); };
@@ -158,7 +234,90 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
               <div className="space-y-8">{renderFinancialImpact()}<div className="bg-slate-50 p-6 rounded-3xl border border-slate-200"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Parecer do Analista</h4><textarea className="w-full h-32 bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Insira observações técnicas ou ressalvas aqui..."></textarea></div></div>
             </div>
           )}
-          {activeTab === 'DOSSIER' && (<div className="text-center py-20 text-slate-400"><FileText size={48} className="mx-auto mb-4 opacity-20"/><p>Visualizador de Documentos (Placeholder)</p></div>)}
+          {activeTab === 'DOSSIER' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Documentos do Processo</h3>
+                <span className="text-xs text-slate-400 font-bold">{dossierDocs.length} {dossierDocs.length === 1 ? 'documento' : 'documentos'}</span>
+              </div>
+
+              {isLoadingDocs ? (
+                <div className="text-center py-20">
+                  <Loader2 size={48} className="mx-auto mb-4 opacity-50 animate-spin text-blue-500"/>
+                  <p className="text-slate-400">Carregando documentos...</p>
+                </div>
+              ) : dossierDocs.length === 0 ? (
+                <div className="text-center py-20 text-slate-400">
+                  <FileText size={48} className="mx-auto mb-4 opacity-20"/>
+                  <p className="font-bold text-slate-600">Nenhum documento anexado</p>
+                  <p className="text-xs mt-2">Documentos aparecerão aqui após serem criados</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {dossierDocs.map((doc, idx) => (
+                    <div 
+                      key={doc.id} 
+                      className="bg-white p-6 rounded-2xl border border-slate-200 hover:shadow-lg transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className={`p-3 rounded-xl ${
+                            doc.tipo === 'CERTIDAO' ? 'bg-green-50 text-green-600' :
+                            doc.tipo === 'DECISAO' ? 'bg-red-50 text-red-600' :
+                            doc.tipo === 'DESPACHO' ? 'bg-blue-50 text-blue-600' :
+                            'bg-slate-50 text-slate-600'
+                          }`}>
+                            {doc.tipo === 'CERTIDAO' ? <FileCheck size={20}/> : 
+                             doc.tipo === 'DECISAO' ? <Gavel size={20}/> :
+                             <FileText size={20}/>}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className="text-sm font-bold text-slate-800">{doc.titulo || doc.nome}</h4>
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
+                                doc.status === 'ASSINADO' ? 'bg-emerald-100 text-emerald-700' :
+                                'bg-amber-100 text-amber-700'
+                              }`}>
+                                {doc.status || 'MINUTA'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              {doc.tipo} • Criado em {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                            {doc.conteudo && (
+                              <p className="text-xs text-slate-400 mt-2 line-clamp-2">
+                                {doc.conteudo.substring(0, 150)}...
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-600" title="Visualizar">
+                            <Eye size={16}/>
+                          </button>
+                          {isDocOwner(doc) && (
+                            <>
+                              <button className="p-2 bg-amber-50 hover:bg-amber-100 rounded-lg text-amber-600" title="Editar">
+                                <Edit size={16}/>
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteDocument(doc.id); }}
+                                disabled={deletingDocId === doc.id}
+                                className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 disabled:opacity-50" 
+                                title="Excluir"
+                              >
+                                {deletingDocId === doc.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16}/>}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bg-white px-10 py-6 border-t border-slate-200 flex justify-between items-center z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"><div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Clock size={16}/> SLA: {slaDate.toLocaleDateString()}</div>{getFooterActions()}</div>

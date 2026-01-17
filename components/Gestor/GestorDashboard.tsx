@@ -624,6 +624,13 @@ export const GestorDashboard: React.FC = () => {
             <button onClick={() => { fetchHistory(); setView('HISTORY'); setHistoryFilter('ALL'); }} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
                 <HistoryIcon size={16}/> Histórico
             </button>
+            <button 
+              onClick={() => setShowDocumentWizard(true)} 
+              disabled={!selectedProcess}
+              className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <Plus size={16}/> Novo
+            </button>
             <button onClick={refreshAll} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-200 flex items-center gap-2">
                 <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''}/> Atualizar
             </button>

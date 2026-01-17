@@ -112,18 +112,56 @@ export const DocumentCreationWizard: React.FC<DocumentCreationWizardProps> = ({
         let template = '';
         const role = resolvedUser?.role || 'SUPRIDO';
 
-        if (selectedType === 'DECISAO' && role === 'AJSEFIN') {
-            template = `Vistos, etc.\n\nTrata-se de solicitação de suprimento de fundos (Protocolo ${protocolNup})...\n\nDECIDO:\n\n1. DEFIRO o pedido...\n2. Publique-se.`;
+        if (selectedType === 'CERTIDAO' && role === 'GESTOR') {
+            // Certidão de Novo Suprido template
+            template = `CERTIDÃO DE NOVO SUPRIDO
+
+CERTIFICO, para os devidos fins, que o(a) servidor(a) ${resolvedUser?.nome || '[NOME DO SERVIDOR]'}, matrícula ${resolvedUser?.matricula || '[MATRÍCULA]'}, lotado(a) em ${resolvedUser?.lotacao || '[LOTAÇÃO]'}, encontra-se APTO(A) para receber novo suprimento de fundos, tendo em vista:
+
+1. A comprovação da regular aplicação dos recursos anteriormente recebidos através da prestação de contas devidamente aprovada;
+
+2. A inexistência de pendências administrativas ou financeiras junto a este órgão;
+
+3. O cumprimento integral das normas estabelecidas no Regulamento de Suprimento de Fundos do TJPA;
+
+4. A demonstração de capacidade técnica e responsabilidade na gestão dos recursos públicos confiados.
+
+A presente certidão é emitida para fins de concessão de nova responsabilidade de suprimento de fundos, conforme processo ${protocolNup}.
+
+Por ser verdade, firmo a presente.`;
+        } else if (selectedType === 'DECISAO' && role === 'AJSEFIN') {
+            template = `Vistos, etc.
+
+Trata-se de solicitação de suprimento de fundos (Protocolo ${protocolNup})...
+
+DECIDO:
+
+1. DEFIRO o pedido...
+2. Publique-se.`;
         } else if (selectedType === 'DESPACHO') {
-            template = `R.H.\n\nEncaminhe-se à SOSFU para análise técnica.\n\nCumpra-se.`;
+            template = `R.H.
+
+Encaminhe-se à SOSFU para análise técnica.
+
+Cumpra-se.`;
         } else if (selectedType === 'MEMORANDO') {
-            template = `Ao Senhor(a) Coordenador(a),\n\nAssunto: Solicitação de Providências\n\n1. Venho por meio deste informar...`;
+            template = `Ao Senhor(a) Coordenador(a),
+
+Assunto: Solicitação de Providências
+
+1. Venho por meio deste informar...`;
         } else {
             template = `Digite o conteúdo do documento aqui...`;
         }
         
         setContent(template);
-        setTitle(`${DOCUMENT_TYPES.find(t => t.id === selectedType)?.label} - ${new Date().toLocaleDateString()}`);
+        
+        // Set appropriate title based on type
+        if (selectedType === 'CERTIDAO' && role === 'GESTOR') {
+            setTitle(`Certidão de Novo Suprido - ${new Date().toLocaleDateString()}`);
+        } else {
+            setTitle(`${DOCUMENT_TYPES.find(t => t.id === selectedType)?.label} - ${new Date().toLocaleDateString()}`);
+        }
     }
   }, [selectedType, protocolNup, resolvedUser]);
 

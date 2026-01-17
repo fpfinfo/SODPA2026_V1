@@ -489,8 +489,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
             .select('*')
             .ilike('email', userEmail)  // Case-insensitive email match
             .eq('ativo', true)
-            .limit(1)
-            .single();
+            .maybeSingle();
           
           if (servidorData) {
             // SYNC: Update profiles table to match servidores_tj data

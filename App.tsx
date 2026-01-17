@@ -268,6 +268,13 @@ const AppContent: React.FC = () => {
         {activeRole === AppRole.GESTOR && (
           <GestorDashboard />
         )}
+        {activeRole === AppRole.SOSFU && (
+          <DashboardSOSFU 
+            forceTab={sosfuForceSettings ? 'SETTINGS' : null} 
+            onInternalTabChange={() => setSosfuForceSettings(false)}
+            onProcessesChange={setSharedProcesses}
+          />
+        )}
         {activeRole === AppRole.SEFIN && (
           <SefinDashboard processes={sharedProcesses} />
         )}
@@ -276,7 +283,6 @@ const AppContent: React.FC = () => {
         )}
         {activeRole === AppRole.SGP && (
           <SgpDashboard />
-        )}
         )}
         </div>
       </main>
