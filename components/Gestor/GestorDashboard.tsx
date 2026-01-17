@@ -475,10 +475,14 @@ export const GestorDashboard: React.FC = () => {
           onGenerateAtesto={handleGenerateAtesto}
           onCreateDocument={() => setShowDocumentWizard(true)}
         />
-        {showTramitarModal && (
+        {showTramitarModal && selectedProcess && (
           <TramitarModal
-            process={selectedProcess}
+            isOpen={true}
             onClose={() => setShowTramitarModal(false)}
+            processId={selectedProcess.id}
+            processNup={selectedProcess.nup}
+            currentStatus={selectedProcess.status || 'PENDENTE ATESTO'}
+            currentModule="GESTOR"
             onSuccess={() => {
               setShowTramitarModal(false);
               setSelectedProcess(null);
@@ -492,7 +496,7 @@ export const GestorDashboard: React.FC = () => {
             onClose={() => setShowDocumentWizard(false)}
             onSuccess={() => {
               setShowDocumentWizard(false);
-              fetchDossierDocuments(selectedProcess.id);
+              fetchDossierDocs(selectedProcess.id);
             }}
           />
         )}
