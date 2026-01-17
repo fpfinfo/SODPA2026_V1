@@ -22,6 +22,49 @@ export const useSOSFUProcesses = () => {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Fetch current user's usuarios_sistema ID
+  useEffect(() => {
+    const fetchCurrentUserId = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        // Get usuarios_sistema ID for this auth user (via profiles.email match)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile?.email) {
+          // Find the servidor_tj with this email, then the usuarios_sistema entry
+          const { data: servidor } = await supabase
+            .from('servidores_tj')
+            .select('id')
+            .eq('email', profile.email)
+            .single();
+          
+          if (servidor?.id) {
+            const { data: systemUser } = await supabase
+              .from('usuarios_sistema')
+              .select('id')
+              .eq('servidor_id', servidor.id)
+              .eq('ativo', true)
+              .single();
+            
+            if (systemUser?.id) {
+              setCurrentUserId(systemUser.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching current user ID:', err);
+      }
+    };
+    fetchCurrentUserId();
+  }, []);
 
   // Classify process by category
   const getCategory = (process: Process): ProcessCategory => {
@@ -98,7 +141,7 @@ export const useSOSFUProcesses = () => {
       solicitacoes: processes.filter(p => !p.assignedToId && getCategory(p) === 'SOLICITACAO').length,
       prestacoes: processes.filter(p => !p.assignedToId && getCategory(p) === 'PRESTACAO').length,
     },
-    myTasks: processes.filter(p => p.assignedToId === 'CURRENT_USER').length,
+    myTasks: currentUserId ? processes.filter(p => p.assignedToId === currentUserId).length : 0,
     awaitingSignature: processes.filter(p => 
       (p.status as string)?.toUpperCase().includes('AGUARDANDO ASSINATURA')
     ).length,
