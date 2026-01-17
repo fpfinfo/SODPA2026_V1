@@ -60,8 +60,8 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           profiles:user_id (
             nome,
             cargo,
-            unidade,
-            comarca
+            unidade_id,
+            comarca_id
           )
         `)
         .eq('id', processId)
@@ -76,8 +76,8 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           ...data,
           suprido_nome: profileData?.nome,
           suprido_cargo: profileData?.cargo,
-          unidade: profileData?.unidade,
-          comarca: profileData?.comarca,
+          unidade: profileData?.unidade_id,
+                     comarca: profileData?.comarca_id,
         };
         
         setProcessData(flattenedData);

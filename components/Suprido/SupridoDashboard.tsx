@@ -61,6 +61,7 @@ import {
 import { supabase } from '../../lib/supabaseClient';
 import { DocumentCreationWizard } from '../DocumentCreationWizard';
 import { TramitarModal } from '../TramitarModal';
+import { UniversalProcessDetailsPage } from '../ProcessDetails';
 import { TimelineHistory } from '../TimelineHistory';
 import { useRoleRequests, ROLE_LABELS, SystemRole } from '../../hooks/useRoleRequests';
 
@@ -162,6 +163,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const [currentView, setCurrentView] = useState<SupridoView>('DASHBOARD');
   const [subView, setSubView] = useState<SubViewMode>('DETAILS');
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
+// Early UniversalProcessDetailsPage rendering block removed; will be placed later in the component's main return.
   const [wizardStep, setWizardStep] = useState(1);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
@@ -179,7 +181,18 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
+  // Current authenticated user ID for passing to UniversalProcessDetailsPage
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Fetch current user ID on component mount
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) setCurrentUserId(user.id);
+    };
+    fetchUserId();
+  }, []);
   const [history, setHistory] = useState<any[]>([]);
+  const [pendingProcesses, setPendingProcesses] = useState<any[]>([]);
   const [dossierDocs, setDossierDocs] = useState<any[]>([]);
   const [selectedPreviewDoc, setSelectedPreviewDoc] = useState<any>(null);
   
@@ -198,14 +211,65 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     refeicoes: { almoco: 30, jantar: 25, lanche: 10 }
   });
 
-  // Notification for limit exceeded
+    // Fetch pending processes for Suprido (similar to Gestor)
+  const fetchPendingProcesses = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('solicitacoes')
+        .select(`
+          id,
+          nup,
+          tipo,
+          valor_solicitado,
+          status,
+          descricao,
+          created_at,
+          itens_despesa,
+          juri_participantes,
+          user_id,
+          profiles!solicitacoes_user_id_fkey (
+            nome
+          )
+        `)
+        .eq('status', 'PENDENTE ATESTO')
+        .eq('destino_atual', 'SUPRIDO')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const transformed = (data || []).map((s: any) => {
+        const profileName = Array.isArray(s.profiles) ? s.profiles[0]?.nome : s.profiles?.nome;
+        return {
+          id: s.id,
+          nup: s.nup,
+          type: s.tipo === 'JURI' ? 'SESSÃO DE JÚRI' : 'EXTRA-EMERGENCIAL',
+          interested: profileName || 'N/A',
+          val: s.valor_solicitado || 0,
+          date: new Date(s.created_at).toLocaleDateString('pt-BR'),
+          status: s.status,
+          desc: s.descricao || 'Sem descrição',
+          items: s.itens_despesa || [],
+          rawData: s,
+        };
+      });
+
+      setPendingProcesses(transformed);
+    } catch (error) {
+      console.error('Error fetching pending processes:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const [showLimitExceededAlert, setShowLimitExceededAlert] = useState(false);
   const [limitExceededType, setLimitExceededType] = useState<'participante' | 'refeicao'>('participante');
 
   // Tramitar Modal state
   const [showTramitarModal, setShowTramitarModal] = useState(false);
   
-  // Tramitacao History state (for audit log)
+
+// Tramitacao History state (for audit log)
   const [tramitacaoHistory, setTramitacaoHistory] = useState<any[]>([]);
   const [lastDevolutionReason, setLastDevolutionReason] = useState<string | null>(null);
   
@@ -3936,7 +4000,22 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
             {currentView === 'FORM' && renderForm()}
             {currentView === 'EDIT_FORM' && renderEditForm()}
             {currentView === 'PROFILE' && renderProfile()}
-            {currentView === 'VIEW_DETAILS' && renderProcessDetails()}
+            {currentView === 'VIEW_DETAILS' && selectedProcess && (
+              <UniversalProcessDetailsPage
+                processId={selectedProcess.id}
+                currentUserId={currentUserId || ''}
+                onClose={() => {
+                  setSelectedProcess(null);
+                  setCurrentView('DASHBOARD');
+                }}
+                canTramitar={true}
+                canGenerateAtesto={false}
+                canCreateDocument={true}
+                onTramitar={() => setShowTramitarModal(true)}
+                onGenerateAtesto={undefined}
+                onCreateDocument={() => setShowDocumentWizard(true)}
+              />
+            )}
           </>
       )}
 
@@ -4149,6 +4228,21 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
             refreshHistory();
             setCurrentView('DASHBOARD');
             setSelectedProcess(null);
+          }}
+        />
+      )}
+
+      {/* Document Creation Wizard - for UniversalProcessDetailsPage */}
+      {showDocumentWizard && selectedProcess && (
+        <DocumentCreationWizard
+          isOpen={true}
+          processId={selectedProcess.id}
+          nup={selectedProcess.nup}
+          currentUser={profileData}
+          onClose={() => setShowDocumentWizard(false)}
+          onSuccess={() => {
+            setShowDocumentWizard(false);
+            fetchDossierDocs(selectedProcess.id);
           }}
         />
       )}
