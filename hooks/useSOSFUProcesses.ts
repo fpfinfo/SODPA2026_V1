@@ -99,7 +99,7 @@ export const useSOSFUProcesses = () => {
         .from('solicitacoes')
         .select(`
           *,
-          profiles!solicitacoes_user_id_fkey (nome, email)
+          profiles!solicitacoes_user_id_fkey (nome, email, banco, agencia, conta)
         `)
         .or('destino_atual.ilike.%SOSFU%,destino_atual.ilike.%ANALISE%,status.ilike.%AGUARDANDO%')
         .order('created_at', { ascending: false });
@@ -129,7 +129,11 @@ export const useSOSFUProcesses = () => {
         prioridade_usuario: p.prioridade_usuario,
         notas_planejamento: p.notas_planejamento,
         supplyCategory: (p.tipo === 'ORDINARIO' || p.tipo === 'ORDINÁRIO') ? 'ORDINARY' : 'EXTRAORDINARY',
-        bankData: p.dados_bancarios,
+        bankData: p.dados_bancarios || (p.profiles?.banco ? { 
+          bankName: p.profiles.banco, 
+          agency: p.profiles.agencia, 
+          account: p.profiles.conta 
+        } : undefined),
         items: p.itens_despesa || p.items || [],
       }));
 

@@ -83,7 +83,10 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
             cargo,
             unidade_id,
             comarca_id,
-            email
+            email,
+            banco,
+            agencia,
+            conta
           )
         `)
         .eq('id', processId)
@@ -114,6 +117,11 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           unidade: profileData?.unidade_id,
           comarca: profileData?.comarca_id,
           lotacao: lotacao,
+          dados_bancarios: data.dados_bancarios || (profileData?.banco ? {
+            bankName: profileData.banco,
+            agency: profileData.agencia,
+            account: profileData.conta
+          } : undefined),
         };
         
         setProcessData(flattenedData);
