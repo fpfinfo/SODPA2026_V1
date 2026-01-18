@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { DashboardSOSFU } from './components/DashboardSOSFU';
 import { SupridoDashboard } from './components/Suprido/SupridoDashboard';
 import { GestorDashboard } from './components/Gestor/GestorDashboard';
@@ -13,6 +15,17 @@ import { User, LogOut, ChevronDown, Bell, UserCircle, Settings as SettingsIcon, 
 import { supabase } from './lib/supabaseClient';
 import { NotificationBell } from './components/NotificationBell';
 import { AlertBanner } from './components/AlertBanner';
+
+// React Query client configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30 seconds
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -293,11 +306,14 @@ const AppContent: React.FC = () => {
 // Main App wrapper with authentication
 const App: React.FC = () => {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <AuthenticatedApp />
-      </AuthProvider>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AuthProvider>
+          <AuthenticatedApp />
+        </AuthProvider>
+      </ToastProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 };
 

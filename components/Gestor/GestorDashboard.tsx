@@ -43,6 +43,7 @@ import { DocumentCreationWizard } from '../DocumentCreationWizard';
 import { useToast } from '../ui/ToastProvider';
 import { TimelineHistory } from '../TimelineHistory';
 import { UniversalProcessDetailsPage } from '../ProcessDetails';
+import { useGestorProcesses, useGestorKPIs } from '../../hooks/useGestorProcesses';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -84,13 +85,11 @@ export const GestorDashboard: React.FC = () => {
   const [showTramitarModal, setShowTramitarModal] = useState(false);
   const [tramitationType, setTramitationType] = useState<'forward' | 'return'>('forward');
 
-  // Real processes from Supabase
-  const [pendingProcesses, setPendingProcesses] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // KPI Counts
-  const [atestadosNoMes, setAtestadosNoMes] = useState(0);
-  const [devolucoes, setDevolucoes] = useState(0);
+  // React Query hooks for processes and KPIs
+  const { data: pendingProcesses = [], isLoading, refetch: refetchProcesses } = useGestorProcesses();
+  const { data: kpis } = useGestorKPIs();
+  const atestadosNoMes = kpis?.atestadosNoMes ?? 0;
+  const devolucoes = kpis?.devolucoes ?? 0;
   
   // History data
   const [historyData, setHistoryData] = useState<any[]>([]);
@@ -145,95 +144,6 @@ export const GestorDashboard: React.FC = () => {
     return element?.label || fallbackDesc || code || 'Item';
   };
 
-  // Fetch pending processes from Supabase
-  const fetchPendingProcesses = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('solicitacoes')
-        .select(`
-          id,
-          nup,
-          tipo,
-          valor_solicitado,
-          status,
-          descricao,
-          created_at,
-          itens_despesa,
-          juri_participantes,
-          user_id,
-          profiles!solicitacoes_user_id_fkey (
-            nome
-          )
-        `)
-        .eq('status', 'PENDENTE ATESTO')
-        .eq('destino_atual', 'GESTOR')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Transform data for display
-      const transformed = ((data || []) as any[]).map(s => {
-        const profileName = Array.isArray(s.profiles) 
-          ? s.profiles[0]?.nome 
-          : s.profiles?.nome;
-        return {
-          id: s.id,
-          nup: s.nup,
-          type: s.tipo === 'JURI' ? 'SESSÃO DE JÚRI' : 'EXTRA-EMERGENCIAL',
-          interested: profileName || 'N/A',
-          val: s.valor_solicitado || 0,
-          date: new Date(s.created_at).toLocaleDateString('pt-BR'),
-          status: s.status,
-          desc: s.descricao || 'Sem descrição',
-          // Store full item objects for display
-          items: s.itens_despesa || [],
-          rawData: s // Keep raw data for debugging
-        };
-      });
-
-      setPendingProcesses(transformed);
-    } catch (error) {
-      console.error('Error fetching pending processes:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch KPI counts for Atestados no Mês and Devoluções
-  const fetchKPICounts = async () => {
-    try {
-      // Get first day of current month
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
-      // Count processes that passed through GESTOR and moved to SOSFU (Atestados)
-      const { count: atestadosCount, error: atestadosError } = await supabase
-        .from('historico_tramitacao')
-        .select('*', { count: 'exact', head: true })
-        .eq('origem', 'GESTOR')
-        .eq('destino', 'SOSFU')
-        .gte('data_tramitacao', firstDayOfMonth);
-
-      if (!atestadosError && atestadosCount !== null) {
-        setAtestadosNoMes(atestadosCount);
-      }
-
-      // Count devolutions (processes returned from GESTOR to SUPRIDO)
-      const { count: devolucoesCount, error: devolucoesError } = await supabase
-        .from('historico_tramitacao')
-        .select('*', { count: 'exact', head: true })
-        .eq('origem', 'GESTOR')
-        .eq('destino', 'SUPRIDO')
-        .gte('data_tramitacao', firstDayOfMonth);
-
-      if (!devolucoesError && devolucoesCount !== null) {
-        setDevolucoes(devolucoesCount);
-      }
-    } catch (error) {
-      console.error('Error fetching KPI counts:', error);
-    }
-  };
 
   // Fetch history of tramitations from GESTOR
   const fetchHistory = async () => {
@@ -286,10 +196,9 @@ export const GestorDashboard: React.FC = () => {
     }
   };
 
-  // Combined refresh function for ATUALIZAR button
+  // Combined refresh function for ATUALIZAR button (now uses React Query)
   const refreshAll = () => {
-    fetchPendingProcesses();
-    fetchKPICounts();
+    refetchProcesses();
   };
 
   // Fetch expense elements for description lookup
@@ -486,7 +395,7 @@ export const GestorDashboard: React.FC = () => {
             onSuccess={() => {
               setShowTramitarModal(false);
               setSelectedProcess(null);
-              fetchPendingProcesses();
+              refetchProcesses();
             }}
           />
         )}
@@ -553,8 +462,7 @@ export const GestorDashboard: React.FC = () => {
   };
 
   const handleTramitacaoSuccess = () => {
-    fetchPendingProcesses(); // Refetch from database
-    fetchKPICounts(); // Update KPI counts
+    refetchProcesses(); // Refetch from database using React Query
     setView('LIST');
     setSelectedProcess(null);
   };

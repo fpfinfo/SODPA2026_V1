@@ -65,6 +65,7 @@ import { UniversalProcessDetailsPage } from '../ProcessDetails';
 import { TimelineHistory } from '../TimelineHistory';
 import { useRoleRequests, ROLE_LABELS, SystemRole } from '../../hooks/useRoleRequests';
 import { useToast } from '../ui/ToastProvider';
+import { useSupridoProcesses } from '../../hooks/useSupridoProcesses';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -182,7 +183,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const [statusFilter, setStatusFilter] = useState('TODOS');
   const itemsPerPage = 5;
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true); // Renamed from isLoading
   const [profileData, setProfileData] = useState<any>(null);
   // Current authenticated user ID for passing to UniversalProcessDetailsPage
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -195,7 +196,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     fetchUserId();
   }, []);
   const [history, setHistory] = useState<any[]>([]);
-  const [pendingProcesses, setPendingProcesses] = useState<any[]>([]);
+  
+  // React Query hook for pending processes
+  const { data: pendingProcesses = [], isLoading, refetch: refetchProcesses } = useSupridoProcesses(currentUserId ?? undefined);
+  
   const [dossierDocs, setDossierDocs] = useState<any[]>([]);
   const [selectedPreviewDoc, setSelectedPreviewDoc] = useState<any>(null);
   
@@ -213,57 +217,6 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     participantes: { servidores: 7, defensor: 2, promotor: 2, policias: 5 },
     refeicoes: { almoco: 30, jantar: 25, lanche: 10 }
   });
-
-    // Fetch pending processes for Suprido (similar to Gestor)
-  const fetchPendingProcesses = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('solicitacoes')
-        .select(`
-          id,
-          nup,
-          tipo,
-          valor_solicitado,
-          status,
-          descricao,
-          created_at,
-          itens_despesa,
-          juri_participantes,
-          user_id,
-          profiles!solicitacoes_user_id_fkey (
-            nome
-          )
-        `)
-        .eq('status', 'PENDENTE ATESTO')
-        .eq('destino_atual', 'SUPRIDO')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const transformed = (data || []).map((s: any) => {
-        const profileName = Array.isArray(s.profiles) ? s.profiles[0]?.nome : s.profiles?.nome;
-        return {
-          id: s.id,
-          nup: s.nup,
-          type: s.tipo === 'JURI' ? 'SESSÃO DE JÚRI' : 'EXTRA-EMERGENCIAL',
-          interested: profileName || 'N/A',
-          val: s.valor_solicitado || 0,
-          date: new Date(s.created_at).toLocaleDateString('pt-BR'),
-          status: s.status,
-          desc: s.descricao || 'Sem descrição',
-          items: s.itens_despesa || [],
-          rawData: s,
-        };
-      });
-
-      setPendingProcesses(transformed);
-    } catch (error) {
-      console.error('Error fetching pending processes:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const [showLimitExceededAlert, setShowLimitExceededAlert] = useState(false);
   const [limitExceededType, setLimitExceededType] = useState<'participante' | 'refeicao'>('participante');
@@ -560,7 +513,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true);
+      setIsLoadingProfile(true);
       
       // 1. Fetch Profile - First from servidores_tj (matched by email), fallback to profiles
       try {
@@ -746,7 +699,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
        const { data: { user: currentUser } } = await supabase.auth.getUser();
        if (!currentUser) {
          setHistory([]);
-         setIsLoading(false);
+         setIsLoadingProfile(false);
          return;
        }
        
@@ -781,7 +734,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
              { id: '2', nup: 'TJPA-SOL-00009-2026', type: 'EXTRA-EMERGENCIAL', desc: 'Diligência urgente na Comarca de Mãe do Rio...', date: '22/01/2026', val: 450, status: 'CONCEDIDO' },
         ]);
       } finally {
-        setIsLoading(false);
+        setIsLoadingProfile(false);
       }
     };
 
