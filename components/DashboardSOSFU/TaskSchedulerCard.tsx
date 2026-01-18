@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Calendar, 
   Clock, 
@@ -7,10 +7,14 @@ import {
   Play, 
   Eye,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   AlertCircle,
   CheckCircle2,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface TaskSchedulerCardProps {
   process: {
@@ -35,6 +39,218 @@ const PRIORITY_CONFIG = {
   3: { label: 'Baixa', color: 'bg-green-500', textColor: 'text-green-600', bgLight: 'bg-green-50', icon: '🟢' },
 };
 
+const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MONTHS_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+// Full Calendar Component
+const FullCalendar: React.FC<{
+  selectedDate: string;
+  onSelect: (date: string) => void;
+  onClose: () => void;
+  onClear: () => void;
+  anchorRect: DOMRect | null;
+}> = ({ selectedDate, onSelect, onClose, onClear, anchorRect }) => {
+  const [viewDate, setViewDate] = useState(() => {
+    if (selectedDate) {
+      const d = new Date(selectedDate + 'T00:00:00');
+      return { month: d.getMonth(), year: d.getFullYear() };
+    }
+    const now = new Date();
+    return { month: now.getMonth(), year: now.getFullYear() };
+  });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  // Generate calendar days
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(viewDate.year, viewDate.month, 1);
+    const lastDay = new Date(viewDate.year, viewDate.month + 1, 0);
+    const startPadding = firstDay.getDay();
+    const totalDays = lastDay.getDate();
+
+    const days: { date: Date; dateStr: string; isCurrentMonth: boolean; isToday: boolean; isSelected: boolean; isPast: boolean }[] = [];
+
+    // Previous month padding
+    for (let i = startPadding - 1; i >= 0; i--) {
+      const d = new Date(viewDate.year, viewDate.month, -i);
+      days.push({
+        date: d,
+        dateStr: d.toISOString().split('T')[0],
+        isCurrentMonth: false,
+        isToday: false,
+        isSelected: false,
+        isPast: d < today,
+      });
+    }
+
+    // Current month
+    for (let i = 1; i <= totalDays; i++) {
+      const d = new Date(viewDate.year, viewDate.month, i);
+      const dateStr = d.toISOString().split('T')[0];
+      days.push({
+        date: d,
+        dateStr,
+        isCurrentMonth: true,
+        isToday: dateStr === todayStr,
+        isSelected: dateStr === selectedDate,
+        isPast: d < today,
+      });
+    }
+
+    // Next month padding
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(viewDate.year, viewDate.month + 1, i);
+      days.push({
+        date: d,
+        dateStr: d.toISOString().split('T')[0],
+        isCurrentMonth: false,
+        isToday: false,
+        isSelected: false,
+        isPast: false,
+      });
+    }
+
+    return days;
+  }, [viewDate, selectedDate, todayStr]);
+
+  const prevMonth = () => {
+    setViewDate(prev => {
+      if (prev.month === 0) return { month: 11, year: prev.year - 1 };
+      return { ...prev, month: prev.month - 1 };
+    });
+  };
+
+  const nextMonth = () => {
+    setViewDate(prev => {
+      if (prev.month === 11) return { month: 0, year: prev.year + 1 };
+      return { ...prev, month: prev.month + 1 };
+    });
+  };
+
+  // Calculate position
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 9999,
+    top: anchorRect ? Math.min(anchorRect.bottom + 8, window.innerHeight - 420) : '50%',
+    left: anchorRect ? Math.min(anchorRect.right - 320, window.innerWidth - 340) : '50%',
+  };
+
+  return createPortal(
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 z-[9998] bg-black/20"
+        onClick={onClose}
+      />
+      {/* Calendar */}
+      <div 
+        style={style}
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-[320px]"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={prevMonth}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span className="text-sm font-black text-slate-800">
+            {MONTHS_PT[viewDate.month]} {viewDate.year}
+          </span>
+          <button
+            onClick={nextMonth}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* Quick Options */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => onSelect(todayStr)}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
+              selectedDate === todayStr 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+            }`}
+          >
+            Hoje
+          </button>
+          <button
+            onClick={() => onSelect(tomorrowStr)}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
+              selectedDate === tomorrowStr 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+            }`}
+          >
+            Amanhã
+          </button>
+        </div>
+
+        {/* Weekday Headers */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {DAYS_PT.map(day => (
+            <div key={day} className="text-center text-[10px] font-bold text-slate-400 uppercase">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {calendarDays.map((day, idx) => (
+            <button
+              key={idx}
+              onClick={() => !day.isPast && onSelect(day.dateStr)}
+              disabled={day.isPast && !day.isSelected}
+              className={`
+                aspect-square rounded-lg text-xs font-medium flex items-center justify-center transition-all
+                ${!day.isCurrentMonth ? 'text-slate-300' : ''}
+                ${day.isPast && !day.isSelected ? 'text-slate-300 cursor-not-allowed' : ''}
+                ${day.isToday && !day.isSelected ? 'bg-blue-100 text-blue-700 font-bold' : ''}
+                ${day.isSelected ? 'bg-blue-600 text-white font-black shadow-lg scale-110' : ''}
+                ${!day.isSelected && !day.isPast && day.isCurrentMonth ? 'hover:bg-slate-100' : ''}
+              `}
+            >
+              {day.date.getDate()}
+            </button>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
+          {selectedDate && (
+            <button
+              onClick={onClear}
+              className="flex-1 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              Remover data
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+};
+
 export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
   process,
   onSchedule,
@@ -46,14 +262,34 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(process.data_planejada || '');
   const [currentPriority, setCurrentPriority] = useState(process.prioridade_usuario || 2);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
 
   const priorityConfig = PRIORITY_CONFIG[currentPriority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG[2];
+
+  const handleOpenCalendar = () => {
+    if (dateButtonRef.current) {
+      setAnchorRect(dateButtonRef.current.getBoundingClientRect());
+    }
+    setShowDatePicker(true);
+  };
 
   const handleDateChange = async (date: string) => {
     setIsScheduling(true);
     try {
       await onSchedule(process.id, date || null, currentPriority);
       setSelectedDate(date);
+      setShowDatePicker(false);
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const handleClearDate = async () => {
+    setIsScheduling(true);
+    try {
+      await onSchedule(process.id, null, currentPriority);
+      setSelectedDate('');
       setShowDatePicker(false);
     } finally {
       setIsScheduling(false);
@@ -104,20 +340,23 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
           
           {/* Priority Dropdown */}
           {showPriorityMenu && (
-            <div className="absolute top-12 left-0 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 min-w-[140px] animate-in slide-in-from-top-2">
-              {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
-                <button
-                  key={key}
-                  onClick={() => handlePriorityChange(parseInt(key))}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors ${
-                    currentPriority === parseInt(key) ? 'bg-slate-100' : ''
-                  }`}
-                >
-                  <span>{config.icon}</span>
-                  <span className="text-sm font-medium">{config.label}</span>
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="fixed inset-0 z-[100]" onClick={() => setShowPriorityMenu(false)} />
+              <div className="absolute top-12 left-0 z-[101] bg-white rounded-xl shadow-2xl border border-slate-200 p-2 min-w-[140px]">
+                {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
+                  <button
+                    key={key}
+                    onClick={() => handlePriorityChange(parseInt(key))}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors ${
+                      currentPriority === parseInt(key) ? 'bg-slate-100' : ''
+                    }`}
+                  >
+                    <span>{config.icon}</span>
+                    <span className="text-sm font-medium">{config.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
@@ -141,92 +380,36 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
           </p>
         </div>
 
-        {/* Date Scheduler */}
-        <div className="relative">
-          <button
-            onClick={() => setShowDatePicker(!showDatePicker)}
-            disabled={isScheduling}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-              selectedDate 
-                ? 'bg-blue-50 border-blue-200 text-blue-700' 
-                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-            }`}
-          >
-            {isScheduling ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Calendar size={14} />
-            )}
-            <span className="text-xs font-bold">{formatDate(selectedDate)}</span>
-            <ChevronDown size={12} />
-          </button>
-
-          {/* Date Picker Dropdown - using higher z-index and ensuring visibility */}
-          {showDatePicker && (
-            <>
-              {/* Backdrop to close dropdown */}
-              <div 
-                className="fixed inset-0 z-[100]" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDatePicker(false);
-                }}
-              />
-              <div 
-                className="absolute top-12 right-0 z-[101] bg-white rounded-xl shadow-2xl border border-slate-200 p-4 min-w-[280px]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Agendar para</p>
-                
-                {/* Quick Options */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDateChange(new Date().toISOString().split('T')[0]);
-                    }}
-                    className="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                  >
-                    Hoje
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const tomorrow = new Date();
-                      tomorrow.setDate(tomorrow.getDate() + 1);
-                      handleDateChange(tomorrow.toISOString().split('T')[0]);
-                    }}
-                    className="flex-1 py-2 text-xs font-bold rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors"
-                  >
-                    Amanhã
-                  </button>
-                </div>
-
-                {/* Calendar Input */}
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-                {/* Remove Date */}
-                {selectedDate && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDateChange('');
-                    }}
-                    className="w-full mt-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    Remover data
-                  </button>
-                )}
-              </div>
-            </>
+        {/* Date Scheduler Button */}
+        <button
+          ref={dateButtonRef}
+          onClick={handleOpenCalendar}
+          disabled={isScheduling}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+            selectedDate 
+              ? 'bg-blue-50 border-blue-200 text-blue-700' 
+              : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+          }`}
+        >
+          {isScheduling ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Calendar size={14} />
           )}
-        </div>
+          <span className="text-xs font-bold">{formatDate(selectedDate)}</span>
+          <ChevronDown size={12} />
+        </button>
+
+        {/* Full Calendar Portal */}
+        {showDatePicker && (
+          <FullCalendar
+            selectedDate={selectedDate}
+            onSelect={handleDateChange}
+            onClose={() => setShowDatePicker(false)}
+            onClear={handleClearDate}
+            anchorRect={anchorRect}
+          />
+        )}
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
@@ -248,17 +431,6 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
           )}
         </div>
       </div>
-
-      {/* Click outside to close dropdowns */}
-      {(showDatePicker || showPriorityMenu) && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => {
-            setShowDatePicker(false);
-            setShowPriorityMenu(false);
-          }}
-        />
-      )}
     </div>
   );
 };
