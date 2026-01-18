@@ -21,10 +21,14 @@ interface ProcessData {
   itens_despesa?: Array<{
     id?: string;
     codigo?: string;
+    element?: string;
     descricao?: string;
+    desc?: string;
     quantidade?: number;
+    qty?: number;
     valor_unitario?: number;
     valor_total?: number;
+    val?: number;
   }>;
 }
 
@@ -124,8 +128,6 @@ export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => 
               <tr>
                 <th className="px-4 py-3 font-black uppercase">Código</th>
                 <th className="px-4 py-3 font-black uppercase">Descrição</th>
-                <th className="px-4 py-3 font-black uppercase text-center">Qtd</th>
-                <th className="px-4 py-3 font-black uppercase text-right">Valor Unit.</th>
                 <th className="px-4 py-3 font-black uppercase text-right">Valor Total</th>
               </tr>
             </thead>
@@ -133,24 +135,20 @@ export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => 
               {items.length > 0 ? (
                 items.map((item, idx) => (
                   <tr key={idx}>
-                    <td className="px-4 py-3 font-mono">{item.codigo || 'N/A'}</td>
-                    <td className="px-4 py-3">{getElementDescription(item.codigo || '', item.descricao)}</td>
-                    <td className="px-4 py-3 text-center">{item.quantidade || 1}</td>
-                    <td className="px-4 py-3 text-right">{formatCurrency(item.valor_unitario)}</td>
-                    <td className="px-4 py-3 text-right font-bold">{formatCurrency(item.valor_total)}</td>
+                    <td className="px-4 py-3 font-mono">{item.codigo || item.element || 'N/A'}</td>
+                    <td className="px-4 py-3">{getElementDescription(item.codigo || item.element || '', item.descricao || item.desc)}</td>
+                    <td className="px-4 py-3 text-right font-bold">{formatCurrency(item.valor_total || item.val || 0)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td className="px-4 py-3 font-mono">3.3.90.33</td>
                   <td className="px-4 py-3">Passagens e Despesas com Locomoção</td>
-                  <td className="px-4 py-3 text-center">1</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(totalValue)}</td>
                   <td className="px-4 py-3 text-right font-bold">{formatCurrency(totalValue)}</td>
                 </tr>
               )}
               <tr className="bg-slate-50 font-black">
-                <td colSpan={4} className="px-4 py-3 text-right uppercase tracking-widest text-slate-500">
+                <td colSpan={2} className="px-4 py-3 text-right uppercase tracking-widest text-slate-500">
                   TOTAL:
                 </td>
                 <td className="px-4 py-3 text-right">{formatCurrency(totalValue)}</td>
