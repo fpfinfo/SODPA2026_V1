@@ -25,7 +25,7 @@ import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
 import { useSOSFUProcesses, SOSFUStats } from '../hooks/useSOSFUProcesses';
 import { useRoleRequests, ROLE_LABELS, RoleRequest } from '../hooks/useRoleRequests';
 import { useTeamMembers, TeamMember } from '../hooks/useTeamMembers';
-import { DashboardCardsPanel } from './DashboardSOSFU/DashboardCardsPanel';
+import { DashboardCardsPanel, CardMode } from './DashboardSOSFU/DashboardCardsPanel';
 import { RoleApprovalQueue } from './DashboardSOSFU/RoleApprovalQueue';
 import { TaskSchedulerPanel } from './DashboardSOSFU/TaskSchedulerPanel';
 import { 
@@ -186,6 +186,18 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
           total: accountabilityProcesses.length
       };
   }, [processes, getCategory]);
+
+  // Calculate card mode based on majority of processes in user's tasks
+  const cardMode: CardMode = useMemo(() => {
+    const myProcesses = getMinhaMesa();
+    if (myProcesses.length === 0) return 'CONCESSION';
+    const pcCount = myProcesses.filter(p => 
+      getCategory(p) === 'PRESTACAO' || 
+      (p.status as string)?.toUpperCase().includes('PRESTAÇÃO') ||
+      (p.status as string)?.toUpperCase().includes('PC')
+    ).length;
+    return pcCount > myProcesses.length / 2 ? 'PC' : 'CONCESSION';
+  }, [getMinhaMesa, getCategory]);
 
   // Fetch real team members from database
   const { teamMembers: realTeamMembers, isLoading: isLoadingTeam, refresh: refreshTeamMembers } = useTeamMembers();
@@ -475,7 +487,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
         <div className="flex flex-col gap-4">
           {!isSettingsView && !isTableManager && (
             <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3"><div className="p-2 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-200"><Briefcase size={20} /></div><div><h1 className="text-xl font-bold text-slate-800 tracking-tight">Mesa Técnica SOSFU</h1><p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest">{activeTab === 'ALL' ? 'Visão Geral Unificada' : activeTab === 'ACCOUNTABILITY' ? 'Auditoria & Prestação de Contas' : activeTab}</p></div></div>
+              <div className="flex items-center gap-3"><div className="p-2 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-200"><Briefcase size={20} /></div><div><h1 className="text-xl font-bold text-slate-800 tracking-tight">Mesa Técnica SOSFU</h1><p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest">{activeTab === 'ALL' ? 'Visão Geral Unificada' : activeTab === 'ACCOUNTABILITY' ? 'Prestação de Contas' : activeTab}</p></div></div>
               <div className="flex items-center gap-3">
                 <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0"><button onClick={() => setCategoryFilter('ALL')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${categoryFilter === 'ALL' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Todos</button><button onClick={() => setCategoryFilter('ORDINARY')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${categoryFilter === 'ORDINARY' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Ordinário</button><button onClick={() => setCategoryFilter('EXTRAORDINARY')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1 ${categoryFilter === 'EXTRAORDINARY' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400'}`}><Zap size={10} className={categoryFilter === 'EXTRAORDINARY' ? 'fill-amber-600' : ''}/> Extra</button></div>
                 <div className="relative w-64 group"><Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={14} /><input type="text" placeholder="Buscar protocolo ou interessado..." className="w-full pl-9 pr-4 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 bg-slate-50 focus:bg-white transition-all shadow-inner" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>
@@ -484,7 +496,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
           )}
           {!isSettingsView && (
             <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mt-2">
-              <div className="flex overflow-x-auto pb-1 gap-1 no-scrollbar w-full md:w-auto"><button onClick={() => setActiveTab('ALL')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'ALL' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}>Painel de Controle</button><div className="w-px h-6 bg-slate-200 mx-1 self-center"></div><button onClick={() => setActiveTab('CONCESSION')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'CONCESSION' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-500 hover:bg-slate-100'}`}>Concessão</button><button onClick={() => setActiveTab('ACCOUNTABILITY')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'ACCOUNTABILITY' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-500 hover:bg-slate-100'}`}><ShieldCheck size={14}/> Auditoria & PC</button><div className="w-px h-6 bg-slate-200 mx-1 self-center"></div><button onClick={() => setActiveTab('FINANCEIRO')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isFinancialTab ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'text-slate-500 hover:bg-slate-100'}`}><BarChart3 size={14}/> Financeiro</button><button onClick={() => setActiveTab('ORCAMENTO')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isBudgetTab ? 'bg-violet-50 text-violet-700 border border-violet-100' : 'text-slate-500 hover:bg-slate-100'}`}><PiggyBank size={14}/> Orçamento</button><button onClick={() => setActiveTab('SUPRIDO_MANAGEMENT')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isSupridoManagement ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'text-slate-500 hover:bg-slate-100'}`}><UserCheck size={14}/> Gestão de Supridos</button><div className="w-px h-6 bg-slate-200 mx-1 self-center"></div><button onClick={() => setActiveTab('SIAFE')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isSiafeTab ? 'bg-sky-50 text-sky-700 border border-sky-100' : 'text-slate-500 hover:bg-slate-100'}`}><Building2 size={14}/> Integração SIAFE</button><button onClick={() => setActiveTab('ORDINARY_MANAGEMENT')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isOrdinaryManagement ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'text-slate-500 hover:bg-slate-100'}`}><CalendarRange size={14}/> Gestão Ordinário</button></div>
+              <div className="flex overflow-x-auto pb-1 gap-1 no-scrollbar w-full md:w-auto"><button onClick={() => setActiveTab('ALL')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'ALL' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}>Painel de Controle</button><div className="w-px h-6 bg-slate-200 mx-1 self-center"></div><button onClick={() => setActiveTab('CONCESSION')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'CONCESSION' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-500 hover:bg-slate-100'}`}>Concessão</button><button onClick={() => setActiveTab('ACCOUNTABILITY')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'ACCOUNTABILITY' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-500 hover:bg-slate-100'}`}><ShieldCheck size={14}/> Prestação de Contas</button><div className="w-px h-6 bg-slate-200 mx-1 self-center"></div><button onClick={() => setActiveTab('FINANCEIRO')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isFinancialTab ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'text-slate-500 hover:bg-slate-100'}`}><BarChart3 size={14}/> Financeiro</button><button onClick={() => setActiveTab('ORCAMENTO')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isBudgetTab ? 'bg-violet-50 text-violet-700 border border-violet-100' : 'text-slate-500 hover:bg-slate-100'}`}><PiggyBank size={14}/> Orçamento</button><button onClick={() => setActiveTab('SUPRIDO_MANAGEMENT')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isSupridoManagement ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'text-slate-500 hover:bg-slate-100'}`}><UserCheck size={14}/> Gestão de Supridos</button><div className="w-px h-6 bg-slate-200 mx-1 self-center"></div><button onClick={() => setActiveTab('SIAFE')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isSiafeTab ? 'bg-sky-50 text-sky-700 border border-sky-100' : 'text-slate-500 hover:bg-slate-100'}`}><Building2 size={14}/> Integração SIAFE</button><button onClick={() => setActiveTab('ORDINARY_MANAGEMENT')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${isOrdinaryManagement ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'text-slate-500 hover:bg-slate-100'}`}><CalendarRange size={14}/> Gestão Ordinário</button></div>
             </div>
           )}
         </div>
@@ -518,8 +530,9 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
           <div className="h-full overflow-y-auto custom-scrollbar">
             {isOrdinaryManagement && <div className="mb-8"><BudgetManager budget={budget} onLaunchBatch={handleBatchLaunch} /></div>}
             {viewMode === 'DASHBOARD' && (<>
-              <DashboardCardsPanel
+                            <DashboardCardsPanel
                 sosfuStats={sosfuStats}
+                mode={cardMode}
                 onInboxClick={() => { setListFilter('INBOX'); setViewMode('LIST'); }}
                 onMyTasksClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
                 onAwaitingSignClick={() => { setListFilter('AWAITING_SIGN'); setViewMode('LIST'); }}
