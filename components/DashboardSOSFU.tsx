@@ -84,6 +84,12 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     refresh: refreshProcesses,
     currentUserId,
     getCategory,
+    // Card filter functions
+    getCaixaEntrada,
+    getMinhaMesa,
+    getFluxoSefin,
+    getAguardPC,
+    // Action functions
     assignToUser,
     updateExecutionNumbers,
     tramitToSefin,
@@ -291,14 +297,20 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
         else if (auditFilter === 'PENDING') result = result.filter(p => !p.sentinelaRisk || p.sentinelaRisk === 'PENDING');
     }
     switch (listFilter) {
-      case 'INBOX': return result.filter(p => !p.assignedToId);
-      case 'MY_TASKS': return currentUserId ? result.filter(p => p.assignedToId === currentUserId) : [];
+      case 'INBOX': return getCaixaEntrada().filter(p => 
+        (!categoryFilter || categoryFilter === 'ALL' || p.supplyCategory === categoryFilter) &&
+        (!searchQuery || p.protocolNumber.toLowerCase().includes(searchQuery.toLowerCase()) || p.interestedParty?.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+      case 'MY_TASKS': return getMinhaMesa().filter(p => 
+        (!categoryFilter || categoryFilter === 'ALL' || p.supplyCategory === categoryFilter) &&
+        (!searchQuery || p.protocolNumber.toLowerCase().includes(searchQuery.toLowerCase()) || p.interestedParty?.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
       case 'ANALYSIS': return result.filter(p => p.status === ConcessionStatus.ANALYSIS || p.status === AccountStatus.AUDIT);
       case 'FINANCE': return result.filter(p => p.status === ConcessionStatus.FINANCE);
-      case 'AWAITING_SIGN': return result.filter(p => {
-        const s = (p.status as string)?.toUpperCase() || '';
-        return s.includes('AGUARDANDO ASSINATURA') || s.includes('AWAITING_SIGNATURE') || s === 'AGUARDANDO ASSINATURA';
-      });
+      case 'AWAITING_SIGN': return getFluxoSefin().filter(p => 
+        (!categoryFilter || categoryFilter === 'ALL' || p.supplyCategory === categoryFilter) &&
+        (!searchQuery || p.protocolNumber.toLowerCase().includes(searchQuery.toLowerCase()) || p.interestedParty?.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
       case 'TEAM_MEMBER': return result.filter(p => p.assignedToId === selectedMemberId);
       default: return result;
     }
