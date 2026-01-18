@@ -180,7 +180,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
             </div>
             <h3 className="text-xl font-black text-slate-800">Interessado</h3>
           </div>
-                    {/* Enhanced Interessado Card */}
+                    {/* Enhanced Interessado Card - Updated */}
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                <div className="col-span-2">
                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome</label>
@@ -240,7 +240,6 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
               </div>
             )}
           </div>
-        </div>
 
         {/* Card: Justificativa */}
         <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-lg transition-shadow">
