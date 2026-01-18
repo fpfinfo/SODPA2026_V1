@@ -17,6 +17,7 @@ interface ProcessData {
   interested?: string;
   unidade?: string;
   unit?: string;
+  lotacao?: string;
   date?: string;
   created_at?: string;
   data_inicio?: string;

@@ -247,7 +247,15 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                   valor_total: process.value,
                   descricao: process.purpose,
                   suprido_nome: process.interestedParty,
-                  created_at: process.createdAt
+                  created_at: process.createdAt,
+                  lotacao: (enrichedProcessData as any)?.lotacao,
+                  itens_despesa: process.items?.map(item => ({
+                    codigo: item.element || 'N/A',
+                    descricao: item.description || 'Item',
+                    quantidade: 1,
+                    valor_unitario: item.value || 0,
+                    valor_total: item.value || 0
+                  })) || []
                 }}
               />
             </div>
