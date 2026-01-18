@@ -180,24 +180,49 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
             </div>
             <h3 className="text-xl font-black text-slate-800">Interessado</h3>
           </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nome</label>
-              <p className="text-base font-bold text-slate-900 mt-1">{process.suprido_nome || 'N/A'}</p>
-            </div>
-            
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cargo</label>
-              <p className="text-base text-slate-700 mt-1">{process.suprido_cargo || 'N/A'}</p>
-            </div>
-            
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lotação</label>
-              <div className="flex items-center gap-2 mt-1">
-                <Building2 size={16} className="text-slate-400" />
-                <p className="text-base text-slate-700">{process.lotacao || process.unidade || process.comarca || 'N/A'}</p>
-              </div>
+                    {/* Enhanced Interessado Card */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+               <div className="col-span-2">
+                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome</label>
+                 <p className="text-sm font-bold text-slate-900">{process.suprido_nome || 'N/A'}</p>
+                 <p className="text-xs text-slate-500">{process.servidor_dados?.cpf ? `CPF: ${process.servidor_dados.cpf}` : ''}</p>
+               </div>
+
+               <div>
+                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Cargo</label>
+                 <p className="text-sm text-slate-800">{process.suprido_cargo || 'N/A'}</p>
+               </div>
+
+               <div>
+                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Vínculo</label>
+                 <p className="text-sm text-slate-800">{process.servidor_dados?.vinculo || 'N/A'}</p>
+               </div>
+
+               <div className="col-span-2">
+                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Lotação</label>
+                 <p className="text-sm text-slate-800">{process.lotacao || 'N/A'}</p>
+               </div>
+               
+               {process.servidor_dados && (
+                 <>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Categoria / Grau</label>
+                      <p className="text-sm text-slate-800">{process.servidor_dados.categoria || '-'} / {process.servidor_dados.grau || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Entrância</label>
+                      <p className="text-sm text-slate-800">{process.servidor_dados.entrancia || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Polo</label>
+                      <p className="text-sm text-slate-800">{process.servidor_dados.polo || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Região</label>
+                      <p className="text-sm text-slate-800">{process.servidor_dados.regiao || 'N/A'}</p>
+                    </div>
+                 </>
+               )}
             </div>
 
             {process.gestor && (

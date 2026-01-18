@@ -19,13 +19,21 @@ export interface ProcessData {
   user_id: string;
   
   // Related data
+  id_usuario?: string;
   suprido_nome?: string;
   suprido_cargo?: string;
   unidade?: string;
   comarca?: string;
-  lotacao?: string;
-  
-  // Extra fields (Added for SOSFU view parity)
+  lotacao?: string | null;
+  servidor_dados?: {
+    cpf?: string;
+    vinculo?: string;
+    categoria?: string;
+    grau?: string;
+    entrancia?: string;
+    polo?: string;
+    regiao?: string;
+  };
   dados_bancarios?: {
     bankName: string;
     bankCode?: string;
@@ -106,12 +114,13 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
         let managerName = null;
         let managerEmail = null;
         let cargo = null;
+        let servidorExtras: any = {};
 
         // Fetch lotacao AND bank data AND manager data from servidores_tj using email
         if (profileData?.email) {
           const { data: servidorData } = await supabase
             .from('servidores_tj')
-            .select('lotacao, cargo, banco, agencia, conta_corrente, gestor_nome, gestor_email')
+            .select('lotacao, cargo, banco, agencia, conta_corrente, gestor_nome, gestor_email, cpf, vinculo, categoria, grau, entrancia, polo, regiao')
             .eq('email', profileData.email)
             .maybeSingle();
           
@@ -124,6 +133,17 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           account = servidorData?.conta_corrente;
           managerName = servidorData?.gestor_nome;
           managerEmail = servidorData?.gestor_email;
+
+          // Store extras
+          servidorExtras = {
+             cpf: servidorData?.cpf,
+             vinculo: servidorData?.vinculo,
+             categoria: servidorData?.categoria,
+             grau: servidorData?.grau,
+             entrancia: servidorData?.entrancia,
+             polo: servidorData?.polo,
+             regiao: servidorData?.regiao
+          };
         }
 
         // Fallback to profile data if not found in servidores_tj
@@ -141,6 +161,7 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           unidade: profileData?.unidade_id,
           comarca: profileData?.comarca_id,
           lotacao: lotacao,
+          servidor_dados: servidorExtras, // Adding new object
           dados_bancarios: data.dados_bancarios || (bankName ? {
             bankName: bankName,
             agency: agency || '',
