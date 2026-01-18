@@ -402,9 +402,11 @@ export const GestorDashboard: React.FC = () => {
         )}
         {showDocumentWizard && (
           <DocumentCreationWizard
+            isOpen={showDocumentWizard}
             processId={selectedProcess.id}
+            processNup={selectedProcess.nup}
             onClose={() => setShowDocumentWizard(false)}
-            onSuccess={() => {
+            onDocumentCreated={() => {
               setShowDocumentWizard(false);
               fetchDossierDocs(selectedProcess.id);
             }}
