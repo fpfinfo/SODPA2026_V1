@@ -107,9 +107,28 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
             <h3 className="text-xl font-black text-slate-800">Financeiro</h3>
           </div>
           
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Valor Solicitado</label>
+          <div className="space-y-6">
+            
+            {/* Breakdown of Elements */}
+            {process.items && process.items.length > 0 && (
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Detalhamento da Despesa</label>
+                <div className="space-y-2">
+                  {process.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-100 last:border-0 pb-2 last:pb-0">
+                      <div className="flex flex-col">
+                         <span className="font-bold text-slate-700">{item.element}</span>
+                         <span className="text-xs text-slate-500">{item.description}</span>
+                      </div>
+                      <span className="font-medium text-emerald-600">{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-slate-100">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Valor Total Solicitado</label>
               <p className="text-2xl font-black text-emerald-600 mt-1">
                 {formatCurrency(process.valor_solicitado || process.valor_total || 0)}
               </p>
@@ -138,12 +157,12 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
             {process.dados_bancarios && (
               <div className="pt-4 mt-2 border-t border-slate-100">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dados Bancários</label>
-                <div className="mt-2 bg-slate-50 rounded-xl p-3">
-                  <p className="text-sm font-bold text-slate-800">{process.dados_bancarios.bankName}</p>
-                  <div className="flex gap-4 mt-1">
-                    <p className="text-xs text-slate-600">Ag: <span className="font-mono font-bold">{process.dados_bancarios.agency}</span></p>
-                    <p className="text-xs text-slate-600">CC: <span className="font-mono font-bold">{process.dados_bancarios.account}</span></p>
-                  </div>
+                <div className="mt-2 bg-slate-50 rounded-xl p-3 flex items-center gap-3 text-sm flex-wrap">
+                  <span className="font-bold text-slate-800">{process.dados_bancarios.bankName}</span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-600">Ag: <span className="font-mono font-bold text-slate-800">{process.dados_bancarios.agency}</span></span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-600">CC: <span className="font-mono font-bold text-slate-800">{process.dados_bancarios.account}</span></span>
                 </div>
               </div>
             )}
