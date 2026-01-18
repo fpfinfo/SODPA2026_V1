@@ -1,12 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { DashboardSOSFU } from './components/DashboardSOSFU';
-import { SupridoDashboard } from './components/Suprido/SupridoDashboard';
-import { GestorDashboard } from './components/Gestor/GestorDashboard';
-import { SefinDashboard } from './components/SefinDashboard';
-import { AjsefinDashboard } from './components/AjsefinDashboard';
-import { SgpDashboard } from './components/SgpDashboard';
 import { LoginPage } from './components/LoginPage';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { ToastProvider } from './components/ui/ToastProvider';
@@ -15,6 +9,14 @@ import { User, LogOut, ChevronDown, Bell, UserCircle, Settings as SettingsIcon, 
 import { supabase } from './lib/supabaseClient';
 import { NotificationBell } from './components/NotificationBell';
 import { AlertBanner } from './components/AlertBanner';
+
+// Lazy load heavy dashboard components for better initial load performance
+const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').then(m => ({ default: m.DashboardSOSFU })));
+const SupridoDashboard = React.lazy(() => import('./components/Suprido/SupridoDashboard').then(m => ({ default: m.SupridoDashboard })));
+const GestorDashboard = React.lazy(() => import('./components/Gestor/GestorDashboard').then(m => ({ default: m.GestorDashboard })));
+const SefinDashboard = React.lazy(() => import('./components/SefinDashboard').then(m => ({ default: m.SefinDashboard })));
+const AjsefinDashboard = React.lazy(() => import('./components/AjsefinDashboard').then(m => ({ default: m.AjsefinDashboard })));
+const SgpDashboard = React.lazy(() => import('./components/SgpDashboard').then(m => ({ default: m.SgpDashboard })));
 
 // React Query client configuration
 const queryClient = new QueryClient({
@@ -263,7 +265,14 @@ const AppContent: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden flex flex-col">
         <AlertBanner />
-        <div className="flex-1 overflow-auto">
+        <Suspense fallback={
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 size={40} className="animate-spin text-blue-500 mx-auto mb-3" />
+              <p className="text-slate-500 text-sm">Carregando módulo...</p>
+            </div>
+          </div>
+        }>
         {activeRole === AppRole.SUPRIDO && (
           <SupridoDashboard 
             forceView={supridoViewOverride} 
@@ -297,7 +306,7 @@ const AppContent: React.FC = () => {
         {activeRole === AppRole.SGP && (
           <SgpDashboard />
         )}
-        </div>
+        </Suspense>
       </main>
     </div>
   );
