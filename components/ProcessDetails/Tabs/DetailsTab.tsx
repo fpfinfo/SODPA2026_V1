@@ -186,7 +186,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome</label>
                  <p className="text-sm font-bold text-slate-900">{process.suprido_nome || 'N/A'}</p>
                  <p className="text-xs text-slate-500">{process.servidor_dados?.cpf ? `CPF: ${process.servidor_dados.cpf}` : ''}</p>
-                 <p className="text-xs text-slate-500">{process.perfil_email ? `Email: ${process.perfil_email}` : ''}</p>
+                 <p className="text-xs text-slate-500">{(process.perfil_email || process.servidor_dados?.email) ? `Email: ${process.perfil_email || process.servidor_dados?.email}` : ''}</p>
                </div>
 
                <div>
