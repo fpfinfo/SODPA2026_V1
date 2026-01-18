@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabaseClient';
 import { FilterTab, ViewMode, ProcessType, Process, ProcessStatus, ConcessionStatus, AccountStatus, SupplyCategory, AnnualBudget, BudgetDistribution, AdminBudget, BudgetRule } from '../types';
 import { MOCK_PROCESSES, CURRENT_USER_ID, INITIAL_BUDGET, MOCK_BUDGET_MATRIX, MOCK_ADMIN_BUDGETS, MOCK_BUDGET_RULES } from '../constants';
 import { KPIHeader } from './KPIHeader';
-// KanbanBoard removed - no longer used
 import { ListView } from './ListView';
 import { FinancialRegistry } from './FinancialRegistry';
 import { INSSTableManager } from './INSSTableManager';
@@ -19,7 +18,6 @@ import { BudgetDistributionMatrix } from './BudgetDistributionMatrix';
 import { BudgetMatrixConfig } from './BudgetMatrixConfig';
 import { SupridoManager } from './SupridoManager';
 import { SiafeManager } from './SiafeManager';
-import { ConcessionManager } from './ConcessionManager';
 import { ExpenseExecutionWizard } from './Execution/ExpenseExecutionWizard';
 import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
 import { useSOSFUProcesses, SOSFUStats } from '../hooks/useSOSFUProcesses';
@@ -61,7 +59,6 @@ import {
   Landmark,
   Undo2,
   UserCheck,
-  Building2,
   CalendarRange,
   ShieldAlert
 } from 'lucide-react';
@@ -218,6 +215,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
       email: m.email,
       cargo: m.cargo,
       lotacao: m.lotacao,
+      activeProcessCount: 0, // Default value - can be computed from processes if needed
     })), [realTeamMembers]);
 
   const teamLoad = useMemo(() => {
@@ -461,7 +459,6 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const isOperationalView = ['ALL', 'CONCESSION', 'ACCOUNTABILITY'].includes(activeTab);
   const isFinancialTab = activeTab === 'FINANCEIRO';
   const isTableManager = activeTab === 'INSS_TABLES';
-  const isSentinelaView = activeTab === 'SENTINELA';
   const isSettingsView = activeTab === 'SETTINGS';
   const isBudgetTab = activeTab === 'ORCAMENTO';
   const isSupridoManagement = activeTab === 'SUPRIDO_MANAGEMENT';

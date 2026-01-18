@@ -4,8 +4,8 @@ import { RoleRequest, ROLE_LABELS } from '../../hooks/useRoleRequests';
 
 interface RoleApprovalQueueProps {
   pendingRequests: RoleRequest[];
-  onApprove: (userId: string) => Promise<void>;
-  onReject: (userId: string, reason: string) => Promise<void>;
+  onApprove: (userId: string) => Promise<boolean | void>;
+  onReject: (userId: string, reason: string) => Promise<boolean | void>;
   onRefresh: () => void;
 }
 
