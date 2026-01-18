@@ -3,6 +3,7 @@ import { Process, ProcessType, Role, AccountStatus } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { UniversalDossierPanel } from './ProcessDetails/UniversalDossierPanel';
 import { DetailsTab } from './ProcessDetails/Tabs/DetailsTab';
+import { useProcessDetails } from '../hooks/useProcessDetails';
 import { 
   X, 
   Calendar, 
@@ -57,6 +58,9 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   const [checkStep, setCheckStep] = useState<'IDLE' | 'SCANNING' | 'RESULTS'>('IDLE');
   const [scanProgress, setScanProgress] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // Fetch enriched process data with servidores_tj details
+  const { processData: enrichedProcessData, isLoading: isLoadingDetails } = useProcessDetails(process.id);
 
   // Fetch current user on mount
   useEffect(() => {
@@ -166,7 +170,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
             <div className="flex flex-col gap-8 animate-in fade-in">
               {/* Detailed 4-Card View */}
               <div className="-mx-8 -mt-8">
-                <DetailsTab process={{
+                <DetailsTab process={enrichedProcessData || {
                   id: process.id,
                   nup: process.protocolNumber,
                   tipo: process.type,
