@@ -23,6 +23,7 @@ export interface ProcessData {
   valor_solicitado?: number;
   descricao?: string;
   status?: string;
+  has_certidao_regularidade?: boolean;
 }
 
 export function useConformityValidation(processData: ProcessData) {
@@ -102,7 +103,12 @@ export function useConformityValidation(processData: ProcessData) {
     return { valid: true };
   };
 
-  const validateAtestoGestor = (status?: string): ValidationResult => {
+  const validateAtestoGestor = (status?: string, hasCertidao?: boolean): ValidationResult => {
+    // Verifica se tem certidão emitida no dossiê
+    if (hasCertidao) {
+      return { valid: true }; // Certidão presente = aprovado
+    }
+    
     if (!status) {
       return { valid: false, error: 'Status não definido' };
     }
@@ -182,11 +188,13 @@ export function useConformityValidation(processData: ProcessData) {
     });
 
     // 6. Atesto de Conveniência (Gestor)
-    const atestoValidation = validateAtestoGestor(processData.status);
+    const atestoValidation = validateAtestoGestor(processData.status, processData.has_certidao_regularidade);
     items.push({
       id: 'atesto_gestor',
       label: 'Atesto de Conveniência (Gestor)',
-      description: 'Homologação da chefia imediata presente',
+      description: processData.has_certidao_regularidade 
+        ? 'Certidão de regularidade presente no dossiê'
+        : 'Homologação da chefia imediata presente',
       status: atestoValidation.valid ? 'valid' : 'invalid',
       errorMessage: atestoValidation.error
     });

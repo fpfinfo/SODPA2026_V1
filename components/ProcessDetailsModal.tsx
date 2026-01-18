@@ -59,6 +59,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   const [checkStep, setCheckStep] = useState<'IDLE' | 'SCANNING' | 'RESULTS'>('IDLE');
   const [scanProgress, setScanProgress] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [hasCertidaoAtesto, setHasCertidaoAtesto] = useState(false);
 
   // Fetch enriched process data with servidores_tj details
   const { processData: enrichedProcessData, isLoading: isLoadingDetails } = useProcessDetails(process.id);
@@ -71,6 +72,22 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
     };
     fetchCurrentUser();
   }, []);
+
+  // Check for Certidão de Regularidade in dossier
+  useEffect(() => {
+    const checkCertidao = async () => {
+      const { data } = await supabase
+        .from('documentos')
+        .select('id, tipo, created_at')
+        .eq('solicitacao_id', process.id)
+        .eq('tipo', 'CERTIDAO_REGULARIDADE')
+        .maybeSingle();
+      
+      setHasCertidaoAtesto(!!data);
+    };
+    
+    checkCertidao();
+  }, [process.id]);
 
   const assignedStaff = teamMembers.find(s => s.id === process.assignedToId);
   const isConcession = process.type === ProcessType.CONCESSION;
@@ -242,7 +259,8 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                     conta_corrente: enrichedProcessData?.dados_bancarios?.account,
                     valor_solicitado: enrichedProcessData?.valor_total || process.value,
                     descricao: enrichedProcessData?.descricao || process.purpose,
-                    status: enrichedProcessData?.status || process.status
+                    status: enrichedProcessData?.status || process.status,
+                    has_certidao_regularidade: hasCertidaoAtesto
                   }}
                 />
               </div>
