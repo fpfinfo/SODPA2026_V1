@@ -693,6 +693,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
             .from('solicitacoes')
             .select('*')
             .eq('user_id', currentUser.id)  // Filter by logged-in user
+            .neq('status', 'EXCLUIDO')      // Filter out soft-deleted items
             .order('created_at', { ascending: false });
 
         if (historyError) throw historyError;
@@ -1658,7 +1659,7 @@ const INITIAL_FORM_STATE: FormState = {
                          <p className="text-lg font-black text-slate-800 uppercase leading-none">{profileData.matricula}</p>
                       </div>
                       <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Requisitado</label>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Solicitado</label>
                          <p className="text-lg font-black text-blue-600 uppercase leading-none">{formatCurrency(p.value)}</p>
                       </div>
                    </div>
@@ -1967,7 +1968,7 @@ const INITIAL_FORM_STATE: FormState = {
                                                             <p className="text-lg font-black text-slate-800 uppercase leading-none">{profileData.matricula}</p>
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Requisitado</label>
+                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Solicitado</label>
                                                             <p className="text-lg font-black text-blue-600 uppercase leading-none">{formatCurrency(p.value)}</p>
                                                         </div>
                                                     </div>

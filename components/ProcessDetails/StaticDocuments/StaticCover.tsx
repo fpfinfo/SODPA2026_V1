@@ -5,6 +5,7 @@ interface ProcessData {
   tipo?: string;
   type?: string;
   valor_total?: number;
+  valor_solicitado?: number;
   value?: number;
   suprido_nome?: string;
   interested?: string;
@@ -86,10 +87,10 @@ export const StaticCover: React.FC<StaticCoverProps> = ({ processData }) => {
         
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Valor Requisitado
+            Valor Solicitado
           </label>
           <p className="text-lg font-black text-blue-600 uppercase leading-none">
-            {formatCurrency(processData.valor_total || processData.value)}
+            {formatCurrency(processData.valor_total || processData.valor_solicitado || processData.value)}
           </p>
         </div>
       </div>
