@@ -213,7 +213,7 @@ export const TaskSchedulerPanel: React.FC<TaskSchedulerPanelProps> = ({
           const isCollapsed = collapsedGroups.has(group.key);
           
           return (
-            <div key={group.key} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div key={group.key} className="bg-white rounded-2xl border border-slate-200">
               {/* Group Header */}
               <button
                 onClick={() => toggleGroup(group.key)}

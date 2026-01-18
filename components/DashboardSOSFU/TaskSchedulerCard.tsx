@@ -90,7 +90,7 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
   };
 
   return (
-    <div className="group bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 overflow-hidden">
+    <div className="group bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 relative">
       <div className="p-4 flex items-center gap-4">
         {/* Priority Indicator */}
         <div className="relative">
@@ -161,49 +161,70 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
             <ChevronDown size={12} />
           </button>
 
-          {/* Date Picker Dropdown */}
+          {/* Date Picker Dropdown - using higher z-index and ensuring visibility */}
           {showDatePicker && (
-            <div className="absolute top-12 right-0 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 min-w-[280px] animate-in slide-in-from-top-2">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Agendar para</p>
-              
-              {/* Quick Options */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => handleDateChange(new Date().toISOString().split('T')[0])}
-                  className="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                >
-                  Hoje
-                </button>
-                <button
-                  onClick={() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    handleDateChange(tomorrow.toISOString().split('T')[0]);
-                  }}
-                  className="flex-1 py-2 text-xs font-bold rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  Amanhã
-                </button>
-              </div>
-
-              {/* Calendar Input */}
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <>
+              {/* Backdrop to close dropdown */}
+              <div 
+                className="fixed inset-0 z-[100]" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDatePicker(false);
+                }}
               />
+              <div 
+                className="absolute top-12 right-0 z-[101] bg-white rounded-xl shadow-2xl border border-slate-200 p-4 min-w-[280px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Agendar para</p>
+                
+                {/* Quick Options */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDateChange(new Date().toISOString().split('T')[0]);
+                    }}
+                    className="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                  >
+                    Hoje
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const tomorrow = new Date();
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      handleDateChange(tomorrow.toISOString().split('T')[0]);
+                    }}
+                    className="flex-1 py-2 text-xs font-bold rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Amanhã
+                  </button>
+                </div>
 
-              {/* Remove Date */}
-              {selectedDate && (
-                <button
-                  onClick={() => handleDateChange('')}
-                  className="w-full mt-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  Remover data
-                </button>
-              )}
-            </div>
+                {/* Calendar Input */}
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+
+                {/* Remove Date */}
+                {selectedDate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDateChange('');
+                    }}
+                    className="w-full mt-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    Remover data
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
 
