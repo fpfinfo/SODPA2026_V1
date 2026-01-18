@@ -145,6 +145,10 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
       {/* Modals */}
       {showPortariaModal && (
         <PortariaFormModal
+          processData={{
+            id: processData.id,
+            data_final_execucao: enrichedProcessData?.data_final_execucao || processData.data_final_execucao
+          }}
           onSubmit={handlePortariaSubmit}
           onClose={() => setShowPortariaModal(false)}
           isLoading={generatingDoc === 'PORTARIA'}
