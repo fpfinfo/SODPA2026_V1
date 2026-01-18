@@ -11,6 +11,7 @@ export interface SOSFUStats {
   };
   myTasks: number;
   awaitingSignature: number;
+  signed: number; // NEW: Processes signed but not yet in PC phase
   awaitingPC: number;
   solicitacoesAnalysis: number;
   prestacoesAudit: number;
@@ -138,29 +139,64 @@ export const useSOSFUProcesses = () => {
     }
   }, []);
 
+  // Helper: Check if process is in SEFIN flow
+  const isInSefinFlow = (p: Process) => {
+    const status = (p.status as string)?.toUpperCase() || '';
+    return p.destino_atual === 'SEFIN' || 
+           status.includes('AGUARDANDO ASSINATURA') ||
+           (status.includes('ASSINADO') && !status.includes('AGUARDANDO PC'));
+  };
+
+  // Helper: Check if process is awaiting PC
+  const isAwaitingPC = (p: Process) => {
+    const status = (p.status as string)?.toUpperCase() || '';
+    return status.includes('AGUARDANDO PRESTAÇÃO') ||
+           status.includes('AGUARDANDO PC') ||
+           status.includes('EM EXECUÇÃO') ||
+           p.destino_atual === 'SUPRIDO';
+  };
+
+  // Card Filters
+  const getCaixaEntrada = () => processes.filter(p => 
+    !p.assignedToId && 
+    !isInSefinFlow(p) && 
+    !isAwaitingPC(p) &&
+    (p.destino_atual === 'SOSFU' || p.destino_atual === 'EM ANÁLISE')
+  );
+
+  const getMinhaMesa = () => processes.filter(p => 
+    p.assignedToId === currentUserId &&
+    !isInSefinFlow(p) && 
+    !isAwaitingPC(p) &&
+    (p.destino_atual === 'SOSFU' || p.destino_atual === 'EM ANÁLISE')
+  );
+
+  const getFluxoSefin = () => processes.filter(p => isInSefinFlow(p));
+
+  const getAguardPC = () => processes.filter(p => isAwaitingPC(p));
+
   // Calculate stats
   const stats: SOSFUStats = {
     total: processes.length,
     inbox: {
-      total: processes.filter(p => !p.assignedToId).length,
-      solicitacoes: processes.filter(p => !p.assignedToId && getCategory(p) === 'SOLICITACAO').length,
-      prestacoes: processes.filter(p => !p.assignedToId && getCategory(p) === 'PRESTACAO').length,
+      total: getCaixaEntrada().length,
+      solicitacoes: getCaixaEntrada().filter(p => getCategory(p) === 'SOLICITACAO').length,
+      prestacoes: getCaixaEntrada().filter(p => getCategory(p) === 'PRESTACAO').length,
     },
-    myTasks: currentUserId ? processes.filter(p => p.assignedToId === currentUserId).length : 0,
-    awaitingSignature: processes.filter(p => 
-      (p.status as string)?.toUpperCase().includes('AGUARDANDO ASSINATURA')
+    myTasks: getMinhaMesa().length,
+    awaitingSignature: getFluxoSefin().filter(p => 
+      (p.status as string)?.toUpperCase().includes('AGUARDANDO')
     ).length,
-    awaitingPC: processes.filter(p => 
-      (p.status as string)?.toUpperCase().includes('AGUARDANDO PRESTAÇÃO') ||
-      (p.status as string)?.toUpperCase().includes('AGUARDANDO PC')
+    signed: getFluxoSefin().filter(p => 
+      (p.status as string)?.toUpperCase().includes('ASSINADO') &&
+      !(p.status as string)?.toUpperCase().includes('AGUARDANDO')
     ).length,
-    solicitacoesAnalysis: processes.filter(p => 
-      getCategory(p) === 'SOLICITACAO' && 
-      ((p.status as string)?.toUpperCase().includes('ANÁLISE') || (p.status as string)?.toUpperCase().includes('ANALISE'))
+    awaitingPC: getAguardPC().length,
+    solicitacoesAnalysis: getCaixaEntrada().filter(p => 
+      getCategory(p) === 'SOLICITACAO'
     ).length,
-    prestacoesAudit: processes.filter(p => 
-      getCategory(p) === 'PRESTACAO' && 
-      ((p.status as string)?.toUpperCase().includes('AUDITORIA') || (p.status as string)?.toUpperCase().includes('TRIBUTA'))
+    prestacoesAudit: getCaixaEntrada().filter(p => 
+      getCategory(p) === 'PRESTACAO'
     ).length,
   };
 
@@ -266,6 +302,12 @@ export const useSOSFUProcesses = () => {
     getSolicitacoes,
     getPrestacoes,
     getInbox,
+    // Card-specific filters
+    getCaixaEntrada,
+    getMinhaMesa,
+    getFluxoSefin,
+    getAguardPC,
+    // Actions
     assignToUser,
     updateExecutionNumbers,
     tramitToSefin,

@@ -252,6 +252,7 @@ export interface Process {
   generatedDocuments?: ProcessDocument[];
 
   assignedToId?: string | null;
+  destino_atual?: string; // Current destination in workflow (e.g., SOSFU, SEFIN, SUPRIDO)
   priority: 'NORMAL' | 'HIGH' | 'CRITICAL';
   
   // Sentinela Integration (Novo)
