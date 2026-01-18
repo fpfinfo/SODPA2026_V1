@@ -28,6 +28,7 @@ interface UseSefinTasksReturn {
   // Actions
   signTask: (id: string) => Promise<boolean>;
   signMultipleTasks: (ids: string[]) => Promise<boolean>;
+  tramitarTasks: (ids: string[]) => Promise<boolean>;
   rejectTask: (id: string, motivo: string) => Promise<boolean>;
   
   // Refresh
@@ -121,6 +122,50 @@ export function useSefinTasks(): UseSefinTasksReturn {
     }
   };
 
+  const tramitarTasks = async (ids: string[]): Promise<boolean> => {
+    try {
+      // 1. Get tasks to verify linked solicitacao_id
+      const tasksToTramit = tasks.filter(t => ids.includes(t.id));
+      const solicitacaoIds = tasksToTramit
+        .map(t => t.solicitacao_id)
+        .filter(Boolean) as string[];
+
+      // 2. Determine destinations (SOSFU if origin SOSFU or AJSEFIN)
+      // Standard flow: SEFIN -> SOSFU (Payment/End).
+      // So we update solicitacoes status to 'APROVADO' and destination to 'SOSFU'.
+      
+      if (solicitacaoIds.length > 0) {
+        const { error: solError } = await supabase
+          .from('solicitacoes')
+          .update({
+            status: 'APROVADO',
+            destino_atual: 'SOSFU',
+            updated_at: new Date().toISOString()
+          })
+          .in('id', solicitacaoIds);
+          
+        if (solError) throw solError;
+      }
+
+      // 3. Mark tasks as SENT
+      const { error } = await supabase
+        .from('sefin_tasks')
+        .update({ 
+          status: 'SENT', 
+          updated_at: new Date().toISOString()
+        })
+        .in('id', ids);
+      
+      if (error) throw error;
+      await fetchData();
+      return true;
+    } catch (err: any) {
+      console.error('Error tramiting tasks:', err);
+      setError(err.message);
+      return false;
+    }
+  };
+
   const rejectTask = async (id: string, motivo: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -147,6 +192,7 @@ export function useSefinTasks(): UseSefinTasksReturn {
     error,
     signTask,
     signMultipleTasks,
+    tramitarTasks,
     rejectTask,
     refresh: fetchData,
   };

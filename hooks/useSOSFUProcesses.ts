@@ -127,7 +127,7 @@ export const useSOSFUProcesses = () => {
         data_planejada: p.data_planejada,
         prioridade_usuario: p.prioridade_usuario,
         notas_planejamento: p.notas_planejamento,
-        supplyCategory: p.tipo === 'EXTRAORDINARIO' ? 'EXTRAORDINARY' : 'ORDINARY',
+        supplyCategory: (p.tipo === 'ORDINARIO' || p.tipo === 'ORDINÁRIO') ? 'ORDINARY' : 'EXTRAORDINARY',
       }));
 
       setProcesses(mappedProcesses);

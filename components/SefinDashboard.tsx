@@ -35,7 +35,8 @@ import {
   MessageSquare,
   Key,
   Lock,
-  Loader2
+  Loader2,
+  Send
 } from 'lucide-react';
 import { Process, ConcessionStatus } from '../types';
 import { UNIT_PTRES_MAP, BudgetUnit } from '../constants';
@@ -64,7 +65,7 @@ interface SigningTask {
   value?: number;
   date: string;
   priority: 'NORMAL' | 'HIGH';
-  status: 'PENDING' | 'SIGNED' | 'RETURNED';
+  status: 'PENDING' | 'SIGNED' | 'RETURNED' | 'SENT';
   author: string;
   content_preview: string;
   unitCode?: string;
@@ -75,7 +76,7 @@ interface SigningTask {
 
 export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], onSignComplete }) => {
   // Use Supabase hook for tasks
-  const { tasks: dbTasks, isLoading: loadingTasks, signTask, signMultipleTasks, rejectTask } = useSefinTasks();
+  const { tasks: dbTasks, isLoading: loadingTasks, signTask, signMultipleTasks, rejectTask, tramitarTasks } = useSefinTasks();
   // Use Real Financial Analytics Hook
   const { 
     budget,
@@ -116,7 +117,7 @@ export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], 
       value: t.valor,
       date: t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'),
       priority: 'NORMAL' as const,
-      status: t.status === 'SIGNED' ? 'SIGNED' : t.status === 'REJECTED' ? 'RETURNED' : 'PENDING' as any,
+      status: t.status === 'SIGNED' ? 'SIGNED' : t.status === 'REJECTED' ? 'RETURNED' : t.status === 'SENT' ? 'SENT' : 'PENDING' as any,
       author: 'SOSFU - Gestão de Concessão',
       content_preview: t.titulo,
     }));
@@ -149,7 +150,7 @@ export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], 
 
   const filteredTasks = allTasks.filter(t => {
     if (activeTab === 'INBOX' && t.status !== 'PENDING') return false;
-    if (activeTab === 'SIGNED' && t.status === 'PENDING') return false;
+    if (activeTab === 'SIGNED' && (t.status !== 'SIGNED')) return false; // Filter out SENT/RETURNED
     if (originFilter !== 'ALL' && t.origin !== originFilter) return false;
     return true;
   });
@@ -163,7 +164,7 @@ export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], 
   const selectedImpact = useMemo(() => allTasks.filter(t => selectedIds.has(t.id) && t.status === 'PENDING').reduce((acc, curr) => acc + (curr.value || 0), 0), [selectedIds, allTasks]);
   const projectedBalance = currentBalance - selectedImpact;
 
-  const handleBatchSign = () => { 
+  const handleBatchSign = async () => { 
     // Validate PIN/Token password
     if (tokenPin !== '123456') {
       setPinError('Senha do token inválida. Tente novamente.');
@@ -171,14 +172,49 @@ export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], 
     }
     setPinError('');
     setIsSigningProcess(true); 
-    setTimeout(() => { 
-      setIsSigningProcess(false); 
-      setIsSignModalOpen(false); 
-      setTokenPin(''); // Clear PIN after use
-      alert(`${selectedIds.size} documentos assinados com sucesso!`); 
-      setSelectedIds(new Set()); 
-    }, 2000); 
+    
+    try {
+      // Use real signing
+      const ids = Array.from(selectedIds);
+      const success = await signMultipleTasks(ids);
+      
+      if (success) {
+        setIsSignModalOpen(false); 
+        setTokenPin(''); 
+        setSelectedIds(new Set()); 
+        // Notify
+        alert(`${ids.length} documentos assinados com sucesso!`);
+      } else {
+        alert('Erro ao assinar documentos.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro inesperado ao assinar.');
+    } finally {
+      setIsSigningProcess(false);
+    }
   };
+
+  const handleBatchTramitar = async () => {
+    if (!confirm(`Confirma o envio de ${selectedIds.size} processos para SOSFU?`)) return;
+    setIsSigningProcess(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const success = await tramitarTasks(ids);
+      if (success) {
+         setSelectedIds(new Set());
+         alert(`${ids.length} processos tramitados com sucesso!`);
+      } else {
+         alert('Erro ao tramitar processos.');
+      }
+    } catch (e) {
+       console.error(e);
+       alert('Erro inesperado ao tramitar.');
+    } finally {
+       setIsSigningProcess(false);
+    }
+  };
+
   const handleReturnTask = () => { if(!returnReason) return alert('Informe o motivo.'); setIsReturnModalOpen(false); setPreviewTask(null); setReturnReason(''); alert('Documento devolvido à origem.'); };
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -435,7 +471,26 @@ export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], 
             <tbody className="divide-y divide-slate-100">{filteredTasks.length === 0 ? (<tr><td colSpan={6} className="px-8 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-4"><CheckCircle2 size={48} className="text-emerald-100" /><p className="font-medium text-sm">Tudo em dia! Nenhum documento pendente.</p></div></td></tr>) : (filteredTasks.map(task => (<tr key={task.id} className={`hover:bg-slate-50 transition-colors group ${selectedIds.has(task.id) ? 'bg-blue-50/30' : ''}`}><td className="px-6 py-6 text-center"><button onClick={() => toggleSelection(task.id)} className="text-slate-300 hover:text-blue-500">{selectedIds.has(task.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></td><td className="px-6 py-6 cursor-pointer" onClick={() => setPreviewTask(task)}><div className="flex items-center gap-4"><div className={`p-3 rounded-2xl shrink-0 ${task.type === 'PORTARIA' || task.type === 'NOTA_EMPENHO' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{task.type === 'NOTA_EMPENHO' ? <DollarSign size={20}/> : <FileSignature size={20}/>}</div><div><p className="text-sm font-black text-slate-800">{task.title}</p><p className="text-xs font-mono text-slate-500 mt-0.5">{task.protocol}</p></div></div></td><td className="px-6 py-6 cursor-pointer" onClick={() => setPreviewTask(task)}><span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${task.origin === 'SOSFU' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>{task.origin}</span></td><td className="px-6 py-6 max-w-md cursor-pointer" onClick={() => setPreviewTask(task)}><p className="text-xs font-medium text-slate-600 line-clamp-1">{task.description}</p>{task.value && <p className="text-sm font-black text-emerald-600 mt-1">{formatCurrency(task.value)}</p>}</td><td className="px-6 py-6 cursor-pointer" onClick={() => setPreviewTask(task)}><div className="flex items-center gap-2 text-xs font-medium text-slate-500"><Clock size={14} /> {task.date}</div></td><td className="px-6 py-6 text-right"><button onClick={() => setPreviewTask(task)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm">Ler</button></td></tr>)))}</tbody>
           </table>
         </div>
-        {selectedIds.size > 0 && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white p-2 pl-6 rounded-2xl shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-4 z-20 border border-slate-700"><span className="text-xs font-bold text-slate-300"><span className="text-white font-black">{selectedIds.size}</span> selecionados</span><div className="h-6 w-px bg-slate-700"></div><div className="flex gap-2"><button onClick={() => setIsSignModalOpen(true)} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/50"><PenTool size={14}/> Assinar em Lote</button><button onClick={() => { setSelectedIds(new Set()); }} className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"><X size={16}/></button></div></div>)}
+        {selectedIds.size > 0 && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white p-2 pl-6 rounded-2xl shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-4 z-20 border border-slate-700">
+            <span className="text-xs font-bold text-slate-300"><span className="text-white font-black">{selectedIds.size}</span> selecionados</span>
+            <div className="h-6 w-px bg-slate-700"></div>
+            <div className="flex gap-2">
+              {activeTab === 'INBOX' ? (
+                <button onClick={() => setIsSignModalOpen(true)} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/50">
+                   <PenTool size={14}/> Assinar em Lote
+                </button>
+              ) : (
+                <button onClick={handleBatchTramitar} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-900/50" disabled={isSigningProcess}>
+                   {isSigningProcess ? <Clock size={14} className="animate-spin"/> : <Send size={14}/>} Tramitar em Lote
+                </button>
+              )}
+              <button onClick={() => { setSelectedIds(new Set()); }} className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all">
+                <X size={16}/>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
