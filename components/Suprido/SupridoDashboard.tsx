@@ -327,29 +327,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     };
   }, [history]);
 
-  const handleTestNotification = async () => {
-    try {
-      const { error } = await supabase.from('system_notifications').insert({
-        user_id: profileData?.id, 
-        role_target: null,
-        type: 'CRITICAL',
-        category: 'SYSTEM',
-        title: 'Alerta de Sistema (Teste)',
-        message: `Verificação de sistema de alertas realizada em ${new Date().toLocaleTimeString()}.`,
-        is_read: false,
-        link_action: '/#alert-test'
-      });
-      if (error) throw error;
-    } catch (e) {
-      console.error('Test notification failed', e);
-      alert('Erro ao criar notificação de teste');
-    }
-  };
-
   const handleExportPdf = async () => {
     const container = document.getElementById('pdf-content-container');
     if (!container) {
-      alert('Erro: Container de documentos não encontrado.');
+      showToast({ type: 'error', title: 'Erro', message: 'Container de documentos não encontrado.' });
       return;
     }
 
@@ -357,7 +338,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     try {
       const pages = container.querySelectorAll('.print-page');
       if (pages.length === 0) {
-        alert('Erro: Nenhum documento encontrado para exportar.');
+        showToast({ type: 'error', title: 'Erro', message: 'Nenhum documento encontrado para exportar.' });
         setIsGeneratingPdf(false);
         return;
       }
@@ -430,7 +411,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       
     } catch (error) {
       console.error('PDF generation failed:', error);
-      alert('Erro ao gerar PDF: ' + (error as Error).message);
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao gerar PDF: ' + (error as Error).message });
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -471,10 +452,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         await fetchDossierDocs(processId);
       }
       setEditingDoc(null);
-      alert('Documento atualizado com sucesso!');
+      showToast({ type: 'success', title: 'Sucesso', message: 'Documento atualizado com sucesso!' });
     } catch (e) {
       console.error('Error updating document:', e);
-      alert('Erro ao atualizar documento.');
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao atualizar documento.' });
     } finally {
       setIsSavingDoc(false);
     }
@@ -494,10 +475,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         await fetchDossierDocs(processId);
       }
       setDeleteConfirmDocId(null);
-      alert('Documento excluído com sucesso!');
+      showToast({ type: 'success', title: 'Sucesso', message: 'Documento excluído com sucesso!' });
     } catch (e) {
       console.error('Error deleting document:', e);
-      alert('Erro ao excluir documento.');
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao excluir documento.' });
     }
   };
 
@@ -791,7 +772,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     
     // Validation: value must be > 0
     if (!draftEditData.valor || draftEditData.valor <= 0) {
-      alert('⚠️ O valor da solicitação é obrigatório e deve ser maior que zero!');
+      showToast({ type: 'warning', title: 'Atenção', message: 'O valor da solicitação é obrigatório e deve ser maior que zero!' });
       return;
     }
     
@@ -826,10 +807,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       setIsEditingDraft(false);
       setDraftEditData(null);
       await refreshHistory();
-      alert('✅ Rascunho atualizado com sucesso!');
+      showToast({ type: 'success', title: 'Sucesso', message: 'Rascunho atualizado com sucesso!' });
     } catch (error) {
       console.error('Error updating draft:', error);
-      alert('❌ Erro ao atualizar rascunho: ' + (error as Error).message);
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao atualizar rascunho: ' + (error as Error).message });
     } finally {
       setIsSavingDraftEdit(false);
     }
@@ -857,10 +838,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       setSelectedProcess(null);
       setCurrentView('DASHBOARD');
       await refreshHistory();
-      alert('✅ Rascunho excluído com sucesso!');
+      showToast({ type: 'success', title: 'Sucesso', message: 'Rascunho excluído com sucesso!' });
     } catch (error) {
       console.error('Error deleting draft:', error);
-      alert('❌ Erro ao excluir rascunho: ' + (error as Error).message);
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao excluir rascunho: ' + (error as Error).message });
     }
   };
 
@@ -929,10 +910,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       setSelectedProcess(null);
       setCurrentView('DASHBOARD');
       await refreshHistory();
-      alert('✅ Solicitação cancelada com sucesso!');
+      showToast({ type: 'success', title: 'Sucesso', message: 'Solicitação cancelada com sucesso!' });
     } catch (error) {
       console.error('Error cancelling process:', error);
-      alert('❌ Erro ao cancelar solicitação: ' + (error as Error).message);
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao cancelar solicitação: ' + (error as Error).message });
     }
   };
 
@@ -955,7 +936,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const totalPages = Math.max(1, Math.ceil(history.length / itemsPerPage));
   const currentItems = history.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const [formState, setFormState] = useState<FormState>({
+const INITIAL_FORM_STATE: FormState = {
     nup: 'TJPA-SOL-2026-0001',
     type: 'Extra-Emergencial',
     startDate: '',
@@ -973,7 +954,9 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     juriMealFreq: { almocos: 1, jantares: 0, lanches: 1 },
     juriDays: 1,
     juriProjectionItems: DEFAULT_JURI_ITEMS
-  });
+  };
+
+  const [formState, setFormState] = useState<FormState>(INITIAL_FORM_STATE);
 
   // Auto-populate manager fields from profile data
   useEffect(() => {
@@ -1083,12 +1066,12 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
       if (error) throw error;
       
-      alert(`Rascunho salvo com sucesso! NUP: ${nupNumber}`);
+      showToast({ type: 'success', title: 'Sucesso', message: `Rascunho salvo com sucesso! NUP: ${nupNumber}` });
       await refreshHistory();
       setCurrentView('DASHBOARD');
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert('Erro ao salvar rascunho: ' + (error as Error).message);
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao salvar rascunho: ' + (error as Error).message });
     } finally {
       setIsSavingDraft(false);
     }
@@ -1097,11 +1080,11 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   // Handler: Submit to Atesto
   const handleSubmitJuriToAtesto = async () => {
     if (!isJuriSigned) {
-      alert('Por favor, assine a justificativa antes de enviar para atesto.');
+      showToast({ type: 'warning', title: 'Atenção', message: 'Por favor, assine a justificativa antes de enviar para atesto.' });
       return;
     }
     if (!formState.desc.trim()) {
-      alert('Por favor, preencha a justificativa antes de enviar.');
+      showToast({ type: 'warning', title: 'Atenção', message: 'Por favor, preencha a justificativa antes de enviar.' });
       return;
     }
 
@@ -1130,7 +1113,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
       if (error) throw error;
       
-      alert(`Solicitação enviada para atesto com sucesso! NUP: ${nupNumber}`);
+      showToast({ type: 'success', title: 'Sucesso', message: `Solicitação enviada para atesto com sucesso! NUP: ${nupNumber}` });
       setCurrentView('DASHBOARD');
       await refreshHistory();
       // Reset form
@@ -1138,7 +1121,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       setIsJuriSigned(false);
     } catch (error) {
       console.error('Error submitting:', error);
-      alert('Erro ao enviar solicitação: ' + (error as Error).message);
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao enviar solicitação: ' + (error as Error).message });
     } finally {
       setIsSubmitting(false);
     }
@@ -1201,9 +1184,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
            </p>
         </div>
         <div className="flex gap-4">
-          <button onClick={handleTestNotification} className="flex items-center gap-2 px-6 py-4 bg-white text-slate-600 border border-slate-200 rounded-[24px] text-sm font-bold hover:bg-slate-50 hover:text-blue-600 transition-all">
-             <Bell size={20} /> Testar Alerta
-          </button>
+
           <button onClick={() => setCurrentView('SELECT_TYPE')} className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-[24px] text-sm font-black hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all hover:-translate-y-1 active:scale-95">
              <PlusCircle size={22} /> Nova Solicitação
           </button>
@@ -2438,10 +2419,18 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                  onClick={() => setCurrentView('SELECT_TYPE')}
                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
               >
-                 Cancelar
-              </button>
-              <button 
-                 onClick={handleCreateRequest}
+                  Cancelar
+               </button>
+               <button 
+                  onClick={handleSaveRequestAsDraft}
+                  disabled={isCreating}
+                  className="px-6 py-2.5 bg-white border border-amber-200 text-amber-600 rounded-lg text-sm font-bold hover:bg-amber-50 transition-all shadow-sm disabled:opacity-50"
+               >
+                  {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
+                  Salvar Rascunho
+               </button>
+               <button 
+                  onClick={handleCreateRequest}
                  disabled={isCreating}
                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -2992,6 +2981,65 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const [isCreating, setIsCreating] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const handleSaveRequestAsDraft = async () => {
+    setIsCreating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      let userId = user?.id;
+      if (!userId) userId = '00000000-0000-0000-0000-000000000000';
+
+      const isJuri = formState.type === 'Sessão de Júri';
+      let totalValue = 0;
+      let generatedNUP = '';
+
+      if (isJuri) {
+           totalValue = formState.juriProjectionItems.reduce((acc, item) => acc + item.total, 0);
+           generatedNUP = `TJPA-JURI-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+      } else {
+           totalValue = formState.items.reduce((acc, item) => acc + (item.val * item.qty), 0);
+           generatedNUP = `TJPA-EXT-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+      }
+
+      const payload: any = {
+        user_id: userId,
+        nup: generatedNUP,
+        tipo: formState.type,
+        status: 'RASCUNHO', // Force Draft Status
+        valor_solicitado: totalValue,
+        valor_aprovado: 0,
+        descricao: formState.desc,
+        data_inicio: formState.startDate || null,
+        data_fim: formState.endDate || null,
+        urgencia: formState.urgency,
+      };
+
+      if (isJuri) {
+          payload.juri_participantes = formState.juriParticipants;
+          payload.comarca_destino = formState.juriComarca;
+          payload.processo_judicial = formState.juriProcessNumber;
+          payload.juri_dias = formState.juriDays;
+          payload.juri_frequencia_refeicoes = formState.juriMealFreq;
+          payload.juri_projecao_custos = formState.juriProjectionItems;
+      } else {
+          payload.itens_despesa = formState.items;
+      }
+
+      const { error } = await supabase.from('solicitacoes').insert(payload);
+      if (error) throw error;
+
+      showToast({ type: 'success', title: 'Rascunho Salvo', message: `Rascunho ${generatedNUP} salvo com sucesso!` });
+      await refreshHistory();
+      setFormState(INITIAL_FORM_STATE);
+      setCurrentView('DASHBOARD');
+
+    } catch (error) {
+      console.error('Erro ao salvar rascunho:', error);
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao salvar rascunho: ' + (error as Error).message });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const handleCreateRequest = async () => {
     setIsCreating(true);
     try {
@@ -3042,13 +3090,27 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
       if (error) throw error;
 
-      alert(`Solicitação ${generatedNUP} criada com sucesso!`);
+      // 1. Create System Notification
+      await supabase.from('system_notifications').insert({
+        user_id: userId,
+        type: 'SUCCESS',
+        category: 'REQUEST_CREATED',
+        title: 'Solicitação Criada',
+        message: `Solicitação ${generatedNUP} enviada para análise com sucesso.`,
+        link_action: `/suprido/process/${generatedNUP}`, 
+        is_read: false
+      });
+
+      // 2. Show Toast
+      showToast({ type: 'success', title: 'Solicitação Criada', message: `Solicitação ${generatedNUP} criada com sucesso!` });
+      
       await refreshHistory();
+      setFormState(INITIAL_FORM_STATE); // Reset form
       setCurrentView('DASHBOARD');
 
     } catch (error) {
       console.error('Erro ao criar solicitação:', error);
-      alert('Erro ao criar solicitação. Verifique os dados e tente novamente.');
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao criar solicitação: ' + (error as Error).message });
     } finally {
       setIsCreating(false);
     }

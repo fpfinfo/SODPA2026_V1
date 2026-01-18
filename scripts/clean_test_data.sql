@@ -9,7 +9,10 @@ DELETE FROM historico_tramitacao;
 -- 2. Deletar documentos (incluindo Capa e Requerimento auto-criados)
 DELETE FROM documentos;
 
--- 3. Deletar solicitações
+-- 3. Deletar tabelas vinculadas
+DELETE FROM sefin_tasks;
+
+-- 4. Deletar solicitações
 DELETE FROM solicitacoes;
 
 -- 4. Resetar sequences (opcional - para IDs começarem do 1)
