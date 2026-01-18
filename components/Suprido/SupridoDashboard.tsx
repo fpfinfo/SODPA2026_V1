@@ -248,6 +248,9 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const { currentRole, requestedRole, requestStatus, requestRoleChange, cancelRoleRequest } = useRoleRequests();
   const [selectedNewRole, setSelectedNewRole] = useState<SystemRole>('SUPRIDO');
   const [roleRequestReason, setRoleRequestReason] = useState('');
+
+  // ID of the process currently being edited (for Draft updates)
+  const [editingProcessId, setEditingProcessId] = useState<string | null>(null);
   const [isRequestingRole, setIsRequestingRole] = useState(false);
   
   // Fetch tramitacao history for process
@@ -758,62 +761,47 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   // Draft CRUD Functions
   const handleOpenDraftEdit = () => {
     if (!selectedProcess) return;
-    setDraftEditData({
-      valor: selectedProcess.val || selectedProcess.valor_solicitado || 0,
-      descricao: selectedProcess.descricao || selectedProcess.desc || '',
-      dataInicio: selectedProcess.startDate || selectedProcess.data_inicio || '',
-      dataFim: selectedProcess.endDate || selectedProcess.data_fim || ''
-    });
-    setIsEditingDraft(true);
-  };
 
-  const handleSaveDraftEdit = async () => {
-    if (!selectedProcess || !draftEditData) return;
+    // Determine Type
+    const isJuri = selectedProcess.tipo === 'Sessão de Júri' || (selectedProcess.nup && selectedProcess.nup.includes('JURI'));
     
-    // Validation: value must be > 0
-    if (!draftEditData.valor || draftEditData.valor <= 0) {
-      showToast({ type: 'warning', title: 'Atenção', message: 'O valor da solicitação é obrigatório e deve ser maior que zero!' });
-      return;
+    // Parse Items (if stored as JSON string)
+    let parsedItems = selectedProcess.itens_despesa;
+    if (typeof parsedItems === 'string') {
+        try { parsedItems = JSON.parse(parsedItems); } catch { parsedItems = []; }
     }
+    // Ensure parsedItems is array
+    if (!Array.isArray(parsedItems)) parsedItems = [];
     
-    setIsSavingDraftEdit(true);
-    try {
-      const { error } = await supabase
-        .from('solicitacoes')
-        .update({
-          valor_solicitado: draftEditData.valor,
-          descricao: draftEditData.descricao,
-          data_inicio: draftEditData.dataInicio || null,
-          data_fim: draftEditData.dataFim || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedProcess.id);
-      
-      if (error) throw error;
-      
-      // Update local state
-      setSelectedProcess({
-        ...selectedProcess,
-        val: draftEditData.valor,
-        valor_solicitado: draftEditData.valor,
-        descricao: draftEditData.descricao,
-        desc: draftEditData.descricao,
-        startDate: draftEditData.dataInicio,
-        data_inicio: draftEditData.dataInicio,
-        endDate: draftEditData.dataFim,
-        data_fim: draftEditData.dataFim
-      });
-      
-      setIsEditingDraft(false);
-      setDraftEditData(null);
-      await refreshHistory();
-      showToast({ type: 'success', title: 'Sucesso', message: 'Rascunho atualizado com sucesso!' });
-    } catch (error) {
-      console.error('Error updating draft:', error);
-      showToast({ type: 'error', title: 'Erro', message: 'Erro ao atualizar rascunho: ' + (error as Error).message });
-    } finally {
-      setIsSavingDraftEdit(false);
+    // Parse Juri Items
+    let parsedJuriItems = selectedProcess.juri_projecao_custos;
+    if (typeof parsedJuriItems === 'string') {
+        try { parsedJuriItems = JSON.parse(parsedJuriItems); } catch { parsedJuriItems = DEFAULT_JURI_ITEMS; }
     }
+    if (!Array.isArray(parsedJuriItems)) parsedJuriItems = DEFAULT_JURI_ITEMS;
+
+    setFormState({
+        ...INITIAL_FORM_STATE,
+        nup: selectedProcess.nup,
+        type: selectedProcess.tipo || (isJuri ? 'Sessão de Júri' : 'Extra-Emergencial'),
+        startDate: selectedProcess.data_inicio || '',
+        endDate: selectedProcess.data_fim || '',
+        desc: selectedProcess.descricao || selectedProcess.desc || '',
+        urgency: selectedProcess.urgencia || 'Normal',
+        items: !isJuri ? parsedItems : [],
+        // Juri Fields
+        juriParticipants: selectedProcess.juri_participantes || INITIAL_FORM_STATE.juriParticipants,
+        juriComarca: selectedProcess.comarca_destino || 'Mãe do Rio',
+        juriProcessNumber: selectedProcess.processo_judicial || '',
+        juriMealFreq: selectedProcess.juri_frequencia_refeicoes || INITIAL_FORM_STATE.juriMealFreq,
+        juriDays: selectedProcess.juri_dias || 1,
+        juriProjectionItems: isJuri ? parsedJuriItems : DEFAULT_JURI_ITEMS,
+    });
+    
+    setEditingProcessId(selectedProcess.id);
+    setCurrentView('FORM');
+    if (isJuri) setWizardStep(1);
+    setIsEditingDraft(true); // Maintain flag compatibility if needed for other logic, but main view is FORM
   };
 
   const handleDeleteDraft = async () => {
@@ -3024,12 +3012,26 @@ const INITIAL_FORM_STATE: FormState = {
           payload.itens_despesa = formState.items;
       }
 
-      const { error } = await supabase.from('solicitacoes').insert(payload);
-      if (error) throw error;
+      let result;
+      
+      if (editingProcessId) {
+        // UPDATE existing draft
+        const { error } = await supabase
+          .from('solicitacoes')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editingProcessId);
+        if (error) throw error;
+        showToast({ type: 'success', title: 'Rascunho Atualizado', message: `Rascunho atualizado com sucesso!` });
+      } else {
+        // INSERT new draft
+        const { error } = await supabase.from('solicitacoes').insert(payload);
+        if (error) throw error;
+        showToast({ type: 'success', title: 'Rascunho Salvo', message: `Rascunho ${generatedNUP} salvo com sucesso!` });
+      }
 
-      showToast({ type: 'success', title: 'Rascunho Salvo', message: `Rascunho ${generatedNUP} salvo com sucesso!` });
       await refreshHistory();
       setFormState(INITIAL_FORM_STATE);
+      setEditingProcessId(null);
       setCurrentView('DASHBOARD');
 
     } catch (error) {
@@ -3086,11 +3088,26 @@ const INITIAL_FORM_STATE: FormState = {
           payload.itens_despesa = formState.items;
       }
 
-      const { error } = await supabase.from('solicitacoes').insert(payload);
-
-      if (error) throw error;
-
-      // 1. Create System Notification
+      if (editingProcessId) {
+         // UPDATE existing draft -> Convert to Pendente Análise
+         const { error } = await supabase
+           .from('solicitacoes')
+           .update({ 
+              ...payload, 
+              status: 'Pendente Análise',
+              updated_at: new Date().toISOString()
+           })
+           .eq('id', editingProcessId);
+         if (error) throw error;
+         showToast({ type: 'success', title: 'Solicitação Enviada', message: `Rascunho convertido em Solicitação ${generatedNUP} com sucesso!` });
+      } else {
+         // INSERT new request
+         const { error } = await supabase.from('solicitacoes').insert(payload);
+         if (error) throw error;
+         showToast({ type: 'success', title: 'Solicitação Criada', message: `Solicitação ${generatedNUP} criada com sucesso!` });
+      }
+      
+      // 1. Create System Notification (only for new requests or converted drafts)
       await supabase.from('system_notifications').insert({
         user_id: userId,
         type: 'SUCCESS',
@@ -3100,12 +3117,10 @@ const INITIAL_FORM_STATE: FormState = {
         link_action: `/suprido/process/${generatedNUP}`, 
         is_read: false
       });
-
-      // 2. Show Toast
-      showToast({ type: 'success', title: 'Solicitação Criada', message: `Solicitação ${generatedNUP} criada com sucesso!` });
       
       await refreshHistory();
       setFormState(INITIAL_FORM_STATE); // Reset form
+      setEditingProcessId(null);
       setCurrentView('DASHBOARD');
 
     } catch (error) {
@@ -4174,105 +4189,7 @@ Assinado eletronicamente pelo servidor suprido.`,
         </div>
       )}
 
-      {/* Draft Edit Modal */}
-      {isEditingDraft && draftEditData && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-6 bg-amber-50 border-b border-amber-100 flex items-center gap-4">
-              <div className="w-12 h-12 bg-amber-600 text-white rounded-2xl flex items-center justify-center">
-                <Edit size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight">Editar Rascunho</h3>
-                <p className="text-xs text-amber-600 font-medium">Corrija os dados antes de enviar</p>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Valor */}
-              <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                  Valor da Solicitação <span className="text-red-500">*</span>
-                  {(!draftEditData.valor || draftEditData.valor <= 0) && (
-                    <span className="text-red-500 text-[10px] normal-case font-bold">(obrigatório)</span>
-                  )}
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={draftEditData.valor}
-                    onChange={(e) => setDraftEditData({ ...draftEditData, valor: parseFloat(e.target.value) || 0 })}
-                    className={`w-full pl-12 pr-4 py-3 border rounded-xl text-lg font-bold focus:ring-2 focus:ring-amber-200 outline-none transition-all ${
-                      !draftEditData.valor || draftEditData.valor <= 0 
-                        ? 'border-red-300 bg-red-50 text-red-700' 
-                        : 'border-slate-300 bg-white text-slate-700'
-                    }`}
-                    placeholder="0,00"
-                  />
-                </div>
-              </div>
-              
-              {/* Descrição */}
-              <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Descrição / Finalidade</label>
-                <textarea
-                  value={draftEditData.descricao}
-                  onChange={(e) => setDraftEditData({ ...draftEditData, descricao: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-amber-200 focus:border-amber-400 outline-none transition-all resize-none"
-                  placeholder="Descreva a finalidade da solicitação..."
-                />
-              </div>
-              
-              {/* Datas */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Data Início</label>
-                  <input
-                    type="date"
-                    value={draftEditData.dataInicio}
-                    onChange={(e) => setDraftEditData({ ...draftEditData, dataInicio: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Data Fim</label>
-                  <input
-                    type="date"
-                    value={draftEditData.dataFim}
-                    onChange={(e) => setDraftEditData({ ...draftEditData, dataFim: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-              <button
-                onClick={() => { setIsEditingDraft(false); setDraftEditData(null); }}
-                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
-                disabled={isSavingDraftEdit}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveDraftEdit}
-                disabled={isSavingDraftEdit || !draftEditData.valor || draftEditData.valor <= 0}
-                className="px-8 py-3 bg-amber-600 text-white rounded-xl text-sm font-black uppercase hover:bg-amber-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSavingDraftEdit ? (
-                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Salvando...</>
-                ) : (
-                  <><Save size={16}/> Salvar Alterações</>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Delete Draft Confirmation Modal */}
       {showDeleteDraftConfirm && (
