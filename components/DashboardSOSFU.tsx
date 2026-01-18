@@ -604,10 +604,9 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
             currentUserId={currentUserId || ''}
             onClose={() => setSelectedProcess(null)}
             canTramitar={true}
-            canGenerateAtesto={true}
+            canGenerateAtesto={false}
             canCreateDocument={true}
             onTramitar={() => setShowTramitarModal(true)}
-            onGenerateAtesto={() => alert('Atesto gerado com sucesso!')}
             onCreateDocument={() => setShowDocumentWizard(true)}
           />
         </div>
