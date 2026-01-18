@@ -355,7 +355,12 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
               <div 
                 className="fixed z-[9999] bg-white rounded-xl shadow-2xl border border-slate-200 p-2 min-w-[140px]"
                 style={{
-                  top: priorityAnchorRect ? priorityAnchorRect.bottom + 8 : 0,
+                  // Smart positioning - check if there's space below, otherwise open upward
+                  top: priorityAnchorRect 
+                    ? (priorityAnchorRect.bottom + 150 > window.innerHeight 
+                        ? priorityAnchorRect.top - 150 // Open upward
+                        : priorityAnchorRect.bottom + 8) // Open downward
+                    : 0,
                   left: priorityAnchorRect ? priorityAnchorRect.left : 0,
                 }}
               >
