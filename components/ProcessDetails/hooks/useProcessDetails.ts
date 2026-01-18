@@ -98,17 +98,28 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
         // Flatten profile data
         const profileData = data.profiles as any;
         let lotacao = null;
+        let bankName = null;
+        let agency = null;
+        let account = null;
 
-        // Fetch lotacao from servidores_tj using email
+        // Fetch lotacao and bank data from servidores_tj using email
         if (profileData?.email) {
           const { data: servidorData } = await supabase
             .from('servidores_tj')
-            .select('lotacao')
+            .select('lotacao, banco, agencia, conta_corrente')
             .eq('email', profileData.email)
             .maybeSingle();
           
           lotacao = servidorData?.lotacao;
+          bankName = servidorData?.banco;
+          agency = servidorData?.agencia;
+          account = servidorData?.conta_corrente;
         }
+
+        // Fallback to profile data if not found in servidores_tj
+        bankName = bankName || profileData?.banco;
+        agency = agency || profileData?.agencia;
+        account = account || profileData?.conta_corrente;
 
         const flattenedData: ProcessData = {
           ...data,
@@ -117,10 +128,10 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           unidade: profileData?.unidade_id,
           comarca: profileData?.comarca_id,
           lotacao: lotacao,
-          dados_bancarios: data.dados_bancarios || (profileData?.banco ? {
-            bankName: profileData.banco,
-            agency: profileData.agencia,
-            account: profileData.conta_corrente
+          dados_bancarios: data.dados_bancarios || (bankName ? {
+            bankName: bankName,
+            agency: agency || '',
+            account: account || ''
           } : undefined),
         };
         
