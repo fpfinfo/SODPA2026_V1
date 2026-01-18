@@ -542,6 +542,11 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
           <div className="h-full overflow-y-auto custom-scrollbar p-6">
             <BudgetPlanningDashboard />
           </div>
+        ) : isSiafeTab ? (
+          <SiafeManager 
+            processes={processes}
+            onUpdateStatus={handleSiafeUpdate}
+          />
         ) : activeTab === 'ALL' ? (
           <div className="h-full overflow-y-auto custom-scrollbar">
             {isOrdinaryManagement && <div className="mb-8"><BudgetManager budget={budget} onLaunchBatch={handleBatchLaunch} /></div>}
