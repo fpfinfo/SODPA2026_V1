@@ -9,7 +9,7 @@ import {
   Plus,
   Loader2
 } from 'lucide-react';
-import { useProcessDetails } from './hooks/useProcessDetails';
+import { useProcessDetails } from '../../hooks/useProcessDetails';
 import { DetailsTab } from './Tabs/DetailsTab';
 import { HistoryTab } from './Tabs/HistoryTab';
 import { UniversalDossierPanel } from './UniversalDossierPanel';
