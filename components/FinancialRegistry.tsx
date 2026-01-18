@@ -202,7 +202,7 @@ export const FinancialRegistry: React.FC<FinancialRegistryProps> = ({ processes,
                         {p.providerBirthDate ? new Date(p.providerBirthDate).toLocaleDateString('pt-BR') : '---'}
                       </td>
                       <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">
-                        {p.providerPisNit || '---'}
+                        {p.providerPis || '---'}
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-slate-600 whitespace-nowrap">
                         {formatBRL(p.taxData?.serviceValue || p.value || 0)}

@@ -24,7 +24,7 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { showToast } = useToast();
 
   const fetchNotifications = useCallback(async () => {
@@ -37,10 +37,7 @@ export function useNotifications() {
         .from('system_notifications')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50); // Limit to last 50 for performance
-
-      // RLS should handle filtering, but client side refinement is okay too if needed
-      // Actually RLS handles it.
+        .limit(50);
 
       const { data, error } = await query;
 
@@ -74,26 +71,22 @@ export function useNotifications() {
           event: '*', // Listen to INSERT and UPDATE
           schema: 'public',
           table: 'system_notifications',
-          // Filter by user_id is tricky in realtime cause of potential NULLs for role-based.
-          // Simplest is to filter on client or just refetch on any change table-wide (might be noisy).
-          // Better: Listen to INSERT where user_id=uid OR user_id is null.
-          // Supabase Realtime filters can be limited. Let's start with table-wide and filter in callback or just refetch.
         },
         async (payload) => {
            // Refetch to be safe and accurate with RLS
            await fetchNotifications();
            
-           // Optional: Show toast for new INSERTs
            if (payload.eventType === 'INSERT') {
              const newNotif = payload.new as SystemNotification;
-             // Check if relevant to user (RLS doesn't filter realtime payloads fully if not careful, 
-             // but if we refetch, we get the filtered list. Here we just want a toast.)
-             // Ideally we check if it matches our role or ID.
+             // Check if relevant to user
              const isForMe = newNotif.user_id === user.id || 
-                             (newNotif.user_id === null && (!newNotif.role_target || newNotif.role_target === 'ALL' || (profile?.role && newNotif.role_target.includes(profile.role))));
+                             (newNotif.user_id === null && (!newNotif.role_target || newNotif.role_target === 'ALL'));
             
              if (isForMe && !newNotif.is_read) {
-                showToast(newNotif.title, newNotif.type === 'CRITICAL' ? 'error' : (newNotif.type === 'WARNING' ? 'warning' : 'info'));
+                showToast({ 
+                  title: newNotif.title, 
+                  type: newNotif.type === 'CRITICAL' ? 'error' : (newNotif.type === 'WARNING' ? 'warning' : 'info')
+                });
              }
            }
         }
@@ -103,7 +96,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, profile?.role, fetchNotifications, showToast]);
+  }, [user, fetchNotifications, showToast]);
 
   const markAsRead = async (id: string) => {
     try {
@@ -119,7 +112,6 @@ export function useNotifications() {
       if (error) throw error;
     } catch (error) {
       console.error('Error marking as read:', error);
-      // Revert optimism if needed (skip for simplicity)
       fetchNotifications();
     }
   };
@@ -130,10 +122,6 @@ export function useNotifications() {
         setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
         setUnreadCount(0);
         
-        // We can only update what we can see, simplified to updated unread ones
-        // This might be tricky with RLS if we don't have update policy for all.
-        // Our policy: "Users can update own/role notifications" -> USING check is ok.
-        // We'll update all unread notifications visible to us.
         const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
         
         if (unreadIds.length === 0) return;

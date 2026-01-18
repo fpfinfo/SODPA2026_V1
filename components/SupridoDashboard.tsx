@@ -61,7 +61,7 @@ import {
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-type SupridoView = 'DASHBOARD' | 'SELECT_TYPE' | 'FORM' | 'VIEW_DETAILS' | 'EDIT_DRAFT' | 'PROFILE';
+type SupridoView = 'DASHBOARD' | 'SELECT_TYPE' | 'FORM' | 'VIEW_DETAILS' | 'EDIT_DRAFT' | 'PROFILE' | 'PROCESS_DETAILS';
 type SubViewMode = 'DETAILS' | 'COVER' | 'REQUEST' | 'HISTORY' | 'DOSSIER' | 'TIMELINE' | 'EDIT_DOC' | 'VIEW_DOC';
 
 interface FormItem {

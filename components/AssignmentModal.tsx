@@ -1,9 +1,9 @@
 import React from 'react';
-import { StaffMember, Role } from '../types';
+import { Role } from '../types';
 import { X, UserCheck, Briefcase } from 'lucide-react';
 
 interface AssignmentModalProps {
-  staffMembers: StaffMember[];
+  staffMembers: { id: string; nome: string; role: Role | string; avatar_url: string | null }[];
   processesCount: Record<string, number>; // Maps staff ID to number of active processes
   onSelect: (staffId: string) => void;
   onClose: () => void;
@@ -46,9 +46,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({ staffMembers, 
                   className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all group"
                 >
                   <div className="flex items-center gap-3">
-                    <img src={staff.avatarUrl} alt={staff.name} className="w-10 h-10 rounded-full border border-slate-200" />
+                    <img src={staff.avatar_url || 'https://www.gravatar.com/avatar?d=mp'} alt={staff.nome} className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
                     <div className="text-left">
-                      <p className="font-semibold text-slate-800 text-sm">{staff.name}</p>
+                      <p className="font-semibold text-slate-800 text-sm">{staff.nome}</p>
                       <p className="text-xs text-slate-500">{staff.role}</p>
                     </div>
                   </div>

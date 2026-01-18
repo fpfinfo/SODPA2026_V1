@@ -65,6 +65,7 @@ export interface Municipio {
   comarca_id?: string;
   comarca?: Comarca;
   populacao?: number;
+  uf?: string;
   
   created_at?: string;
   updated_at?: string;

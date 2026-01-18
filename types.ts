@@ -136,17 +136,7 @@ export interface UserProfile {
   avatarUrl?: string;
 }
 
-// Added StaffMember interface for assignment management
-export interface StaffMember {
-  id: string;
-  name: string;
-  role: Role;
-  avatarUrl: string;
-  activeProcessCount: number;
-  // New fields for settings management
-  jobTitle?: string;
-  email?: string;
-}
+// StaffMember interface deprecated - usage replaced by teamMembers array (from servidores_tj)
 
 // Added INSS table related interfaces
 export interface INSSRange {
@@ -265,6 +255,14 @@ export interface Process {
   taxData?: TaxData;
   hasBalanceReturn?: boolean;
   balanceData?: BalanceData;
+
+  // Extended properties for Financial Registry
+  providerName?: string;
+  providerBirthDate?: string;
+  nup?: string; // Often equivalent to protocolNumber
+  portariaSf?: string;
+  serviceDescription?: string;
+  subject?: string;
 }
 
 // Expanded ViewMode to include SOSFU internal view modes

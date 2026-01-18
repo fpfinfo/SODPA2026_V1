@@ -29,6 +29,7 @@ interface UseTeamMembersReturn {
   updateTeamMember: (id: string, data: Partial<{ role: Role; ativo: boolean }>) => Promise<boolean>;
   deleteTeamMember: (id: string) => Promise<boolean>;
   updateServidorAvatar: (servidorId: string, file: File) => Promise<string | null>;
+  updateServidor: (servidorId: string, data: Partial<{ email: string; cargo: string; lotacao: string }>) => Promise<boolean>;
   searchServidores: (query: string) => Promise<ServidorSearchResult[]>;
   refresh: () => Promise<void>;
 }
@@ -228,6 +229,23 @@ export function useTeamMembers(): UseTeamMembersReturn {
     }
   };
 
+  const updateServidor = async (servidorId: string, data: Partial<{ email: string; cargo: string; lotacao: string }>): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('servidores_tj')
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq('id', servidorId);
+
+      if (error) throw error;
+      await fetchTeamMembers();
+      return true;
+    } catch (err: any) {
+      console.error('Error updating servidor:', err);
+      setError(err.message);
+      return false;
+    }
+  };
+
   return {
     teamMembers,
     isLoading,
@@ -236,6 +254,7 @@ export function useTeamMembers(): UseTeamMembersReturn {
     updateTeamMember,
     deleteTeamMember,
     updateServidorAvatar,
+    updateServidor,
     searchServidores,
     refresh: fetchTeamMembers,
   };

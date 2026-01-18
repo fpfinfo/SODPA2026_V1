@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
-import { Process, ProcessType, StaffMember } from '../types';
-import { STAFF_MEMBERS, CURRENT_USER_ID } from '../constants';
+import { Process, ProcessType } from '../types';
+import { CURRENT_USER_ID } from '../constants';
 import { Clock, FileText, UserPlus, FileCheck, Send, MoreHorizontal, UserCheck, Calculator, AlertCircle, ArrowDown, ArrowUp, Minus, ShieldCheck, AlertTriangle, Shield, ShieldAlert } from 'lucide-react';
 
 interface ProcessCardProps {
@@ -10,9 +10,10 @@ interface ProcessCardProps {
   onClick?: () => void;
   currentWorkload?: number;
   onPriorityChange?: (id: string, priority: 'NORMAL' | 'HIGH' | 'CRITICAL') => void;
+  teamMembers?: { id: string; nome: string; avatar_url: string | null }[];
 }
 
-const ProcessCardComponent: React.FC<ProcessCardProps> = ({ process, onAction, onClick, currentWorkload, onPriorityChange }) => {
+const ProcessCardComponent: React.FC<ProcessCardProps> = ({ process, onAction, onClick, currentWorkload, onPriorityChange, teamMembers = [] }) => {
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +33,7 @@ const ProcessCardComponent: React.FC<ProcessCardProps> = ({ process, onAction, o
   const borderColor = isReturned ? 'border-l-red-500' : (isConcession ? 'border-l-blue-500' : 'border-l-amber-500');
   const badgeColor = isConcession ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700';
   
-  const assignedStaff = STAFF_MEMBERS.find(s => s.id === process.assignedToId);
+  const assignedStaff = teamMembers.find(s => s.id === process.assignedToId) || (process.assignedToId ? { id: process.assignedToId, nome: 'Desconhecido', avatar_url: null } : null);
   const slaDate = new Date(process.slaDeadline || process.createdAt);
   const now = new Date();
   const isSlaCritical = slaDate < now || (slaDate.getTime() - now.getTime()) < (2 * 24 * 60 * 60 * 1000);
@@ -170,11 +171,11 @@ const ProcessCardComponent: React.FC<ProcessCardProps> = ({ process, onAction, o
             {assignedStaff ? (
                 <div className="flex items-center gap-2 bg-slate-50 pl-1 pr-2 py-0.5 rounded-full border border-slate-100">
                     <img 
-                        src={assignedStaff.avatarUrl} 
-                        alt={assignedStaff.name} 
-                        className="w-5 h-5 rounded-full border border-white shadow-sm"
+                        src={assignedStaff.avatar_url || 'https://www.gravatar.com/avatar?d=mp'} 
+                        alt={assignedStaff.nome} 
+                        className="w-5 h-5 rounded-full border border-white shadow-sm object-cover"
                     />
-                    <span className="text-[10px] font-bold text-slate-600 truncate max-w-[60px]">{assignedStaff.name.split(' ')[0]}</span>
+                    <span className="text-[10px] font-bold text-slate-600 truncate max-w-[60px]">{assignedStaff.nome.split(' ')[0]}</span>
                 </div>
             ) : (
                 <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300" title="Não atribuído">

@@ -53,7 +53,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
   const { comarcas, municipios, lotacoes, isLoading, error, createComarca, updateComarca, deleteComarca, createMunicipio, updateMunicipio, deleteMunicipio, createLotacao, updateLotacao, deleteLotacao, refresh } = useLocations();
   
   // Use Supabase hook for team members
-  const { teamMembers, isLoading: isLoadingTeam, createTeamMember, updateTeamMember, deleteTeamMember, updateServidorAvatar, searchServidores } = useTeamMembers();
+  const { teamMembers, isLoading: isLoadingTeam, createTeamMember, updateTeamMember, deleteTeamMember, updateServidorAvatar, updateServidor, searchServidores } = useTeamMembers();
   
   // Avatar upload hook
   const { uploadAvatar, isUploading: isUploadingAvatar, progress: uploadProgress, error: uploadError } = useAvatarUpload();
@@ -64,7 +64,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
   const [searchLocationQuery, setSearchLocationQuery] = useState('');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
-  const [userFormData, setUserFormData] = useState<{ role: Role }>({ role: Role.CONCESSION });
+  const [userFormData, setUserFormData] = useState<{ role: Role; email?: string; cargo?: string; lotacao?: string }>({ role: Role.CONCESSION });
   
   // Servidor search state
   const [servidorSearch, setServidorSearch] = useState('');
@@ -90,7 +90,12 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
   const handleOpenUserModal = (member?: TeamMember) => {
     if (member) { 
       setEditingMember(member); 
-      setUserFormData({ role: member.role }); 
+      setUserFormData({ 
+        role: member.role,
+        email: member.email || '',
+        cargo: member.cargo || '',
+        lotacao: member.lotacao || '',
+      }); 
       setSelectedServidor(null);
     } else { 
       setEditingMember(null); 
@@ -120,8 +125,19 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
 
   const handleSaveUser = async () => {
     if (!userFormData.role) { alert('Selecione um perfil.'); return; }
+    
     if (editingMember) { 
-      await updateTeamMember(editingMember.id, { role: userFormData.role }); 
+      // Update Role in usuarios_sistema
+      await updateTeamMember(editingMember.id, { role: userFormData.role });
+      
+      // Update extra info in servidores_tj
+      if (userFormData.email || userFormData.cargo || userFormData.lotacao) {
+        await updateServidor(editingMember.servidor_id, {
+          email: userFormData.email,
+          cargo: userFormData.cargo,
+          lotacao: userFormData.lotacao
+        });
+      }
     } else if (selectedServidor) { 
       await createTeamMember(selectedServidor.id, userFormData.role); 
     } else {
@@ -253,19 +269,59 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
                       className="hidden" 
                     />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-800">{editingMember.nome}</p>
-                    <p className="text-xs text-slate-500">{editingMember.cargo || 'Cargo não informado'}</p>
-                    <p className="text-xs text-blue-500">{editingMember.lotacao}</p>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Nome</label>
+                      <input 
+                        type="text" 
+                        value={editingMember.nome} 
+                        disabled 
+                        className="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 cursor-not-allowed"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Cargo / Função</label>
+                      <input 
+                        type="text" 
+                        value={userFormData.cargo || editingMember.cargo || ''} 
+                        onChange={e => setUserFormData({...userFormData, cargo: e.target.value})}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                        placeholder="Ex: Analista Judiciário"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Email</label>
+                      <input 
+                        type="email" 
+                        value={userFormData.email || editingMember.email || ''} 
+                        onChange={e => setUserFormData({...userFormData, email: e.target.value})}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                        placeholder="email@tjpa.jus.br"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Lotação</label>
+                      <input 
+                        type="text" 
+                        value={userFormData.lotacao || editingMember.lotacao || ''} 
+                        onChange={e => setUserFormData({...userFormData, lotacao: e.target.value})}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                        placeholder="Ex: Secretaria de Finanças"
+                      />
+                    </div>
+
                     <button 
                       type="button" 
                       onClick={() => avatarInputRef.current?.click()} 
                       disabled={isUploadingAvatar}
-                      className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all disabled:opacity-50"
+                      className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all disabled:opacity-50 w-full justify-center"
                     >
-                      {isUploadingAvatar ? <><Loader2 size={12} className="animate-spin" /> Enviando...</> : <><Upload size={12} /> Alterar Foto</>}
+                      {isUploadingAvatar ? <><Loader2 size={12} className="animate-spin" /> Enviando...</> : <><Upload size={12} /> Alterar Foto de Perfil</>}
                     </button>
-                    {uploadError && <p className="text-[10px] text-red-500 mt-1">{uploadError}</p>}
+                    {uploadError && <p className="text-[10px] text-red-500 mt-1 text-center">{uploadError}</p>}
                   </div>
                 </div>
                 <div>

@@ -42,6 +42,42 @@ export interface FinancialAnalyticsData {
   error: string | null;
 }
 
+// Interfaces for Raw Query Data
+interface ExpenseItemRaw {
+  element?: string;
+  code?: string;
+  value?: number;
+}
+
+interface FinancialRequestRaw {
+  id: string;
+  valor_aprovado: number | null;
+  valor_solicitado: number | null;
+  tipo: string;
+  itens_despesa: ExpenseItemRaw[] | null;
+  user_id: string;
+  profiles: {
+    nome: string | null;
+    cargo: string | null;
+    comarca_id: string | null;
+    comarcas: {
+      nome: string | null;
+      entrancia: string | null;
+      polo: string | null;
+      regiao: string | null;
+    } | null;
+  } | null;
+}
+
+interface BudgetAllocationRaw {
+  ptres_code: string;
+  allocated_value: number;
+  committed_value: number;
+  budget_plans: {
+    year: number;
+  };
+}
+
 const TETO_ORCAMENTARIO_GLOBAL = 12500000; // Valor de referência para cálculo de % (Mockado inicial)
 
 const TYPE_COLORS: Record<string, string> = {
@@ -88,7 +124,7 @@ export const useFinancialAnalytics = () => {
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-      const { data: requests, error } = await supabase
+      const { data: requestsData, error } = await supabase
         .from('solicitacoes')
         .select(`
           id,
@@ -112,6 +148,9 @@ export const useFinancialAnalytics = () => {
         .not('valor_solicitado', 'is', null);
 
       if (error) throw error;
+      
+      // Explicitly cast to the Raw interface since we don't have full generated types
+      const requests = requestsData as unknown as FinancialRequestRaw[];
 
       // Aggregation Maps
       const comarcaMap = new Map<string, number>();
@@ -124,7 +163,7 @@ export const useFinancialAnalytics = () => {
 
       let totalExecuted = 0;
 
-      requests?.forEach((req: any) => {
+      requests?.forEach((req) => {
         const value = Number(req.valor_aprovado || req.valor_solicitado || 0);
         totalExecuted += value;
 
@@ -134,7 +173,7 @@ export const useFinancialAnalytics = () => {
 
         // 2. By Element (Parsing JSON)
         if (Array.isArray(req.itens_despesa)) {
-          req.itens_despesa.forEach((item: any) => {
+          req.itens_despesa.forEach((item) => {
              // item structure check: { element: '33.90.30', value: 100 }
              const elementCode = item.element || item.code || 'Outros'; 
              const itemValue = Number(item.value || 0);
@@ -210,7 +249,7 @@ export const useFinancialAnalytics = () => {
         .sort((a, b) => b.value - a.value)
         .slice(0, 5); // Take top 5
 
-      const { data: allocations, error: allocationError } = await supabase
+      const { data: allocationsData, error: allocationError } = await supabase
         .from('budget_allocations')
         .select(`
           ptres_code,
@@ -224,6 +263,8 @@ export const useFinancialAnalytics = () => {
         console.error('Error fetching allocations:', allocationError);
         // Don't throw, just log and continue with empty allocations
       }
+      
+      const allocations = allocationsData as unknown as BudgetAllocationRaw[];
 
       setData({
         budget: {
@@ -238,7 +279,7 @@ export const useFinancialAnalytics = () => {
         byPole: toArray(poloMap),
         byRegion: toArray(regiaoMap),
         topSupridos: topSupridosArray,
-        budgetAllocations: allocations?.map((a: any) => ({
+        budgetAllocations: allocations?.map((a) => ({
           ptres_code: a.ptres_code,
           allocated_value: a.allocated_value,
           committed_value: a.committed_value
@@ -247,12 +288,13 @@ export const useFinancialAnalytics = () => {
         error: null
       });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching financial analytics:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Falha ao carregar dados analíticos.';
       setData(prev => ({ 
         ...prev, 
         isLoading: false, 
-        error: err.message || 'Falha ao carregar dados analíticos.' 
+        error: errorMessage 
       }));
     }
   };

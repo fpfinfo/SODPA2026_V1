@@ -1,4 +1,4 @@
-import { StaffMember, Role, Process, ProcessType, ConcessionStatus, AccountStatus, INSSTable, AnnualBudget, BudgetDistribution, AdminBudget, BudgetAction, Allocation, BudgetRule } from './types';
+import { Role, Process, ProcessType, ConcessionStatus, AccountStatus, INSSTable, AnnualBudget, BudgetDistribution, AdminBudget, BudgetAction, Allocation, BudgetRule } from './types';
 
 export const CURRENT_USER_ID = '1';
 
@@ -114,13 +114,7 @@ export const INSS_TABLE_2025: INSSTable = {
   ]
 };
 
-export const STAFF_MEMBERS: StaffMember[] = [
-  { id: '1', name: 'Fábio Pereira de Freitas', role: Role.GOVERNANCE, avatarUrl: 'https://i.pravatar.cc/150?u=fabio', activeProcessCount: 0, jobTitle: 'Diretor de Controle', email: 'fabio.freitas@tjpa.jus.br' },
-  { id: '2', name: 'André Evaristo Bezerra', role: Role.CONCESSION, avatarUrl: 'https://i.pravatar.cc/150?u=andre', activeProcessCount: 0, jobTitle: 'Analista Judiciário', email: 'andre.bezerra@tjpa.jus.br' },
-  { id: '3', name: 'Regeane Kelly Holanda', role: Role.FINANCE, avatarUrl: 'https://i.pravatar.cc/150?u=regeane', activeProcessCount: 0, jobTitle: 'Técnica Judiciária', email: 'regeane.holanda@tjpa.jus.br' },
-  { id: '4', name: 'Roziani Rodrigues Lopes', role: Role.AUDIT_CONSUMPTION, avatarUrl: 'https://i.pravatar.cc/150?u=roziani', activeProcessCount: 0, jobTitle: 'Analista Judiciário', email: 'roziani.lopes@tjpa.jus.br' },
-  { id: '5', name: 'Jaires Costa Sarraf', role: Role.TAX_ANALYSIS, avatarUrl: 'https://i.pravatar.cc/150?u=jaires', activeProcessCount: 0, jobTitle: 'Analista Judiciário', email: 'jaires.sarraf@tjpa.jus.br' },
-];
+// Mock data removed - usage migrated to Supabase (servidores_tj) via useTeamMembers hook
 
 const generateDate = (daysOffset: number) => {
   const date = new Date();

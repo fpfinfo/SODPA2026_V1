@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Process, ProcessType, StaffMember, AccountStatus } from '../types';
-import { STAFF_MEMBERS } from '../constants';
+import { Process, ProcessType, AccountStatus } from '../types';
 import { MoreHorizontal, FileText, Send, UserCheck, UserPlus, ShieldCheck } from 'lucide-react';
 
 interface ListViewProps {
@@ -10,9 +9,10 @@ interface ListViewProps {
   onAction?: (action: string, id: string) => void;
   staffWorkload: Record<string, number>;
   isLoading?: boolean;
+  teamMembers?: { id: string; nome: string; avatar_url: string | null }[];
 }
 
-export const ListView: React.FC<ListViewProps> = ({ processes, onViewDetails, onAction, staffWorkload, isLoading }) => {
+export const ListView: React.FC<ListViewProps> = ({ processes, onViewDetails, onAction, staffWorkload, isLoading, teamMembers = [] }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
       <table className="w-full text-sm text-left">
@@ -58,7 +58,7 @@ export const ListView: React.FC<ListViewProps> = ({ processes, onViewDetails, on
              processes.map((process) => {
                 const isConcession = process.type === ProcessType.CONCESSION;
                 // Safely access assignedToId
-                const assignedStaff = STAFF_MEMBERS.find(s => s.id === process.assignedToId);
+                const assignedStaff = teamMembers.find(s => s.id === process.assignedToId) || (process.assignedToId ? { id: process.assignedToId, nome: 'Desconhecido', avatar_url: null } : null);
                 const workloadCount = process.assignedToId ? (staffWorkload[process.assignedToId] || 0) : 0;
                 const canSentinela = process.status === AccountStatus.AUDIT;
 
@@ -91,12 +91,12 @@ export const ListView: React.FC<ListViewProps> = ({ processes, onViewDetails, on
                     {assignedStaff ? (
                         <div className="flex items-center gap-2">
                             <img 
-                                src={assignedStaff.avatarUrl} 
-                                alt={assignedStaff.name} 
-                                className="w-6 h-6 rounded-full cursor-help" 
-                                title={`${assignedStaff.name} possui ${workloadCount} processos ativos`}
+                                src={assignedStaff.avatar_url || 'https://www.gravatar.com/avatar?d=mp'} 
+                                alt={assignedStaff.nome} 
+                                className="w-6 h-6 rounded-full cursor-help object-cover" 
+                                title={`${assignedStaff.nome} possui ${workloadCount} processos ativos`}
                             />
-                            <span className="text-xs text-slate-600">{assignedStaff.name.split(' ')[0]}</span>
+                            <span className="text-xs text-slate-600">{assignedStaff.nome.split(' ')[0]}</span>
                         </div>
                     ) : (
                         <span className="text-xs text-slate-400 italic flex items-center gap-1">

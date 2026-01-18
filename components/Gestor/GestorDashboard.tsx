@@ -341,6 +341,10 @@ export const GestorDashboard: React.FC = () => {
     }))
   ];
 
+  // Confirmation Modal state
+  const [showAtestoConfirm, setShowAtestoConfirm] = useState(false);
+  const [isGeneratingAtesto, setIsGeneratingAtesto] = useState(false);
+
   // Check if process has Certidão de Atesto (enables Tramitar button)
   const hasAtesto = dossierDocs.some(doc => 
     doc.tipo === 'CERTIDAO_ATESTO' || 
@@ -350,7 +354,17 @@ export const GestorDashboard: React.FC = () => {
   );
   const isChecklistComplete = Object.values(checklist).every(Boolean);
 
-  const handleGenerateAtesto = () => {
+  const handleGenerateAtestoClick = () => {
+    setShowAtestoConfirm(true);
+  };
+
+  const handleConfirmGenerateAtesto = async () => {
+    setShowAtestoConfirm(false);
+    setIsGeneratingAtesto(true);
+    
+    // Simulate processing delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     const template = {
       type: 'Certidão de Atesto',
       title: `Certidão de Atesto do Gestor Nº ${Math.floor(Math.random() * 100)}/2026`,
@@ -366,7 +380,15 @@ export const GestorDashboard: React.FC = () => {
       author: 'Diogo Bonfim Fernandez (Gestor)',
       date: new Date().toLocaleDateString('pt-BR')
     });
+    
+    setIsGeneratingAtesto(false);
     setView('EDIT_DOC');
+    
+    showToast({ 
+      type: 'info', 
+      title: 'Minuta Gerada', 
+      message: 'Revise o conteúdo da certidão antes de assinar.' 
+    });
   };
 
   // Use Universal Process Details Page when process is selected
@@ -384,10 +406,43 @@ export const GestorDashboard: React.FC = () => {
           canTramitar={true}
           canGenerateAtesto={true}
           canCreateDocument={true}
+          isLoadingAtesto={isGeneratingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
-          onGenerateAtesto={handleGenerateAtesto}
+          onGenerateAtesto={handleGenerateAtestoClick}
           onCreateDocument={() => setShowDocumentWizard(true)}
         />
+        
+        {/* Atesto Confirmation Modal */}
+        {showAtestoConfirm && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2">
+                  <BadgeCheck size={32} />
+                </div>
+                <h3 className="text-xl font-black text-slate-800">Confirmar Atesto</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Você está prestes a gerar a <strong>Certidão de Atesto</strong> para este processo. Isso confirma a disponibilidade orçamentária e a necessidade da despesa.
+                </p>
+                <div className="flex gap-3 w-full mt-6">
+                  <button 
+                    onClick={() => setShowAtestoConfirm(false)}
+                    className="flex-1 py-3 bg-slate-100 font-bold text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleConfirmGenerateAtesto}
+                    className="flex-1 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95"
+                  >
+                    Confirmar, Gerar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showTramitarModal && selectedProcess && (
           <TramitarModal
             isOpen={true}
@@ -457,7 +512,7 @@ export const GestorDashboard: React.FC = () => {
 
   const handleForwardToSosfu = () => {
     if (!hasAtesto) {
-      alert('É necessário gerar e assinar a Certidão de Atesto antes de tramitar para a SOSFU.');
+      showToast({ type: 'warning', title: 'Atenção', message: 'É necessário gerar e assinar a Certidão de Atesto antes de tramitar para a SOSFU.' });
       return;
     }
     setTramitationType('forward');
@@ -868,7 +923,7 @@ export const GestorDashboard: React.FC = () => {
                   </button>
               ) : (
                   <button 
-                      onClick={handleGenerateAtesto} 
+                      onClick={handleGenerateAtestoClick} 
                       disabled={!isChecklistComplete}
                       className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${
                         isChecklistComplete 

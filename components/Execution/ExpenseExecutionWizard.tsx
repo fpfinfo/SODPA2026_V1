@@ -32,6 +32,8 @@ interface ProcessData {
   dl_numero?: string;
   ob_numero?: string;
   portaria_sf_numero?: string;
+  suprido_nome?: string;
+  valor_total?: number;
 }
 
 interface ExpenseExecutionWizardProps {

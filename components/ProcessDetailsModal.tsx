@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Process, ProcessType, Role, AccountStatus } from '../types';
-import { STAFF_MEMBERS } from '../constants';
 import { supabase } from '../lib/supabaseClient';
 import { 
   X, 
@@ -46,9 +45,10 @@ interface ProcessDetailsModalProps {
   process: Process;
   onClose: () => void;
   initialTab?: 'DETAILS' | 'ANALYSIS' | 'DOSSIER';
+  teamMembers?: { id: string; nome: string; avatar_url: string | null }[];
 }
 
-export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ process, onClose, initialTab = 'DETAILS' }) => {
+export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ process, onClose, initialTab = 'DETAILS', teamMembers = [] }) => {
   const [activeTab, setActiveTab] = useState<'DETAILS' | 'ANALYSIS' | 'DOSSIER'>(initialTab);
   const [checklist, setChecklist] = useState({ regularidade: false, atestoGestor: process.status === 'PENDENTE SOSFU', orcamento: false, identificacao: true });
   const [showRegularityModal, setShowRegularityModal] = useState(false);
@@ -127,7 +127,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
     }
   };
 
-  const assignedStaff = STAFF_MEMBERS.find(s => s.id === process.assignedToId);
+  const assignedStaff = teamMembers.find(s => s.id === process.assignedToId);
   const isConcession = process.type === ProcessType.CONCESSION;
   const isTCE = process.type === ProcessType.SPECIAL_ACCOUNT;
   const slaDate = new Date(process.slaDeadline || process.createdAt);
@@ -225,7 +225,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
           {activeTab === 'DETAILS' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-in fade-in">
               <div className="space-y-8">{isTCE && renderLegalDeadlineTimer()}<div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Objeto da Solicitação</h4><p className="text-slate-800 font-medium text-lg leading-relaxed">"{process.purpose || 'Descrição detalhada não informada.'}"</p></div><div className="bg-slate-50 rounded-3xl p-6 border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-all group" onClick={() => setActiveTab('ANALYSIS')}><div className="flex items-center gap-4"><div className="p-3 bg-white rounded-2xl shadow-sm text-emerald-600 group-hover:scale-110 transition-transform"><Calculator size={24}/></div><div><p className="text-sm font-bold text-slate-800">Pré-Análise Orçamentária</p><p className="text-xs text-slate-500">Clique para ver detalhes do impacto</p></div></div><div className="text-right"><p className="text-xs text-slate-400 font-bold uppercase">Impacto</p><p className="text-lg font-black text-blue-600">{((process.value / 50000) * 100).toFixed(1)}%</p></div></div></div>
-              <div className="space-y-6"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Tramitação</h4><div className="space-y-4 pl-4 border-l-2 border-slate-100"><div className="relative pb-6"><div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-200"></div><p className="text-sm font-bold text-slate-800">Análise SOSFU</p><p className="text-xs text-slate-500">Em andamento por {assignedStaff?.name || '...'}</p></div><div className="relative pb-6 opacity-50"><div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-slate-300"></div><p className="text-sm font-bold text-slate-800">Atesto do Gestor</p><p className="text-xs text-slate-500">Concluído em {new Date(process.createdAt).toLocaleDateString()}</p></div></div></div>
+              <div className="space-y-6"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Tramitação</h4><div className="space-y-4 pl-4 border-l-2 border-slate-100"><div className="relative pb-6"><div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-200"></div><p className="text-sm font-bold text-slate-800">Análise SOSFU</p><p className="text-xs text-slate-500">Em andamento por {assignedStaff?.nome || '...'}</p></div><div className="relative pb-6 opacity-50"><div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-slate-300"></div><p className="text-sm font-bold text-slate-800">Atesto do Gestor</p><p className="text-xs text-slate-500">Concluído em {new Date(process.createdAt).toLocaleDateString()}</p></div></div></div>
             </div>
           )}
           {activeTab === 'ANALYSIS' && (

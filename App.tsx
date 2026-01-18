@@ -7,8 +7,8 @@ import { ToastProvider } from './components/ui/ToastProvider';
 import { AppRole, Process } from './types';
 import { User, LogOut, ChevronDown, Bell, UserCircle, Settings as SettingsIcon, Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
-import { NotificationBell } from './components/NotificationBell';
-import { AlertBanner } from './components/AlertBanner';
+import { NotificationBell } from './components/ui/NotificationBell';
+import { AlertBanner } from './components/ui/AlertBanner';
 
 // Lazy load heavy dashboard components for better initial load performance
 const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').then(m => ({ default: m.DashboardSOSFU })));
