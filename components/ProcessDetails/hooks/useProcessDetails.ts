@@ -86,7 +86,7 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
             email,
             banco,
             agencia,
-            conta
+            conta_corrente
           )
         `)
         .eq('id', processId)
@@ -120,7 +120,7 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           dados_bancarios: data.dados_bancarios || (profileData?.banco ? {
             bankName: profileData.banco,
             agency: profileData.agencia,
-            account: profileData.conta
+            account: profileData.conta_corrente
           } : undefined),
         };
         

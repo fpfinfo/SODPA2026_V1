@@ -99,7 +99,7 @@ export const useSOSFUProcesses = () => {
         .from('solicitacoes')
         .select(`
           *,
-          profiles!solicitacoes_user_id_fkey (nome, email, banco, agencia, conta)
+          profiles!solicitacoes_user_id_fkey (nome, email, banco, agencia, conta_corrente)
         `)
         .or('destino_atual.ilike.%SOSFU%,destino_atual.ilike.%ANALISE%,status.ilike.%AGUARDANDO%')
         .order('created_at', { ascending: false });
@@ -132,7 +132,7 @@ export const useSOSFUProcesses = () => {
         bankData: p.dados_bancarios || (p.profiles?.banco ? { 
           bankName: p.profiles.banco, 
           agency: p.profiles.agencia, 
-          account: p.profiles.conta 
+          account: p.profiles.conta_corrente 
         } : undefined),
         items: p.itens_despesa || p.items || [],
       }));
