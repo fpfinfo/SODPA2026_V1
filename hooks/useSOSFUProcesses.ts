@@ -129,6 +129,8 @@ export const useSOSFUProcesses = () => {
         prioridade_usuario: p.prioridade_usuario,
         notas_planejamento: p.notas_planejamento,
         supplyCategory: (p.tipo === 'ORDINARIO' || p.tipo === 'ORDINÁRIO') ? 'ORDINARY' : 'EXTRAORDINARY',
+        bankData: p.dados_bancarios,
+        items: p.itens_despesa || p.items || [],
       }));
 
       setProcesses(mappedProcesses);

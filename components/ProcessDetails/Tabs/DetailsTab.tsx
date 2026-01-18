@@ -124,6 +124,19 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
                 </div>
               </>
             )}
+
+            {process.dados_bancarios && (
+              <div className="pt-4 mt-2 border-t border-slate-100">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dados Bancários</label>
+                <div className="mt-2 bg-slate-50 rounded-xl p-3">
+                  <p className="text-sm font-bold text-slate-800">{process.dados_bancarios.bankName}</p>
+                  <div className="flex gap-4 mt-1">
+                    <p className="text-xs text-slate-600">Ag: <span className="font-mono font-bold">{process.dados_bancarios.agency}</span></p>
+                    <p className="text-xs text-slate-600">CC: <span className="font-mono font-bold">{process.dados_bancarios.account}</span></p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -157,6 +170,21 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
                 <p className="text-base text-slate-700">{process.lotacao || process.unidade || process.comarca || 'N/A'}</p>
               </div>
             </div>
+
+            {process.gestor && (
+              <div className="pt-4 mt-2 border-t border-slate-100">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Gestor Responsável</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                    <User size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{process.gestor.nome}</p>
+                    <p className="text-xs text-slate-500">{process.gestor.email}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -169,10 +197,28 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
             <h3 className="text-xl font-black text-slate-800">Justificativa</h3>
           </div>
           
-          <div className="bg-slate-50 rounded-2xl p-6 max-h-64 overflow-y-auto">
+          <div className="space-y-4">
+            {process.items && process.items.length > 0 && (
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 mb-4">
+                <label className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3 block flex items-center gap-2">
+                  <DollarSign size={12} /> Elementos de Despesa
+                </label>
+                <div className="space-y-2">
+                  {process.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-sm border-b border-amber-200/50 last:border-0 pb-2 last:pb-0">
+                      <span className="text-amber-900 font-medium">{item.element} <span className="text-amber-700/70 font-normal">- {item.description}</span></span>
+                      <span className="font-bold text-amber-950">{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-slate-50 rounded-2xl p-6 max-h-64 overflow-y-auto">
             <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
               {process.descricao || 'Nenhuma justificativa fornecida.'}
             </p>
+          </div>
           </div>
         </div>
       </div>

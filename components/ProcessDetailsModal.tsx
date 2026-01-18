@@ -170,7 +170,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                   id: process.id,
                   nup: process.protocolNumber,
                   tipo: process.type,
-                  status: process.status,
+                  status: (process.destino_atual?.includes('SOSFU') && process.status === 'Pendente Atesto') ? 'em_analise_sosfu' : process.status,
                   valor_solicitado: process.value,
                   valor_total: process.value,
                   urgencia: process.priority,
@@ -178,6 +178,9 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                   suprido_nome: process.interestedParty,
                   created_at: process.createdAt,
                   descricao: process.purpose,
+                  dados_bancarios: process.bankData,
+                  items: process.items,
+                  gestor: process.manager,
                 }} />
               </div>
 

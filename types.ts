@@ -263,6 +263,18 @@ export interface Process {
   portariaSf?: string;
   serviceDescription?: string;
   subject?: string;
+  
+  // Extra fields for SOSFU view
+  bankData?: {
+    bankName: string;
+    agency: string;
+    account: string;
+    bankCode?: string;
+  };
+  manager?: {
+    nome: string;
+    email: string;
+  };
 }
 
 // Expanded ViewMode to include SOSFU internal view modes

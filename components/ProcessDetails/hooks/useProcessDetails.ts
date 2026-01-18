@@ -25,6 +25,26 @@ export interface ProcessData {
   comarca?: string;
   lotacao?: string;
   
+  // Extra fields (Added for SOSFU view parity)
+  dados_bancarios?: {
+    bankName: string;
+    bankCode?: string;
+    agency: string;
+    account: string;
+    pix?: string;
+  };
+  items?: Array<{
+    element: string;
+    description: string;
+    value: number;
+    budgetAction?: string;
+    allocation?: string;
+  }>;
+  gestor?: {
+    nome: string;
+    email: string;
+  };
+  
   // Júri specific
   juri_participantes?: number;
   juri_dias?: number;
