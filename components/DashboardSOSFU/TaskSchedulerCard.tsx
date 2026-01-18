@@ -432,6 +432,26 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
             anchorRect={anchorRect}
           />
         )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onViewDetails(process.id)}
+            className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors"
+            title="Ver detalhes"
+          >
+            <Eye size={16} />
+          </button>
+          {onStart && (
+            <button
+              onClick={() => onStart(process.id)}
+              className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors"
+              title="Iniciar análise"
+            >
+              <Play size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
