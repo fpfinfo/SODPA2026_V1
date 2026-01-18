@@ -1,17 +1,24 @@
 import React, { useState, useRef } from 'react';
-import { Shield, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
-import { useConformityValidation, ProcessData as ValidationProcessData } from '../hooks/useConformityValidation';
+import { Shield, CheckCircle, XCircle, Clock, Loader2, AlertCircle } from 'lucide-react';
+import { useConformityValidation, ProcessData, ExecutionDocument } from '../hooks/useConformityValidation';
 
 interface ConformityChecklistProps {
-  processData: ValidationProcessData;
+  processData: ProcessData;
+  executionDocuments?: ExecutionDocument[];
   className?: string;
 }
 
 export const ConformityChecklist: React.FC<ConformityChecklistProps> = ({ 
   processData,
+  executionDocuments = [],
   className = '' 
 }) => {
-  const { checklist, overallStatus, allValid } = useConformityValidation(processData);
+  const checklistRef = useRef<HTMLDivElement>(null);
+  const {
+    checklist,
+    summary,
+    allValid
+  } = useConformityValidation(processData, executionDocuments);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const firstErrorRef = useRef<HTMLDivElement>(null);
 

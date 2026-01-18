@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { UniversalDossierPanel } from './ProcessDetails/UniversalDossierPanel';
 import { DetailsTab } from './ProcessDetails/Tabs/DetailsTab';
 import { ExecutionTab } from './ProcessDetails/Tabs/ExecutionTab';
+import { useExecutionDocuments } from '../hooks/useExecutionDocuments';
 import { ConformityChecklist } from './ConformityChecklist';
 import { useProcessDetails } from '../hooks/useProcessDetails';
 import { useOrcamentoSOSFU } from '../hooks/useOrcamentoSOSFU';
@@ -65,9 +66,13 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   const [scanProgress, setScanProgress] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [hasCertidaoAtesto, setHasCertidaoAtesto] = useState(false);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
 
   // Fetch enriched process data with servidores_tj details
   const { processData: enrichedProcessData, isLoading: isLoadingDetails } = useProcessDetails(process.id);
+
+  // Fetch execution documents for checklist
+  const { documents: executionDocuments } = useExecutionDocuments(process.id);
 
   // Fetch current user on mount
   useEffect(() => {
@@ -356,16 +361,17 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
               <div>
                 <ConformityChecklist 
                   processData={{
-                    nome: enrichedProcessData?.servidor_dados?.nome || enrichedProcessData?.suprido_nome,
-                    cpf: enrichedProcessData?.servidor_dados?.cpf || enrichedProcessData?.perfil_cpf,
-                    banco: enrichedProcessData?.dados_bancarios?.bankName,
-                    agencia: enrichedProcessData?.dados_bancarios?.agency,
-                    conta_corrente: enrichedProcessData?.dados_bancarios?.account,
-                    valor_solicitado: enrichedProcessData?.valor_total || process.value,
-                    descricao: enrichedProcessData?.descricao || process.purpose,
-                    status: enrichedProcessData?.status || process.status,
+                    nome: enrichedProcessData?.servidor_dados?.nome || enrichedProcessData?.suprido_nome || process.suprido?.nome,
+                    cpf: enrichedProcessData?.servidor_dados?.cpf || enrichedProcessData?.perfil_cpf || process.suprido?.cpf,
+                    banco: enrichedProcessData?.banco || process.banco,
+                    agencia: enrichedProcessData?.agencia || process.agencia,
+                    conta_corrente: enrichedProcessData?.conta || process.conta,
+                    valor_solicitado: enrichedProcessData?.valor_total || process.valor_total,
+                    descricao: enrichedProcessData?.justificativa || process.justificativa,
+                    status: process.status,
                     has_certidao_regularidade: hasCertidaoAtesto
                   }}
+                  executionDocuments={executionDocuments}
                 />
               </div>
               <div className="space-y-8">{renderFinancialImpact()}<div className="bg-slate-50 p-6 rounded-3xl border border-slate-200"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Parecer do Analista</h4><textarea className="w-full h-32 bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Insira observações técnicas ou ressalvas aqui..."></textarea></div></div>
