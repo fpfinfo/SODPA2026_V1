@@ -49,7 +49,14 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
   const [zoomLevel, setZoomLevel] = useState(100);
 
   const handleViewDocument = (doc: any) => {
-    setSelectedPreviewDoc(doc);
+    // Wrap the document in the format expected by the renderer
+    // The renderer expects { id, title, type, originalDoc } structure
+    setSelectedPreviewDoc({
+      id: doc.id,
+      title: doc.titulo || doc.nome || 'Documento',
+      type: 'DYNAMIC',
+      originalDoc: doc,
+    });
     setShowPdfViewer(true);
   };
 
