@@ -759,23 +759,27 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   };
 
   // Draft CRUD Functions
-  const handleOpenDraftEdit = () => {
-    if (!selectedProcess) return;
+  // Draft CRUD Functions
+  const handleOpenDraftEdit = (processToEdit?: any) => {
+    // Check if processToEdit is a DOM event (has preventDefault) or null, if so use selectedProcess
+    const target = (processToEdit && !processToEdit.preventDefault) ? processToEdit : selectedProcess;
+    
+    if (!target) return;
 
+    // Determine Type
+    const isJuri = target.tipo === 'Sessão de Júri' || (target.nup && target.nup.includes('JURI'));
+    
     // Helper to safely parse JSON or return default
     const safeParse = (data: any, defaultValue: any) => {
         if (!data) return defaultValue;
         if (typeof data === 'string') {
             try { return JSON.parse(data); } catch { return defaultValue; }
         }
-        return data; // Assume it's already object if not string
+        return data; 
     };
-
-    // Determine Type
-    const isJuri = selectedProcess.tipo === 'Sessão de Júri' || (selectedProcess.nup && selectedProcess.nup.includes('JURI'));
     
     // Parse Items with robust fallback
-    let parsedItems = safeParse(selectedProcess.itens_despesa, []);
+    let parsedItems = safeParse(target.itens_despesa, []);
     if (!Array.isArray(parsedItems)) parsedItems = [];
     parsedItems = parsedItems.map((item: any) => ({
         id: item.id || Math.random().toString(),
@@ -786,21 +790,21 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     }));
     
     // Parse Juri Items
-    let parsedJuriItems = safeParse(selectedProcess.juri_projecao_custos, DEFAULT_JURI_ITEMS);
+    let parsedJuriItems = safeParse(target.juri_projecao_custos, DEFAULT_JURI_ITEMS);
     if (!Array.isArray(parsedJuriItems)) parsedJuriItems = DEFAULT_JURI_ITEMS;
     
     // Parse Participants
-    let parsedParticipants = safeParse(selectedProcess.juri_participantes, INITIAL_FORM_STATE.juriParticipants);
-    // Sanitize participants values to ensure they are numbers
+    let parsedParticipants = safeParse(target.juri_participantes, INITIAL_FORM_STATE.juriParticipants);
+    // Sanitize participants values
     const safeParticipants = { ...INITIAL_FORM_STATE.juriParticipants };
     if (parsedParticipants && typeof parsedParticipants === 'object') {
         Object.keys(safeParticipants).forEach(key => {
-            // @ts-ignore - dynamic key access
+            // @ts-ignore
             safeParticipants[key] = Number(parsedParticipants[key]) || 0;
         });
     }
 
-    // Parse Dates (split time if present to fit input type="date")
+    // Parse Dates
     const safeDate = (dateStr: any) => {
         if (!dateStr) return '';
         if (typeof dateStr !== 'string') return '';
@@ -809,23 +813,23 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
     setFormState({
         ...INITIAL_FORM_STATE,
-        nup: selectedProcess.nup,
-        type: selectedProcess.tipo || (isJuri ? 'Sessão de Júri' : 'Extra-Emergencial'),
-        startDate: safeDate(selectedProcess.data_inicio),
-        endDate: safeDate(selectedProcess.data_fim),
-        desc: selectedProcess.descricao || selectedProcess.desc || '',
-        urgency: selectedProcess.urgencia || 'Normal',
+        nup: target.nup,
+        type: target.tipo || (isJuri ? 'Sessão de Júri' : 'Extra-Emergencial'),
+        startDate: safeDate(target.data_inicio),
+        endDate: safeDate(target.data_fim),
+        desc: target.descricao || target.desc || '',
+        urgency: target.urgencia || 'Normal',
         items: !isJuri ? parsedItems : [],
         // Juri Fields
         juriParticipants: safeParticipants,
-        juriComarca: selectedProcess.comarca_destino || 'Mãe do Rio',
-        juriProcessNumber: selectedProcess.processo_judicial || '',
-        juriMealFreq: selectedProcess.juri_frequencia_refeicoes || INITIAL_FORM_STATE.juriMealFreq,
-        juriDays: Number(selectedProcess.juri_dias) || 1,
+        juriComarca: target.comarca_destino || 'Mãe do Rio',
+        juriProcessNumber: target.processo_judicial || '',
+        juriMealFreq: target.juri_frequencia_refeicoes || INITIAL_FORM_STATE.juriMealFreq,
+        juriDays: Number(target.juri_dias) || 1,
         juriProjectionItems: isJuri ? parsedJuriItems : DEFAULT_JURI_ITEMS,
     });
     
-    setEditingProcessId(selectedProcess.id);
+    setEditingProcessId(target.id);
     setCurrentView('FORM');
     if (isJuri) setWizardStep(1);
     setIsEditingDraft(true); 
@@ -1349,8 +1353,43 @@ const INITIAL_FORM_STATE: FormState = {
                                 </span>
                             </div>
                             
-                            <div className="text-slate-300 group-hover:text-blue-600 transition-colors">
-                                <ChevronRight size={24} />
+                            {/* Actions Group */}
+                            <div className="flex items-center gap-2 pl-2">
+                                {/* Direct Edit for Drafts */}
+                                {isEditableProcess(p.status) && (
+                                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                       <button 
+                                          onClick={(e) => {
+                                             e.stopPropagation();
+                                             // setSelectedProcess is not needed if we pass p direct, 
+                                             // but good to set it for context if we go back
+                                             setSelectedProcess(p);
+                                             handleOpenDraftEdit(p);
+                                          }}
+                                          className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 hover:scale-110 transition-all border border-amber-100"
+                                          title="Editar"
+                                       >
+                                          <Edit size={18} />
+                                       </button>
+                                       {isDeletableProcess(p.status) && (
+                                          <button 
+                                             onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedProcess(p);
+                                                setShowDeleteDraftConfirm(true);
+                                             }}
+                                             className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 hover:scale-110 transition-all border border-red-100"
+                                             title="Excluir"
+                                          >
+                                             <Trash2 size={18} />
+                                          </button>
+                                       )}
+                                   </div>
+                                )}
+                                
+                                <div className="text-slate-300 group-hover:text-blue-600 transition-colors p-2">
+                                   <ChevronRight size={24} />
+                                </div>
                             </div>
                         </div>
                     </div>
