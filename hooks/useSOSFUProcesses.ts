@@ -205,6 +205,23 @@ export const useSOSFUProcesses = () => {
   const getPrestacoes = () => processes.filter(p => getCategory(p) === 'PRESTACAO');
   const getInbox = () => processes.filter(p => !p.assignedToId);
 
+  // Archive filters - for completed processes
+  const getSolicitacoesConcluidas = () => processes.filter(p => {
+    const status = (p.status as string)?.toUpperCase() || '';
+    return status.includes('SOLICITAÇÃO CONCLUÍDA') || 
+           status.includes('SOLICITACAO CONCLUIDA') ||
+           status === 'CONCLUIDA' ||
+           status === 'SOLICITAÇÃO_CONCLUÍDA';
+  });
+
+  const getPCConcluidas = () => processes.filter(p => {
+    const status = (p.status as string)?.toUpperCase() || '';
+    return status.includes('PC CONCLUÍDA') || 
+           status.includes('PC CONCLUIDA') ||
+           status.includes('PRESTAÇÃO CONCLUÍDA') ||
+           status === 'PC_CONCLUÍDA';
+  });
+
   // Assign process to user
   const assignToUser = async (processId: string, userId: string) => {
     const { error } = await supabase
@@ -307,6 +324,9 @@ export const useSOSFUProcesses = () => {
     getMinhaMesa,
     getFluxoSefin,
     getAguardPC,
+    // Archive filters
+    getSolicitacoesConcluidas,
+    getPCConcluidas,
     // Actions
     assignToUser,
     updateExecutionNumbers,

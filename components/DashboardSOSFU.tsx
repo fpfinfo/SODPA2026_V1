@@ -89,6 +89,9 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     getMinhaMesa,
     getFluxoSefin,
     getAguardPC,
+    // Archive filter functions
+    getSolicitacoesConcluidas,
+    getPCConcluidas,
     // Action functions
     assignToUser,
     updateExecutionNumbers,
@@ -513,15 +516,28 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
             <FinancialRegistry processes={getFilteredList()} type={financeSubTab} isLoading={isLoading} onManageTables={() => setActiveTab('INSS_TABLES')}/>
           </div>
                 ) : isConcessionTab ? (
-          <ConcessionManager 
-            processes={processes} 
-            onUpdateStatus={handleMoveProcess} 
-            onUpdateExecutionNumbers={updateExecutionNumbers}
-            onTramitToSefin={tramitToSefin}
-            onCompleteExecution={completeExecution}
-            refresh={refreshProcesses}
-            budgetCap={budget.totalCap} 
-          />
+          /* Aba Concessão - Arquivo de Solicitações Concluídas */
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-600 rounded-lg text-white"><CheckSquare size={20} /></div>
+                <div>
+                  <h3 className="text-lg font-bold text-blue-800">Solicitações Concluídas</h3>
+                  <p className="text-xs text-blue-600">Processos com execução da despesa finalizada, aguardando prestação de contas</p>
+                </div>
+              </div>
+              <div className="text-2xl font-black text-blue-700">{getSolicitacoesConcluidas().length} processos</div>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+              <ListView 
+                processes={getSolicitacoesConcluidas()} 
+                onViewDetails={(p) => { setSelectedProcess(p); setDetailsModalTab('DETAILS'); }} 
+                onAction={(action, id) => handleAction(action, id)} 
+                staffWorkload={{}} 
+                isLoading={isLoading} 
+              />
+            </div>
+          </div>
         ) : isBudgetTab ? (
           <div className="h-full overflow-y-auto custom-scrollbar p-6">
             <BudgetPlanningDashboard />
@@ -550,29 +566,27 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
             
           </div>
         ) : (
-          <div className="h-full flex flex-col">
-             {activeTab === 'ACCOUNTABILITY' && (
-               <div className="bg-indigo-900 rounded-2xl p-6 mb-6 shadow-xl flex items-center justify-between text-white relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><ShieldCheck size={120} /></div>
-                 <div className="relative z-10">
-                   <h3 className="text-lg font-black uppercase tracking-tight mb-1 flex items-center gap-2">Sentinela <span className="bg-indigo-800 text-indigo-200 text-[10px] px-2 py-0.5 rounded">IA Ativa</span></h3>
-                   <p className="text-xs text-indigo-300">Análise automatizada de conformidade e riscos.</p>
-                 </div>
-                 <div className="flex gap-4 relative z-10">
-                   <button onClick={() => setAuditFilter('CRITICAL')} className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${auditFilter === 'CRITICAL' ? 'bg-red-500/20 border-red-400' : 'border-white/10 hover:bg-white/5'}`}>
-                     <ShieldAlert className="text-red-400" size={20} />
-                     <div className="text-left"><p className="text-[10px] font-bold text-red-300 uppercase">Risco Crítico</p><p className="text-xl font-black leading-none">{auditStats.critical}</p></div>
-                   </button>
-                   <button onClick={() => setAuditFilter('PENDING')} className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${auditFilter === 'PENDING' ? 'bg-blue-500/20 border-blue-400' : 'border-white/10 hover:bg-white/5'}`}>
-                     <ShieldCheck className="text-blue-400" size={20} />
-                     <div className="text-left"><p className="text-[10px] font-bold text-blue-300 uppercase">A Verificar</p><p className="text-xl font-black leading-none">{auditStats.pending}</p></div>
-                   </button>
-                   {auditFilter !== 'ALL' && (<button onClick={() => setAuditFilter('ALL')} className="p-2 hover:bg-white/10 rounded-full transition-colors text-indigo-300" title="Limpar Filtros"><X size={16}/></button>)}
-                 </div>
-               </div>
-             )}
-            
-            <div className="flex-1 overflow-hidden"><div className="h-full overflow-y-auto custom-scrollbar bg-white rounded-2xl border border-slate-200 shadow-sm"><ListView processes={getFilteredList()} onViewDetails={(p) => { setSelectedProcess(p); setDetailsModalTab('DETAILS'); }} onAction={(action, id) => handleAction(action, id)} staffWorkload={{}} isLoading={isLoading} /></div></div>
+          /* Aba Prestação de Contas - Arquivo de PCs Concluídas */
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-indigo-600 rounded-lg text-white"><ShieldCheck size={20} /></div>
+                <div>
+                  <h3 className="text-lg font-bold text-indigo-800">Prestações de Contas Concluídas</h3>
+                  <p className="text-xs text-indigo-600">Processos com PC finalizada, aguardando baixa SIAFE</p>
+                </div>
+              </div>
+              <div className="text-2xl font-black text-indigo-700">{getPCConcluidas().length} processos</div>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+              <ListView 
+                processes={getPCConcluidas()} 
+                onViewDetails={(p) => { setSelectedProcess(p); setDetailsModalTab('DETAILS'); }} 
+                onAction={(action, id) => handleAction(action, id)} 
+                staffWorkload={{}} 
+                isLoading={isLoading} 
+              />
+            </div>
           </div>
         )}
       </div>
