@@ -113,6 +113,7 @@ export const useSOSFUProcesses = () => {
         type: p.tipo === 'ACCOUNTABILITY' ? ProcessType.ACCOUNTABILITY : ProcessType.CONCESSION,
         status: p.status,
         value: p.valor_solicitado || 0,
+        purpose: p.descricao,
         createdAt: p.created_at,
         updated_at: p.updated_at,
         user_id: p.user_id,
