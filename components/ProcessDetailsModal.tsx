@@ -258,7 +258,22 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
           <button onClick={onClose} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-full transition-all text-slate-500"><X size={20} /></button>
         </div>
 
-        <div className="bg-slate-50 px-10 border-b border-slate-200 flex items-center gap-2">{[{ id: 'DETAILS', label: 'Visão Geral', icon: Info }, { id: 'DOSSIER', label: 'Dossiê Digital', icon: FileText }, { id: 'ANALYSIS', label: 'Análise Técnica', icon: ShieldCheck }].map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`py-4 px-6 text-xs font-bold uppercase tracking-widest flex items-center gap-2 border-b-4 transition-all ${activeTab === tab.id ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-sm -mb-[2px]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}><tab.icon size={16}/> {tab.label}</button>))}</div>
+        <div className="flex border-b border-slate-200 bg-slate-50 px-10">
+          {[
+            { id: 'OVERVIEW', label: 'Visão Geral', icon: Eye }, 
+            { id: 'DOSSIER', label: 'Dossiê Digital', icon: FolderOpen },
+            { id: 'EXECUTION', label: 'Execução da Despesa', icon: Receipt },
+            { id: 'ANALYSIS', label: 'Análise Técnica', icon: ShieldCheck }
+          ].map(tab => (
+            <button 
+              key={tab.id} 
+              onClick={() => setActiveTab(tab.id as any)} 
+              className={`py-4 px-6 text-xs font-bold uppercase tracking-widest flex items-center gap-2 border-b-4 transition-all ${activeTab === tab.id ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-sm -mb-[2px]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            >
+              <tab.icon size={16}/> {tab.label}
+            </button>
+          ))}
+        </div>
 
         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-white">
           {activeTab === 'OVERVIEW' && (
