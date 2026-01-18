@@ -3,6 +3,7 @@ import { Process, ProcessType, Role, AccountStatus } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { UniversalDossierPanel } from './ProcessDetails/UniversalDossierPanel';
 import { DetailsTab } from './ProcessDetails/Tabs/DetailsTab';
+import { ExecutionTab } from './ProcessDetails/Tabs/ExecutionTab';
 import { ConformityChecklist } from './ConformityChecklist';
 import { useProcessDetails } from '../hooks/useProcessDetails';
 import { useOrcamentoSOSFU } from '../hooks/useOrcamentoSOSFU';
@@ -54,8 +55,8 @@ interface ProcessDetailsModalProps {
   teamMembers?: { id: string; nome: string; avatar_url: string | null }[];
 }
 
-export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ process, onClose, initialTab = 'DETAILS', teamMembers = [] }) => {
-  const [activeTab, setActiveTab] = useState<'DETAILS' | 'ANALYSIS' | 'DOSSIER'>(initialTab);
+export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ process, onClose, initialTab = 'OVERVIEW', teamMembers = [] }) => {
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'DOSSIER' | 'EXECUTION' | 'ANALYSIS'>(initialTab);
   const [checklist, setChecklist] = useState({ regularidade: false, atestoGestor: process.status === 'PENDENTE SOSFU', orcamento: false, identificacao: true });
   const [showRegularityModal, setShowRegularityModal] = useState(false);
   const [checkStep, setCheckStep] = useState<'IDLE' | 'SCANNING' | 'RESULTS'>('IDLE');
@@ -260,7 +261,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
         <div className="bg-slate-50 px-10 border-b border-slate-200 flex items-center gap-2">{[{ id: 'DETAILS', label: 'Visão Geral', icon: Info }, { id: 'DOSSIER', label: 'Dossiê Digital', icon: FileText }, { id: 'ANALYSIS', label: 'Análise Técnica', icon: ShieldCheck }].map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`py-4 px-6 text-xs font-bold uppercase tracking-widest flex items-center gap-2 border-b-4 transition-all ${activeTab === tab.id ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-sm -mb-[2px]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}><tab.icon size={16}/> {tab.label}</button>))}</div>
 
         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-white">
-          {activeTab === 'DETAILS' && (
+          {activeTab === 'OVERVIEW' && (
             <div className="flex flex-col gap-8 animate-in fade-in">
               {/* Detailed 4-Card View */}
               <div className="-mx-8 -mt-8">
@@ -321,6 +322,14 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+          {activeTab === 'EXECUTION' && (
+            <div className="animate-in fade-in">
+              <ExecutionTab 
+                processData={process}
+                enrichedProcessData={enrichedProcessData}
+              />
             </div>
           )}
           {activeTab === 'ANALYSIS' && (
