@@ -264,6 +264,41 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
         </div>
       </div>
 
+      {/* Botão Enviar para SEFIN */}
+      {canSendToSEFIN && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6">
+          <div className="flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
+            <div className="flex-1">
+              <h4 className="font-black text-amber-900 mb-2">
+                Documentos Prontos para Assinatura
+              </h4>
+              <p className="text-sm text-amber-800 mb-4">
+                A Portaria, Certidão e Nota de Empenho foram geradas e precisam ser 
+                tramitadas para a SEFIN para assinatura.
+              </p>
+              <button
+                onClick={handleSendToSEFIN}
+                disabled={isSending}
+                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all"
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Tramitar para SEFIN (Assinatura)
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-3 bg-blue-100 rounded-xl">
