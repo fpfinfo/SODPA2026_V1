@@ -66,7 +66,7 @@ export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
         </div>
       </div>
 
-      {/* 📤 AGUARDANDO ASSINATURA */}
+      {/* 📤 FLUXO SEFIN (Aguardando + Assinados) */}
       <div 
         onClick={onAwaitingSignClick} 
         className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition-all cursor-pointer"
@@ -79,11 +79,17 @@ export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Fluxo SEFIN</span>
         </div>
         <div>
-          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.awaitingSignature}</h3>
+          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.awaitingSignature + (sosfuStats.signed || 0)}</h3>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-amber-600">Aguard. Assinatura</p>
-          <div className="flex items-center gap-1.5 mt-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
-            <span className="text-[10px] font-bold text-slate-400">{sosfuStats.solicitacoesAnalysis} em Análise Técnica</span>
+          <div className="flex gap-4 mt-2">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.awaitingSignature} Aguardando</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.signed || 0} Assinados</span>
+            </div>
           </div>
         </div>
       </div>
