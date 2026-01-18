@@ -736,6 +736,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
           .from('solicitacoes')
           .select('*')
           .eq('user_id', currentUser.id)  // Filter by logged-in user
+          .neq('status', 'EXCLUIDO')      // Filter out soft-deleted items
           .order('created_at', { ascending: false });
 
       if (historyError) throw historyError;
@@ -842,14 +843,12 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     try {
       // First delete related documents
       await supabase
-        .from('documentos')
-        .delete()
-        .eq('solicitacao_id', selectedProcess.id);
+      // Soft Delete: Update status to EXCLUIDO
+      // We do not delete documents physically to maintain audit trail (Soft Delete Rule)
       
-      // Then delete the draft
       const { error } = await supabase
         .from('solicitacoes')
-        .delete()
+        .update({ status: 'EXCLUIDO' })
         .eq('id', selectedProcess.id);
       
       if (error) throw error;
