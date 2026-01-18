@@ -762,46 +762,73 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const handleOpenDraftEdit = () => {
     if (!selectedProcess) return;
 
+    // Helper to safely parse JSON or return default
+    const safeParse = (data: any, defaultValue: any) => {
+        if (!data) return defaultValue;
+        if (typeof data === 'string') {
+            try { return JSON.parse(data); } catch { return defaultValue; }
+        }
+        return data; // Assume it's already object if not string
+    };
+
     // Determine Type
     const isJuri = selectedProcess.tipo === 'Sessão de Júri' || (selectedProcess.nup && selectedProcess.nup.includes('JURI'));
     
-    // Parse Items (if stored as JSON string)
-    let parsedItems = selectedProcess.itens_despesa;
-    if (typeof parsedItems === 'string') {
-        try { parsedItems = JSON.parse(parsedItems); } catch { parsedItems = []; }
-    }
-    // Ensure parsedItems is array
+    // Parse Items with robust fallback
+    let parsedItems = safeParse(selectedProcess.itens_despesa, []);
     if (!Array.isArray(parsedItems)) parsedItems = [];
+    parsedItems = parsedItems.map((item: any) => ({
+        id: item.id || Math.random().toString(),
+        element: item.element || '',
+        desc: item.desc || '',
+        qty: Number(item.qty) || 1,
+        val: Number(item.val) || 0
+    }));
     
     // Parse Juri Items
-    let parsedJuriItems = selectedProcess.juri_projecao_custos;
-    if (typeof parsedJuriItems === 'string') {
-        try { parsedJuriItems = JSON.parse(parsedJuriItems); } catch { parsedJuriItems = DEFAULT_JURI_ITEMS; }
-    }
+    let parsedJuriItems = safeParse(selectedProcess.juri_projecao_custos, DEFAULT_JURI_ITEMS);
     if (!Array.isArray(parsedJuriItems)) parsedJuriItems = DEFAULT_JURI_ITEMS;
+    
+    // Parse Participants
+    let parsedParticipants = safeParse(selectedProcess.juri_participantes, INITIAL_FORM_STATE.juriParticipants);
+    // Sanitize participants values to ensure they are numbers
+    const safeParticipants = { ...INITIAL_FORM_STATE.juriParticipants };
+    if (parsedParticipants && typeof parsedParticipants === 'object') {
+        Object.keys(safeParticipants).forEach(key => {
+            // @ts-ignore - dynamic key access
+            safeParticipants[key] = Number(parsedParticipants[key]) || 0;
+        });
+    }
+
+    // Parse Dates (split time if present to fit input type="date")
+    const safeDate = (dateStr: any) => {
+        if (!dateStr) return '';
+        if (typeof dateStr !== 'string') return '';
+        return dateStr.split('T')[0];
+    };
 
     setFormState({
         ...INITIAL_FORM_STATE,
         nup: selectedProcess.nup,
         type: selectedProcess.tipo || (isJuri ? 'Sessão de Júri' : 'Extra-Emergencial'),
-        startDate: selectedProcess.data_inicio || '',
-        endDate: selectedProcess.data_fim || '',
+        startDate: safeDate(selectedProcess.data_inicio),
+        endDate: safeDate(selectedProcess.data_fim),
         desc: selectedProcess.descricao || selectedProcess.desc || '',
         urgency: selectedProcess.urgencia || 'Normal',
         items: !isJuri ? parsedItems : [],
         // Juri Fields
-        juriParticipants: selectedProcess.juri_participantes || INITIAL_FORM_STATE.juriParticipants,
+        juriParticipants: safeParticipants,
         juriComarca: selectedProcess.comarca_destino || 'Mãe do Rio',
         juriProcessNumber: selectedProcess.processo_judicial || '',
         juriMealFreq: selectedProcess.juri_frequencia_refeicoes || INITIAL_FORM_STATE.juriMealFreq,
-        juriDays: selectedProcess.juri_dias || 1,
+        juriDays: Number(selectedProcess.juri_dias) || 1,
         juriProjectionItems: isJuri ? parsedJuriItems : DEFAULT_JURI_ITEMS,
     });
     
     setEditingProcessId(selectedProcess.id);
     setCurrentView('FORM');
     if (isJuri) setWizardStep(1);
-    setIsEditingDraft(true); // Maintain flag compatibility if needed for other logic, but main view is FORM
+    setIsEditingDraft(true); 
   };
 
   const handleDeleteDraft = async () => {
