@@ -46,6 +46,9 @@ export const GabineteOrdenadorView: React.FC<{
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectObservation, setRejectObservation] = useState('');
   const [isSigning, setIsSigning] = useState(false);
+  const [tokenPin, setTokenPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [showPinModal, setShowPinModal] = useState(false);
   const { showToast } = useToast();
 
   // Fetch pending documents
@@ -101,8 +104,28 @@ export const GabineteOrdenadorView: React.FC<{
     fetchPendingDocuments();
   }, []);
 
-  // Sign and tramit document
-  const handleSign = async () => {
+  // Open PIN modal before signing
+  const handleSign = () => {
+    if (!selectedDoc) return;
+    setShowPinModal(true);
+    setTokenPin('');
+    setPinError('');
+  };
+
+  // Validate PIN and then sign
+  const handlePinConfirm = () => {
+    if (tokenPin !== '123456') {
+      setPinError('Senha do token inválida. Tente novamente.');
+      return;
+    }
+    setPinError('');
+    setShowPinModal(false);
+    setTokenPin('');
+    performSign();
+  };
+
+  // Sign and tramit document (actual logic)
+  const performSign = async () => {
     if (!selectedDoc) return;
     setIsSigning(true);
     
@@ -451,6 +474,56 @@ export const GabineteOrdenadorView: React.FC<{
                 className="flex-1 py-3 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-all"
               >
                 Confirmar Devolução
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PIN Modal for Signature */}
+      {showPinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <FileSignature size={32}/>
+              </div>
+              <h3 className="text-xl font-black text-slate-800">Assinatura Digital</h3>
+              <p className="text-sm text-slate-500 mt-2">
+                Digite a senha do token para assinar o documento.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                  Senha do Token / PIN
+                </label>
+                <input 
+                  type="password" 
+                  placeholder="••••••" 
+                  value={tokenPin}
+                  onChange={(e) => { setTokenPin(e.target.value); setPinError(''); }}
+                  className={`w-full p-3 bg-white border rounded-xl text-center text-lg font-black tracking-widest focus:ring-2 focus:ring-blue-500 outline-none ${
+                    pinError ? 'border-red-500' : 'border-slate-300'
+                  }`}
+                />
+                {pinError && (
+                  <p className="text-xs text-red-500 mt-2 text-center font-bold">{pinError}</p>
+                )}
+              </div>
+              <button 
+                onClick={handlePinConfirm}
+                disabled={isSigning}
+                className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-xl transition-all flex items-center justify-center gap-2"
+              >
+                <FileSignature size={16}/>
+                Confirmar Assinatura
+              </button>
+              <button 
+                onClick={() => { setShowPinModal(false); setTokenPin(''); setPinError(''); }}
+                className="w-full py-3 text-slate-500 font-bold text-xs hover:text-slate-800"
+              >
+                Cancelar
               </button>
             </div>
           </div>

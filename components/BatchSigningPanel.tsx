@@ -69,6 +69,9 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
   const [signingBatchId, setSigningBatchId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [tokenPin, setTokenPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pendingBatchId, setPendingBatchId] = useState<string | null>(null);
 
   const pendingBatches = useMemo(() => batches.filter(b => b.status === 'GERADO'), [batches]);
   const signedBatches = useMemo(() => batches.filter(b => b.status !== 'GERADO'), [batches]);
@@ -86,7 +89,29 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
     }
   };
 
-  const handleSign = async (batchId: string) => {
+  // Open PIN modal before signing
+  const handleSign = (batchId: string) => {
+    setPendingBatchId(batchId);
+    setTokenPin('');
+    setPinError('');
+  };
+
+  // Validate PIN and then sign
+  const handlePinConfirm = () => {
+    if (tokenPin !== '123456') {
+      setPinError('Senha do token inválida. Tente novamente.');
+      return;
+    }
+    if (!pendingBatchId) return;
+    setPinError('');
+    const batchToSign = pendingBatchId;
+    setPendingBatchId(null);
+    setTokenPin('');
+    performSign(batchToSign);
+  };
+
+  // Actual signing logic
+  const performSign = async (batchId: string) => {
     setSigningBatchId(batchId);
     setMessage(null);
     
@@ -333,6 +358,56 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
           <Package size={48} className="mx-auto text-slate-300 mb-4" />
           <h3 className="text-lg font-bold text-slate-600 mb-2">Nenhum Lote Gerado</h3>
           <p className="text-sm text-slate-400">Os lotes quadrimestrais aparecerão aqui após serem gerados pela SOSFU.</p>
+        </div>
+      )}
+
+      {/* PIN Modal for Signature */}
+      {pendingBatchId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <FileSignature size={32}/>
+              </div>
+              <h3 className="text-xl font-black text-slate-800">Assinatura de Lote</h3>
+              <p className="text-sm text-slate-500 mt-2">
+                Digite a senha do token para assinar o lote em bloco.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                  Senha do Token / PIN
+                </label>
+                <input 
+                  type="password" 
+                  placeholder="••••••" 
+                  value={tokenPin}
+                  onChange={(e) => { setTokenPin(e.target.value); setPinError(''); }}
+                  className={`w-full p-3 bg-white border rounded-xl text-center text-lg font-black tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none ${
+                    pinError ? 'border-red-500' : 'border-slate-300'
+                  }`}
+                />
+                {pinError && (
+                  <p className="text-xs text-red-500 mt-2 text-center font-bold">{pinError}</p>
+                )}
+              </div>
+              <button 
+                onClick={handlePinConfirm}
+                disabled={signingBatchId !== null}
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:from-indigo-700 hover:to-purple-700 shadow-xl transition-all flex items-center justify-center gap-2"
+              >
+                <FileSignature size={16}/>
+                Confirmar Assinatura
+              </button>
+              <button 
+                onClick={() => { setPendingBatchId(null); setTokenPin(''); setPinError(''); }}
+                className="w-full py-3 text-slate-500 font-bold text-xs hover:text-slate-800"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
