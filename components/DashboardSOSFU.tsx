@@ -110,6 +110,37 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const [redistributionSourceId, setRedistributionSourceId] = useState<string | null>(null);
   const [auditProcess, setAuditProcess] = useState<Process | null>(null);
   
+  // User capacity for task scheduling
+  const [userCapacity, setUserCapacity] = useState<number>(20);
+  
+  // Fetch user capacity from profile
+  useEffect(() => {
+    const fetchUserCapacity = async () => {
+      if (!currentUserId) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('capacidade_diaria')
+        .eq('id', currentUserId)
+        .single();
+      if (data?.capacidade_diaria) {
+        setUserCapacity(data.capacidade_diaria);
+      }
+    };
+    fetchUserCapacity();
+  }, [currentUserId]);
+  
+  // Handler to update user capacity
+  const handleCapacityChange = async (newCapacity: number) => {
+    if (!currentUserId) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ capacidade_diaria: newCapacity })
+      .eq('id', currentUserId);
+    if (!error) {
+      setUserCapacity(newCapacity);
+    }
+  };
+  
   // Budget configuration state (moved from BudgetManager)
   const [distributions, setDistributions] = useState<BudgetDistribution[]>(MOCK_BUDGET_MATRIX);
   const [adminBudgets, setAdminBudgets] = useState<AdminBudget[]>(MOCK_ADMIN_BUDGETS);
@@ -364,8 +395,9 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
           
           <TaskSchedulerPanel
             processes={schedulerProcesses}
-            capacity={20}
+            capacity={userCapacity}
             onSchedule={handleScheduleProcess}
+            onCapacityChange={handleCapacityChange}
             onViewDetails={(processId) => {
               const process = processes.find(p => p.id === processId);
               if (process) {
