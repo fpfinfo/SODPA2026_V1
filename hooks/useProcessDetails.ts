@@ -25,6 +25,7 @@ export interface ProcessData {
   unidade?: string;
   comarca?: string;
   lotacao?: string | null;
+  perfil_email?: string;
   servidor_dados?: {
     cpf?: string;
     vinculo?: string;
@@ -165,6 +166,7 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           unidade: profileData?.unidade_id,
           comarca: profileData?.comarca_id,
           lotacao: lotacao,
+          perfil_email: profileData?.email,
           servidor_dados: servidorExtras, // Adding new object
           dados_bancarios: data.dados_bancarios || (bankName ? {
             bankName: bankName,
