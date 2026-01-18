@@ -395,8 +395,10 @@ export const GestorDashboard: React.FC = () => {
             currentModule="GESTOR"
             onSuccess={() => {
               setShowTramitarModal(false);
-              setSelectedProcess(null);
               refetchProcesses();
+              // Navigate to history view to show the tramitation was successful
+              setView('DETAILS');
+              setSubView('HISTORY');
             }}
           />
         )}
