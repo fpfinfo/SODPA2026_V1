@@ -1,7 +1,6 @@
 // Shared Components - Reusable across modules
 export { ProcessCard } from './ProcessCard';
 export { ProcessDetailsModal } from './ProcessDetailsModal';
-export { KanbanBoard } from './KanbanBoard';
 export { ListView } from './ListView';
 export { KPIHeader } from './KPIHeader';
 export { TimelineHistory } from './TimelineHistory';
