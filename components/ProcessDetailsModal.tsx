@@ -31,6 +31,8 @@ import {
   FileCheck, 
   FileCode, 
   Eye, 
+  FolderOpen,
+  Receipt,
   Database, 
   Search, 
   History, 
