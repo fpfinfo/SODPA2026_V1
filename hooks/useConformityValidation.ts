@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { isValidCPF, normalizeCPF } from '../utils/cpfValidator';
+import { validateCPF, normalizeCPF } from '../utils/cpfValidator';
 
 export interface ValidationResult {
   valid: boolean;
@@ -14,20 +14,30 @@ export interface ChecklistItem {
   errorMessage?: string;
 }
 
+export interface ExecutionDocument {
+  id: string;
+  tipo: string;
+  status: 'PENDENTE' | 'GERADO' | 'ASSINADO';
+  titulo: string;
+}
+
 export interface ProcessData {
   id?: string;
-  suprido_nome?: string;
-  perfil_cpf?: string;
+  nome?: string;
+  cpf?: string;
   banco?: string;
   agencia?: string;
-  conta?: string;
+  conta_corrente?: string;
   valor_solicitado?: number;
   descricao?: string;
   status?: string;
   has_certidao_regularidade?: boolean;
 }
 
-export function useConformityValidation(processData: ProcessData) {
+export function useConformityValidation(
+  processData: ProcessData,
+  executionDocuments: ExecutionDocument[] = []
+) {
   
   const validateNomeCompleto = (nome?: string): ValidationResult => {
     if (!nome || nome.trim().length === 0) {
@@ -131,7 +141,7 @@ export function useConformityValidation(processData: ProcessData) {
     return { valid: true };
   };
 
-  const checklist = useMemo((): ChecklistItem[] => {
+  const checklist = useMemo((): { items: ChecklistItem[]; summary: any } => {
     const items: ChecklistItem[] = [];
 
     // 1. Nome Completo
@@ -196,8 +206,8 @@ export function useConformityValidation(processData: ProcessData) {
       description: processData.has_certidao_regularidade 
         ? 'Certidão de regularidade presente no dossiê'
         : 'Homologação da chefia imediata presente',
-      status: atestoResult.valid ? 'valid' : 'invalid',
-      errorMessage: atestoResult.error
+      status: atestoValidation.valid ? 'valid' : 'invalid',
+      errorMessage: atestoValidation.error
     });
 
     // 7. Portaria de Concessão
@@ -282,19 +292,21 @@ export function useConformityValidation(processData: ProcessData) {
   }, [processData, executionDocuments]);
 
   const overallStatus = useMemo(() => {
-    const hasInvalid = checklistResult.items.some(item => item.status === 'invalid');
-    const allValid = checklistResult.summary.allValid;
+    const hasInvalid = checklist.items.some(item => item.status === 'invalid');
+    const allValid = checklist.summary.allValid;
     
     if (hasInvalid) return 'has_errors';
     if (allValid) return 'complete';
     return 'incomplete';
-  }, [checklistResult]);
+  }, [checklist]);
 
   const allValid = useMemo(() => {
+    return checklist.summary.allValid;
   }, [checklist]);
 
   return {
-    checklist,
+    checklist: checklist.items,
+    summary: checklist.summary,
     overallStatus,
     allValid,
     validateNomeCompleto,
