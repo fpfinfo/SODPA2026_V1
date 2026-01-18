@@ -132,34 +132,40 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const [auditProcess, setAuditProcess] = useState<Process | null>(null);
   
   // User capacity for task scheduling
+  // Default to 20 - capacidade_diaria field doesn't exist in profiles table yet
   const [userCapacity, setUserCapacity] = useState<number>(20);
   
+  // TODO: Add capacidade_diaria column to profiles table migration
   // Fetch user capacity from profile
-  useEffect(() => {
-    const fetchUserCapacity = async () => {
-      if (!currentUserId) return;
-      const { data } = await supabase
-        .from('profiles')
-        .select('capacidade_diaria')
-        .eq('id', currentUserId)
-        .single();
-      if (data?.capacidade_diaria) {
-        setUserCapacity(data.capacidade_diaria);
-      }
-    };
-    fetchUserCapacity();
-  }, [currentUserId]);
+  // useEffect(() => {
+  //   const fetchUserCapacity = async () => {
+  //     if (!currentUserId) return;
+  //     const { data } = await supabase
+  //       .from('profiles')
+  //       .select('capacidade_diaria')
+  //       .eq('id', currentUserId)
+  //       .single();
+  //     if (data?.capacidade_diaria) {
+  //       setUserCapacity(data.capacidade_diaria);
+  //     }
+  //   };
+  //   fetchUserCapacity();
+  // }, [currentUserId]);
   
-  // Handler to update user capacity
+  // Handler to update user capacity (local only for now)
   const handleCapacityChange = async (newCapacity: number) => {
-    if (!currentUserId) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ capacidade_diaria: newCapacity })
-      .eq('id', currentUserId);
-    if (!error) {
-      setUserCapacity(newCapacity);
-    }
+    // TODO: Uncomment when capacidade_diaria column exists
+    // if (!currentUserId) return;
+    // const { error } = await supabase
+    //   .from('profiles')
+    //   .update({ capacidade_diaria: newCapacity })
+    //   .eq('id', currentUserId);
+    // if (!error) {
+    //   setUserCapacity(newCapacity);
+    // }
+    
+    // For now, just update local state
+    setUserCapacity(newCapacity);
   };
   
   // Budget configuration state (moved from BudgetManager)
