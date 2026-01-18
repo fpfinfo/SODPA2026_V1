@@ -5,6 +5,8 @@ import { UniversalDossierPanel } from './ProcessDetails/UniversalDossierPanel';
 import { DetailsTab } from './ProcessDetails/Tabs/DetailsTab';
 import { ConformityChecklist } from './ConformityChecklist';
 import { useProcessDetails } from '../hooks/useProcessDetails';
+import { useOrcamentoSOSFU } from '../hooks/useOrcamentoSOSFU';
+import { getBudgetLabel, shouldFetchFromSOSFU, getPTRESCategory } from '../utils/budgetUtils';
 import { 
   X, 
   Calendar, 
@@ -129,14 +131,88 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   );
 
   const renderFinancialImpact = () => {
-    const executedPercent = (budgetStats.executed / budgetStats.annualLimit) * 100;
-    const requestPercent = (budgetStats.currentRequest / budgetStats.annualLimit) * 100;
+    // Buscar PTRES da solicitação
+    const ptres = enrichedProcessData?.ptres;
+    const category = getPTRESCategory(ptres);
+    
+    // Buscar orçamento do SOSFU se aplicável
+    const { orcamento: orcamentoSOSFU } = useOrcamentoSOSFU(
+      shouldFetchFromSOSFU(ptres) ? ptres : undefined
+    );
+    
+    // Determinar dados do orçamento
+    const budgetLabel = getBudgetLabel(ptres);
+    const unitName = (category !== 'ESPECIFICO') 
+      ? 'SOSFU - SEFIN' 
+      : (enrichedProcessData?.unidade || budgetStats.unitName);
+    
+    const annualLimit = orcamentoSOSFU?.teto_anual || budgetStats.annualLimit;
+    const executed = orcamentoSOSFU?.executado || budgetStats.executed;
+    
+    const executedPercent = (executed / annualLimit) * 100;
+    const requestPercent = (budgetStats.currentRequest / annualLimit) * 100;
     const isOverBudget = executedPercent + requestPercent > 100;
+    
     return (
       <div className="bg-slate-900 p-8 rounded-[32px] text-white shadow-2xl relative overflow-hidden group">
-        <div className="flex items-center justify-between mb-8 relative z-10"><div className="flex items-center gap-4"><div className="p-3 bg-white/10 rounded-xl"><Landmark size={24}/></div><div><h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Orçamento da Unidade</h4><p className="text-lg font-bold leading-tight">{budgetStats.unitName}</p></div></div><div className="text-right"><p className="text-[10px] text-slate-400 font-bold uppercase">Teto Anual</p><p className="text-2xl font-black">{formatCurrency(budgetStats.annualLimit)}</p></div></div>
-        <div className="relative z-10 mb-8"><div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2"><span>Execução Atual</span><span>{executedPercent.toFixed(1)}%</span></div><div className="w-full h-6 bg-slate-800 rounded-full overflow-hidden flex border border-slate-700"><div style={{ width: `${executedPercent}%` }} className="h-full bg-blue-600 transition-all duration-1000 relative group/bar"><div className="absolute inset-0 bg-white/10 opacity-0 group-hover/bar:opacity-100 transition-opacity"></div></div><div style={{ width: `${requestPercent}%` }} className={`h-full ${isOverBudget ? 'bg-red-500' : 'bg-emerald-500'} transition-all duration-1000 relative flex items-center justify-center`}><div className="w-full h-full animate-pulse opacity-50 bg-white/20"></div></div></div><div className="flex justify-between mt-2"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-600"></div><span className="text-[10px] text-slate-400">Consumido</span></div><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${isOverBudget ? 'bg-red-500' : 'bg-emerald-500'}`}></div><span className={`text-[10px] font-bold ${isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>Impacto (+{formatCurrency(process.value)})</span></div></div></div>
-        <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-800 relative z-10"><div><p className="text-[10px] text-slate-500 font-bold uppercase">Disponível Antes</p><p className="text-sm font-bold text-slate-300">{formatCurrency(budgetStats.annualLimit - budgetStats.executed)}</p></div><div><p className="text-[10px] text-slate-500 font-bold uppercase">Disponível Após</p><p className={`text-xl font-black ${isOverBudget ? 'text-red-500' : 'text-emerald-400'}`}>{formatCurrency(budgetStats.annualLimit - budgetStats.executed - process.value)}</p></div></div>
+        <div className="flex items-center justify-between mb-8 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/10 rounded-xl">
+              <Landmark size={24}/>
+            </div>
+            <div>
+              <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">
+                {budgetLabel}
+              </h4>
+              <p className="text-lg font-bold leading-tight">{unitName}</p>
+              {ptres && (
+                <p className="text-xs text-slate-400 mt-1">PTRES: {ptres}</p>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-slate-400 font-bold uppercase">Teto Anual</p>
+            <p className="text-2xl font-black">{formatCurrency(annualLimit)}</p>
+          </div>
+        </div>
+        <div className="relative z-10 mb-8">
+          <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <span>Execução Atual</span>
+            <span>{executedPercent.toFixed(1)}%</span>
+          </div>
+          <div className="w-full h-6 bg-slate-800 rounded-full overflow-hidden flex border border-slate-700">
+            <div style={{ width: `${executedPercent}%` }} className="h-full bg-blue-600 transition-all duration-1000 relative group/bar">
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/bar:opacity-100 transition-opacity"></div>
+            </div>
+            <div style={{ width: `${requestPercent}%` }} className={`h-full ${isOverBudget ? 'bg-red-500' : 'bg-emerald-500'} transition-all duration-1000 relative flex items-center justify-center`}>
+              <div className="w-full h-full animate-pulse opacity-50 bg-white/20"></div>
+            </div>
+          </div>
+          <div className="flex justify-between mt-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+              <span className="text-[10px] text-slate-400">Consumido</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${isOverBudget ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
+              <span className={`text-[10px] font-bold ${isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>
+                Impacto (+{formatCurrency(process.value)})
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-800 relative z-10">
+          <div>
+            <p className="text-[10px] text-slate-500 font-bold uppercase">Disponível Antes</p>
+            <p className="text-sm font-bold text-slate-300">{formatCurrency(annualLimit - executed)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500 font-bold uppercase">Disponível Após</p>
+            <p className={`text-xl font-black ${isOverBudget ? 'text-red-500' : 'text-emerald-400'}`}>
+              {formatCurrency(annualLimit - executed - process.value)}
+            </p>
+          </div>
+        </div>
         <div className="absolute -bottom-10 -right-10 text-white opacity-[0.02] pointer-events-none"><PieChart size={250} /></div>
       </div>
     );
