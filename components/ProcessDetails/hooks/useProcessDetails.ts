@@ -86,7 +86,9 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
             email,
             banco,
             agencia,
-            conta_corrente
+            conta_corrente,
+            gestor_nome,
+            gestor_email
           )
         `)
         .eq('id', processId)
@@ -101,12 +103,14 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
         let bankName = null;
         let agency = null;
         let account = null;
+        let managerName = null;
+        let managerEmail = null;
 
-        // Fetch lotacao and bank data from servidores_tj using email
+        // Fetch lotacao AND bank data AND manager data from servidores_tj using email
         if (profileData?.email) {
           const { data: servidorData } = await supabase
             .from('servidores_tj')
-            .select('lotacao, banco, agencia, conta_corrente')
+            .select('lotacao, banco, agencia, conta_corrente, gestor_nome, gestor_email')
             .eq('email', profileData.email)
             .maybeSingle();
           
@@ -114,12 +118,35 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           bankName = servidorData?.banco;
           agency = servidorData?.agencia;
           account = servidorData?.conta_corrente;
+          managerName = servidorData?.gestor_nome;
+          managerEmail = servidorData?.gestor_email;
         }
 
         // Fallback to profile data if not found in servidores_tj
         bankName = bankName || profileData?.banco;
         agency = agency || profileData?.agencia;
         account = account || profileData?.conta_corrente;
+        
+        // Also fallback manager info from profile (if stored there) - note: columns might be different in profiles, checking standard
+        // In SupridoDashboard it saves to profiles with SAME keys: gestor_nome, gestor_email.
+        // But the VIEW select in line 80 didn't select them yet.
+        // Since we didn't add them to line 80, we can't key off profileData for them unless we add them.
+        // Assuming they are in profiles if saved there.
+        // Let's add them to the select in line 80 too (implied, but I need to modify line 80? No, I am replacing lines 98-146 only).
+        // I should probably edit line 80 separately or assume profileData access if I can't edit it here.
+        // Actually, if I don't select them in line 80, profileData won't have them.
+        // So I must prioritize servidores_tj OR I need to do another edit to select them.
+        
+        // However, I can try to access them if they ARE returned. `select *` in profiles linked? No, explicit list.
+        // I need to add gestor_nome/email to the profiles select.
+        
+        // Strategy: I'll focus this replacement on the LOGIC. 
+        // Then I will do a Second replacement to update the select list (lines 79-90).
+        // Or I can force a fetch here? No, better to update the explicit select.
+        
+        // But wait, replace_file_content is single contiguous block.
+        // Line 79-90 is far from 98.
+        // I will do TWO replaces. First the logic (this tool call). Then the query.
 
         const flattenedData: ProcessData = {
           ...data,
@@ -133,6 +160,10 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
             agency: agency || '',
             account: account || ''
           } : undefined),
+          gestor: (managerName || profileData?.gestor_nome) ? {
+              nome: managerName || profileData?.gestor_nome,
+              email: managerEmail || profileData?.gestor_email || 'N/A'
+          } : undefined
         };
         
         setProcessData(flattenedData);
