@@ -367,7 +367,8 @@ export const GestorDashboard: React.FC = () => {
   };
 
   // Use Universal Process Details Page when process is selected
-  if (selectedProcess) {
+  // BUT only if we're not in EDIT_DOC view (which is used for Certidão de Atesto)
+  if (selectedProcess && view !== 'EDIT_DOC') {
     return (
       <>
         <UniversalProcessDetailsPage

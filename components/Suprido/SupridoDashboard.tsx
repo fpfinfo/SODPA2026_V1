@@ -4046,15 +4046,10 @@ Assinado eletronicamente pelo servidor suprido.`,
                   setCurrentView('DASHBOARD');
                 }}
                 canTramitar={true}
-                canGenerateAtesto={
-                  (selectedProcess?.status?.toLowerCase() === 'pendente_atesto') ||
-                  (selectedProcess?.status?.toLowerCase() === 'pendente atesto') ||
-                  (selectedProcess?.status?.toLowerCase()?.includes('pendente') && selectedProcess?.status?.toLowerCase()?.includes('atesto'))
-                }
+                canGenerateAtesto={false}  // CRITICAL: Suprido NEVER generates Atesto - only Gestor
                 canCreateDocument={true}
-                isLoadingAtesto={isLoadingAtesto}
                 onTramitar={() => setShowTramitarModal(true)}
-                onGenerateAtesto={handleGenerateAtesto}
+                // onGenerateAtesto removed - Suprido cannot attest
                 onCreateDocument={() => setShowDocumentWizard(true)}
               />
             )}
