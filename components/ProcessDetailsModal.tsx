@@ -94,6 +94,12 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
     checkCertidao();
   }, [process.id]);
 
+  // Fetch SOSFU budget if applicable
+  const ptres = enrichedProcessData?.ptres;
+  const { orcamento: orcamentoSOSFU } = useOrcamentoSOSFU(
+    shouldFetchFromSOSFU(ptres) ? ptres : undefined
+  );
+
   const assignedStaff = teamMembers.find(s => s.id === process.assignedToId);
   const isConcession = process.type === ProcessType.CONCESSION;
   const isTCE = process.type === ProcessType.SPECIAL_ACCOUNT;
@@ -134,14 +140,10 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   );
 
   const renderFinancialImpact = () => {
-    // Buscar PTRES da solicitação
-    const ptres = enrichedProcessData?.ptres;
+    // Usar PTRES da solicitação (já definido no escopo do componente)
     const category = getPTRESCategory(ptres);
     
-    // Buscar orçamento do SOSFU se aplicável
-    const { orcamento: orcamentoSOSFU } = useOrcamentoSOSFU(
-      shouldFetchFromSOSFU(ptres) ? ptres : undefined
-    );
+    // orcamentoSOSFU já foi buscado no nível do componente
     
     // Determinar dados do orçamento
     const budgetLabel = getBudgetLabel(ptres);
