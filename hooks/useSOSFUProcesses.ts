@@ -121,7 +121,12 @@ export const useSOSFUProcesses = () => {
         dlNumber: p.dl_numero,
         obNumber: p.ob_numero,
         interestedParty: p.profiles?.nome || 'Suprido',
-        priority: p.priority || 'NORMAL'
+        priority: p.priority || 'NORMAL',
+        // Scheduling fields
+        data_planejada: p.data_planejada,
+        prioridade_usuario: p.prioridade_usuario,
+        notas_planejamento: p.notas_planejamento,
+        supplyCategory: p.tipo === 'EXTRAORDINARIO' ? 'EXTRAORDINARY' : 'ORDINARY',
       }));
 
       setProcesses(mappedProcesses);

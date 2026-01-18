@@ -345,7 +345,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     const schedulerProcesses = listData.map(p => ({
       id: p.id,
       nup: p.protocolNumber,
-      tipo: p.supplyCategory === 'EXTRAORDINARY' ? 'EXTRAORDINARIO' : 'ORDINARIO',
+      tipo: (p as any).supplyCategory === 'EXTRAORDINARY' ? 'EXTRAORDINARIO' : 'ORDINARIO',
       valor_total: p.value,
       suprido_nome: p.interestedParty,
       status: p.status as string,
@@ -356,15 +356,20 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
 
     // Handler for scheduling process
     const handleScheduleProcess = async (processId: string, date: string | null, priority?: number, notes?: string) => {
+      console.log('Scheduling process:', { processId, date, priority, notes });
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('solicitacoes')
           .update({
             data_planejada: date,
             prioridade_usuario: priority,
             notas_planejamento: notes,
           })
-          .eq('id', processId);
+          .eq('id', processId)
+          .select();
+        
+        console.log('Schedule update result:', { data, error });
+        
         if (error) throw error;
         refreshProcesses();
       } catch (err) {
