@@ -15,9 +15,11 @@ export interface AnalyticItem {
 export interface FinancialAnalyticsData {
   // Budget
   budget: {
-    total: number; // Teto Global (hardcoded ou fetched) -> Vamos usar fixo por enquanto ou somar do banco se houver tabela de teto
+    total: number;
     executed: number;
     percentage: number;
+    executedOrdinary?: number;
+    executedExtraordinary?: number;
   };
   
   // Charts
@@ -270,7 +272,9 @@ export const useFinancialAnalytics = () => {
         budget: {
           total: TETO_ORCAMENTARIO_GLOBAL,
           executed: totalExecuted,
-          percentage: (totalExecuted / TETO_ORCAMENTARIO_GLOBAL) * 100
+          percentage: (totalExecuted / TETO_ORCAMENTARIO_GLOBAL) * 100,
+          executedOrdinary: typeMap.get('Ordinário') || 0,
+          executedExtraordinary: (typeMap.get('Extraordinário - Emergencial') || 0) + (typeMap.get('Extraordinário - Júri') || 0)
         },
         byElement: byElementArray,
         byType: byTypeArray,

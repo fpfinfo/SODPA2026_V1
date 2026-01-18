@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { FilterTab, ViewMode, ProcessType, Process, ProcessStatus, ConcessionStatus, AccountStatus, SupplyCategory, AnnualBudget, BudgetDistribution, AdminBudget, BudgetRule } from '../types';
-import { MOCK_PROCESSES, CURRENT_USER_ID, INITIAL_BUDGET, MOCK_BUDGET_MATRIX, MOCK_ADMIN_BUDGETS, MOCK_BUDGET_RULES } from '../constants';
+import { CURRENT_USER_ID, INITIAL_BUDGET } from '../constants';
 import { KPIHeader } from './KPIHeader';
 import { ListView } from './ListView';
 import { FinancialRegistry } from './FinancialRegistry';
@@ -21,6 +21,7 @@ import { SiafeManager } from './SiafeManager';
 import { ExpenseExecutionWizard } from './Execution/ExpenseExecutionWizard';
 import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
 import { useSOSFUProcesses, SOSFUStats } from '../hooks/useSOSFUProcesses';
+import { useFinancialAnalytics } from '../hooks/useFinancialAnalytics';
 import { useRoleRequests, ROLE_LABELS, RoleRequest } from '../hooks/useRoleRequests';
 import { useTeamMembers, TeamMember } from '../hooks/useTeamMembers';
 import { DashboardCardsPanel, CardMode } from './DashboardSOSFU/DashboardCardsPanel';
@@ -101,7 +102,21 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     onProcessesChange?.(processes);
   }, [processes, onProcessesChange]);
 
+  const { budget: analyticsBudget, isLoading: isBudgetLoading } = useFinancialAnalytics();
   const [budget, setBudget] = useState<AnnualBudget>(INITIAL_BUDGET);
+
+  // Sync budget from analytics
+  useEffect(() => {
+    if (analyticsBudget && !isBudgetLoading) {
+      setBudget({
+        year: 2026,
+        totalCap: analyticsBudget.total,
+        executedOrdinary: analyticsBudget.executedOrdinary || 0,
+        executedExtraordinary: analyticsBudget.executedExtraordinary || 0,
+        actions: []
+      });
+    }
+  }, [analyticsBudget, isBudgetLoading]);
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL');
   const [viewMode, setViewMode] = useState<SosfuViewMode>('DASHBOARD');
   const [listFilter, setListFilter] = useState<ListFilterType>('INBOX');
@@ -148,9 +163,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   };
   
   // Budget configuration state (moved from BudgetManager)
-  const [distributions, setDistributions] = useState<BudgetDistribution[]>(MOCK_BUDGET_MATRIX);
-  const [adminBudgets, setAdminBudgets] = useState<AdminBudget[]>(MOCK_ADMIN_BUDGETS);
-  const [budgetRules, setBudgetRules] = useState<BudgetRule[]>(MOCK_BUDGET_RULES);
+  // MOCK states removed - data is now fetched inside BudgetManager via useBudgetData hook or passed appropriately
   const [showMatrix, setShowMatrix] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [financeSubTab, setFinanceSubTab] = useState<'TAX_INSS' | 'GDR_CONTROL'>('TAX_INSS');
