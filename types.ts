@@ -102,8 +102,10 @@ export enum ConcessionStatus {
   TRIAGE = 'Triagem',
   ANALYSIS = 'Análise Técnica',
   AWAITING_SIGNATURE = 'AGUARDANDO_ASSINATURA', // Novo status para fluxo SEFIN
+  SIGNATURE = 'ASSINATURA', // Status de assinatura em andamento
   FINANCE = 'FINANCEIRO',
   COMPLETE = 'CONCLUIDO',
+  GRANTED = 'CONCEDIDO', // Status concluído com sucesso
   // Novos status de tramitação institucional
   SENT_TO_SEFIN = 'ENVIADO_SEFIN',
   RETURNED_FROM_SEFIN = 'RETORNADO_SEFIN'

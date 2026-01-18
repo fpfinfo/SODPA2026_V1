@@ -1,0 +1,42 @@
+components/Execution/ExpenseExecutionWizard.tsx(280,138): error TS2339: Property 'suprido_nome' does not exist on type 'ProcessData'.
+components/Execution/ExpenseExecutionWizard.tsx(280,197): error TS2339: Property 'valor_total' does not exist on type 'ProcessData'.
+components/Execution/ExpenseExecutionWizard.tsx(320,129): error TS2339: Property 'suprido_nome' does not exist on type 'ProcessData'.
+components/Execution/ExpenseExecutionWizard.tsx(320,188): error TS2339: Property 'valor_total' does not exist on type 'ProcessData'.
+components/Execution/ExpenseExecutionWizard.tsx(374,107): error TS2339: Property 'suprido_nome' does not exist on type 'ProcessData'.
+components/Execution/ExpenseExecutionWizard.tsx(375,102): error TS2339: Property 'suprido_nome' does not exist on type 'ProcessData'.
+components/Execution/ExpenseExecutionWizard.tsx(392,43): error TS2339: Property 'valor_total' does not exist on type 'ProcessData'.
+components/FinancialRegistry.tsx(198,106): error TS2339: Property 'providerName' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(199,28): error TS2339: Property 'providerName' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(202,28): error TS2339: Property 'providerBirthDate' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(202,59): error TS2339: Property 'providerBirthDate' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(205,28): error TS2551: Property 'providerPisNit' does not exist on type 'Process'. Did you mean 'providerPis'?
+components/FinancialRegistry.tsx(217,156): error TS2339: Property 'nup' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(218,30): error TS2339: Property 'nup' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(222,28): error TS2339: Property 'portariaSf' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(227,96): error TS2339: Property 'serviceDescription' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(227,120): error TS2339: Property 'subject' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(228,28): error TS2339: Property 'serviceDescription' does not exist on type 'Process'.
+components/FinancialRegistry.tsx(228,52): error TS2339: Property 'subject' does not exist on type 'Process'.
+components/Gestor/GestorDashboard.tsx(1024,35): error TS2339: Property 'status' does not exist on type 'DocPiece | { id: any; num: string; title: any; desc: string; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 10 more ...; isOwner: boolean; }'.
+  Property 'status' does not exist on type 'DocPiece'.
+components/Gestor/GestorDashboard.tsx(1035,41): error TS2339: Property 'status' does not exist on type 'DocPiece | { id: any; num: string; title: any; desc: string; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 10 more ...; isOwner: boolean; }'.
+  Property 'status' does not exist on type 'DocPiece'.
+components/Gestor/GestorDashboard.tsx(1049,41): error TS2339: Property 'isOwner' does not exist on type 'DocPiece | { id: any; num: string; title: any; desc: string; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 10 more ...; isOwner: boolean; }'.
+  Property 'isOwner' does not exist on type 'DocPiece'.
+components/Gestor/GestorDashboard.tsx(1072,62): error TS2339: Property 'isOwner' does not exist on type 'DocPiece | { id: any; num: string; title: any; desc: string; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 10 more ...; isOwner: boolean; }'.
+  Property 'isOwner' does not exist on type 'DocPiece'.
+components/ProcessDetailsDemo.tsx(2,45): error TS2307: Cannot find module '../ProcessDetails' or its corresponding type declarations.
+components/Suprido/SupridoDashboard.tsx(1163,124): error TS2339: Property 'val' does not exist on type 'FormState | { type: any; items: any; startDate: any; endDate: any; val: any; }'.
+  Property 'val' does not exist on type 'FormState'.
+components/Suprido/SupridoDashboard.tsx(1169,129): error TS2339: Property 'val' does not exist on type 'FormState | { type: any; items: any; startDate: any; endDate: any; val: any; }'.
+  Property 'val' does not exist on type 'FormState'.
+components/SupridoDashboard.tsx(422,43): error TS2345: Argument of type '"PROCESS_DETAILS"' is not assignable to parameter of type 'SetStateAction<SupridoView>'.
+components/SystemSettings.tsx(82,111): error TS2353: Object literal may only specify known properties, and 'uf' does not exist in type 'Partial<Municipio> | (() => Partial<Municipio>)'.
+constants.ts(251,20): error TS2339: Property 'SIGNATURE' does not exist on type 'typeof ConcessionStatus'.
+constants.ts(253,20): error TS2339: Property 'GRANTED' does not exist on type 'typeof ConcessionStatus'.
+constants.ts(267,92): error TS2339: Property 'SIGNATURE' does not exist on type 'typeof ConcessionStatus'.
+constants.ts(268,111): error TS2339: Property 'GRANTED' does not exist on type 'typeof ConcessionStatus'.
+hooks/useNotifications.ts(27,17): error TS2339: Property 'profile' does not exist on type 'AuthContextType'.
+hooks/useNotifications.ts(96,43): error TS2554: Expected 1 arguments, but got 2.
+lib/supabaseClient.ts(4,33): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/supabaseClient.ts(5,37): error TS2339: Property 'env' does not exist on type 'ImportMeta'.

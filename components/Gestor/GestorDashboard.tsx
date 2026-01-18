@@ -62,6 +62,8 @@ interface DocPiece {
   author?: string;
   authorName?: string;
   date?: string;
+  status?: string;
+  isOwner?: boolean;
 }
 
 export const GestorDashboard: React.FC = () => {

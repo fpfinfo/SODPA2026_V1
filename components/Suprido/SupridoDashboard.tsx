@@ -110,6 +110,7 @@ interface FormState {
   desc: string;
   urgency: string;
   items: FormItem[];
+  val?: number; // Total value (calculated)
   // Campos do Gestor
   managerName: string;
   managerEmail: string;
