@@ -226,7 +226,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
             
             <div className="bg-slate-50 rounded-2xl p-6 max-h-64 overflow-y-auto">
             <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-              {process.descricao || 'Nenhuma justificativa fornecida.'}
+              {(process.descricao || 'Nenhuma justificativa fornecida.').replace(/(\d{4})-(\d{2})-(\d{2})/g, '$3/$2/$1')}
             </p>
           </div>
           </div>
