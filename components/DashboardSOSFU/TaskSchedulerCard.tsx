@@ -263,7 +263,9 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(process.data_planejada || '');
   const [currentPriority, setCurrentPriority] = useState(process.prioridade_usuario || 2);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  const [priorityAnchorRect, setPriorityAnchorRect] = useState<DOMRect | null>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const priorityButtonRef = useRef<HTMLButtonElement>(null);
 
   const priorityConfig = PRIORITY_CONFIG[currentPriority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG[2];
 
@@ -272,6 +274,13 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
       setAnchorRect(dateButtonRef.current.getBoundingClientRect());
     }
     setShowDatePicker(true);
+  };
+
+  const handleOpenPriorityMenu = () => {
+    if (priorityButtonRef.current) {
+      setPriorityAnchorRect(priorityButtonRef.current.getBoundingClientRect());
+    }
+    setShowPriorityMenu(true);
   };
 
   const handleDateChange = async (date: string) => {
@@ -331,18 +340,25 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
         {/* Priority Indicator */}
         <div className="relative">
           <button
-            onClick={() => setShowPriorityMenu(!showPriorityMenu)}
+            ref={priorityButtonRef}
+            onClick={handleOpenPriorityMenu}
             className={`w-10 h-10 rounded-xl ${priorityConfig.bgLight} flex items-center justify-center hover:scale-110 transition-transform`}
             title={`Prioridade: ${priorityConfig.label}`}
           >
             <span className="text-lg">{priorityConfig.icon}</span>
           </button>
           
-          {/* Priority Dropdown */}
-          {showPriorityMenu && (
+          {/* Priority Dropdown Portal */}
+          {showPriorityMenu && createPortal(
             <>
-              <div className="fixed inset-0 z-[100]" onClick={() => setShowPriorityMenu(false)} />
-              <div className="absolute top-12 left-0 z-[101] bg-white rounded-xl shadow-2xl border border-slate-200 p-2 min-w-[140px]">
+              <div className="fixed inset-0 z-[9998]" onClick={() => setShowPriorityMenu(false)} />
+              <div 
+                className="fixed z-[9999] bg-white rounded-xl shadow-2xl border border-slate-200 p-2 min-w-[140px]"
+                style={{
+                  top: priorityAnchorRect ? priorityAnchorRect.bottom + 8 : 0,
+                  left: priorityAnchorRect ? priorityAnchorRect.left : 0,
+                }}
+              >
                 {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
                   <button
                     key={key}
@@ -356,7 +372,8 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
                   </button>
                 ))}
               </div>
-            </>
+            </>,
+            document.body
           )}
         </div>
 
