@@ -1330,7 +1330,7 @@ const INITIAL_FORM_STATE: FormState = {
 
                             <div className="text-right px-4 border-l border-slate-100 hidden md:block w-32">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor</p>
-                                <p className="text-base font-black text-slate-900">{formatCurrency(Math.round(p.val || 0))}</p>
+                                <p className="text-base font-black text-slate-900">{formatCurrency(Math.round(p.value || 0))}</p>
                             </div>
 
                             {/* Status & Action */}
@@ -1616,7 +1616,7 @@ const INITIAL_FORM_STATE: FormState = {
                          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Protocolo</label><p className="text-lg font-black text-slate-800">{p.nup}</p></div>
                          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label><p className="text-lg font-black text-slate-800 uppercase">{p.type}</p></div>
                          <div className="col-span-2 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Interessado</label><p className="text-lg font-black text-slate-800 uppercase">{profileData.nome}</p></div>
-                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor</label><p className="text-2xl font-black text-blue-600">{formatCurrency(p.val)}</p></div>
+                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor</label><p className="text-2xl font-black text-blue-600">{formatCurrency(p.value)}</p></div>
                          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Criação</label><p className="text-lg font-black text-slate-800">{p.date}</p></div>
                       </div>
                    </div>
@@ -1659,7 +1659,7 @@ const INITIAL_FORM_STATE: FormState = {
                       </div>
                       <div className="space-y-2">
                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Requisitado</label>
-                         <p className="text-lg font-black text-blue-600 uppercase leading-none">{formatCurrency(p.val)}</p>
+                         <p className="text-lg font-black text-blue-600 uppercase leading-none">{formatCurrency(p.value)}</p>
                       </div>
                    </div>
                 </div>
@@ -1730,13 +1730,13 @@ const INITIAL_FORM_STATE: FormState = {
                                      <td className="px-4 py-3 font-mono">3.3.90.30</td>
                                      <td className="px-4 py-3">Despesas Gerais</td>
                                      <td className="px-4 py-3 text-center">1</td>
-                                     <td className="px-4 py-3 text-right">{formatCurrency(p.val)}</td>
-                                     <td className="px-4 py-3 text-right font-bold">{formatCurrency(p.val)}</td>
+                                     <td className="px-4 py-3 text-right">{formatCurrency(p.value)}</td>
+                                     <td className="px-4 py-3 text-right font-bold">{formatCurrency(p.value)}</td>
                                   </tr>
                                )}
                                <tr className="bg-slate-50 font-black">
                                   <td colSpan={4} className="px-4 py-3 text-right uppercase tracking-widest text-slate-500">TOTAL:</td>
-                                  <td className="px-4 py-3 text-right">{formatCurrency(p.items && p.items.length > 0 ? p.items.reduce((acc: number, item: any) => acc + ((item.qty || item.quantity || 1) * (item.val || item.unitValue || item.value || 0)), 0) : p.val)}</td>
+                                  <td className="px-4 py-3 text-right">{formatCurrency(p.items && p.items.length > 0 ? p.items.reduce((acc: number, item: any) => acc + ((item.qty || item.quantity || 1) * (item.val || item.unitValue || item.value || 0)), 0) : p.value)}</td>
                                </tr>
                             </tbody>
                          </table>
@@ -1968,7 +1968,7 @@ const INITIAL_FORM_STATE: FormState = {
                                                         </div>
                                                         <div className="space-y-2">
                                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Requisitado</label>
-                                                            <p className="text-lg font-black text-blue-600 uppercase leading-none">{formatCurrency(p.val)}</p>
+                                                            <p className="text-lg font-black text-blue-600 uppercase leading-none">{formatCurrency(p.value)}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2021,12 +2021,12 @@ const INITIAL_FORM_STATE: FormState = {
                                                                         <td className="px-4 py-3 font-mono">3.3.90.33</td>
                                                                         <td className="px-4 py-3">Transporte e Locomoção</td>
                                                                         <td className="px-4 py-3 text-center">1</td>
-                                                                        <td className="px-4 py-3 text-right">{formatCurrency(p.val)}</td>
-                                                                        <td className="px-4 py-3 text-right font-bold">{formatCurrency(p.val)}</td>
+                                                                        <td className="px-4 py-3 text-right">{formatCurrency(p.value)}</td>
+                                                                        <td className="px-4 py-3 text-right font-bold">{formatCurrency(p.value)}</td>
                                                                     </tr>
                                                                     <tr className="bg-slate-50 font-black">
                                                                         <td colSpan={4} className="px-4 py-3 text-right uppercase tracking-widest text-slate-500">TOTAL:</td>
-                                                                        <td className="px-4 py-3 text-right">{formatCurrency(p.val)}</td>
+                                                                        <td className="px-4 py-3 text-right">{formatCurrency(p.value)}</td>
                                                                     </tr>
                                                                 </tbody>
                                                             </table>
@@ -3895,7 +3895,7 @@ Assinado eletronicamente pelo servidor suprido.`,
               <input 
                 type="number" 
                 step="0.01"
-                value={p.val || 0}
+                value={p.value || 0}
                 onChange={(e) => setSelectedProcess({...p, val: parseFloat(e.target.value) || 0})}
                 className="w-full px-6 py-4 border border-amber-200 rounded-2xl font-bold text-lg bg-amber-50 focus:outline-none focus:ring-4 focus:ring-amber-100 focus:border-amber-400 transition-all"
               />
@@ -4022,7 +4022,7 @@ Assinado eletronicamente pelo servidor suprido.`,
                 <div className="flex justify-end items-center gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
                   <span className="text-xs font-black text-blue-600 uppercase tracking-widest">Total:</span>
                   <span className="text-lg font-black text-blue-700">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.val || 0)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.value || 0)}
                   </span>
                 </div>
               </div>
@@ -4090,7 +4090,7 @@ Assinado eletronicamente pelo servidor suprido.`,
                   
                   // Prepare update data
                   const updateData: any = {
-                    valor_solicitado: p.val || 0,
+                    valor_solicitado: p.value || 0,
                     descricao: p.desc || '',
                     urgencia: p.urgency || 'NORMAL'
                   };
