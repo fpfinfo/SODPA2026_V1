@@ -3,6 +3,12 @@
  * Validates Brazilian CPF (Cadastro de Pessoas Físicas)
  */
 
+export function normalizeCPF(cpf?: string): string | undefined {
+  if (!cpf) return undefined;
+  // Remove todos os caracteres não numéricos
+  return cpf.replace(/\D/g, '');
+}
+
 export function validateCPF(cpf: string): boolean {
   if (!cpf) return false;
 

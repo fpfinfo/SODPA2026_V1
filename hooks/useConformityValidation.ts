@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { validateCPF } from '../utils/cpfValidator';
+import { validateCPF, normalizeCPF } from '../utils/cpfValidator';
 
 export interface ValidationResult {
   valid: boolean;
@@ -45,7 +45,8 @@ export function useConformityValidation(processData: ProcessData) {
       return { valid: false, error: 'CPF não informado' };
     }
     
-    if (!validateCPF(cpf)) {
+    const normalizedCPF = normalizeCPF(cpf);
+    if (!normalizedCPF || !validateCPF(normalizedCPF)) {
       return { valid: false, error: 'CPF inválido' };
     }
     
