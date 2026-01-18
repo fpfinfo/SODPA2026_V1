@@ -742,6 +742,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
 
       if (solicitacoes && solicitacoes.length > 0) {
           const mappedHistory = solicitacoes.map((s: any) => ({
+              ...s, // Include all raw fields for editing
               id: s.id, 
               nup: s.nup || `TJPA-SOL-${s.id}`,
               type: s.tipo || 'Geral', 
