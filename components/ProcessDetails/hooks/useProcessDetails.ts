@@ -118,15 +118,16 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
 
         // Fetch lotacao AND bank data AND manager data from servidores_tj using email
         if (profileData?.email) {
+          // Use aliases to force column selection and avoid potential relationship collisions
           const { data: servidorData } = await supabase
             .from('servidores_tj')
-            .select('lotacao, cargo, banco, agencia, conta_corrente, gestor_nome, gestor_email, cpf, vinculo, categoria, grau, entrancia, polo, regiao')
+            .select('lotacao_text:lotacao, cargo_text:cargo, banco, agencia, conta_corrente, gestor_nome, gestor_email, cpf, vinculo, categoria, grau, entrancia, polo, regiao')
             .eq('email', profileData.email)
             .maybeSingle();
           
-          lotacao = servidorData?.lotacao;
+          lotacao = servidorData?.lotacao_text;
           // Prioritize cargo from servidores_tj if available
-          cargo = servidorData?.cargo;
+          cargo = servidorData?.cargo_text;
           
           bankName = servidorData?.banco;
           agency = servidorData?.agencia;
@@ -134,7 +135,7 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
           managerName = servidorData?.gestor_nome;
           managerEmail = servidorData?.gestor_email;
 
-          // Store extras
+          // Store extras with explicit mapping
           servidorExtras = {
              cpf: servidorData?.cpf,
              vinculo: servidorData?.vinculo,
@@ -144,6 +145,9 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
              polo: servidorData?.polo,
              regiao: servidorData?.regiao
           };
+          
+          // Debug (Console log to help troubleshooting if persistent)
+          console.log('[Debug] ServidorTJ Data:', servidorData);
         }
 
         // Fallback to profile data if not found in servidores_tj
