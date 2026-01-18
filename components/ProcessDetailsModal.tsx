@@ -3,6 +3,7 @@ import { Process, ProcessType, Role, AccountStatus } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { UniversalDossierPanel } from './ProcessDetails/UniversalDossierPanel';
 import { DetailsTab } from './ProcessDetails/Tabs/DetailsTab';
+import { ConformityChecklist } from './ConformityChecklist';
 import { useProcessDetails } from '../hooks/useProcessDetails';
 import { 
   X, 
@@ -230,8 +231,21 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
             </div>
           )}
           {activeTab === 'ANALYSIS' && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in slide-in-from-right-4">
-              <div className="space-y-8"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 text-blue-700 rounded-lg"><ShieldCheck size={20}/></div><h3 className="text-lg font-black text-slate-800">Checklist de Conformidade</h3></div><div className="space-y-3">{[{ key: 'atestoGestor', label: 'Atesto de Conveniência (Gestor)', desc: 'Homologação da chefia imediata presente.' }, { key: 'regularidade', label: 'Certidão de Regularidade (SISUP)', desc: 'Validação de adimplência do suprido.', isAction: true }, { key: 'orcamento', label: 'Reserva Orçamentária', desc: 'Saldo suficiente na unidade.' }, { key: 'identificacao', label: 'Dados Bancários Válidos', desc: 'Conta Banpará confirmada.' }].map(item => (<button key={item.key} onClick={() => handleToggleCheck(item.key as any)} className={`w-full flex items-start gap-4 p-5 rounded-3xl border-2 transition-all text-left group ${checklist[item.key as keyof typeof checklist] ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100 hover:border-blue-200'}`}><div className={`mt-1 rounded-full p-1 transition-colors ${checklist[item.key as keyof typeof checklist] ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-300 group-hover:bg-blue-100 group-hover:text-blue-500'}`}><CheckCircle2 size={16}/></div><div className="flex-1"><div className="flex justify-between items-center"><p className={`text-sm font-bold ${checklist[item.key as keyof typeof checklist] ? 'text-emerald-900' : 'text-slate-700'}`}>{item.label}</p>{item.isAction && !checklist[item.key as keyof typeof checklist] && (<span className="text-[10px] bg-slate-900 text-white px-2 py-1 rounded-lg font-bold uppercase tracking-wide hover:bg-slate-700">Verificar</span>)}</div><p className="text-xs text-slate-500 mt-1">{item.desc}</p></div></button>))}</div></div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 p-8 animate-in slide-in-from-right-4">
+              <div>
+                <ConformityChecklist 
+                  processData={{
+                    nome: enrichedProcessData?.servidor_dados?.nome || enrichedProcessData?.suprido_nome,
+                    cpf: enrichedProcessData?.servidor_dados?.cpf || enrichedProcessData?.perfil_cpf,
+                    banco: enrichedProcessData?.dados_bancarios?.bankName,
+                    agencia: enrichedProcessData?.dados_bancarios?.agency,
+                    conta_corrente: enrichedProcessData?.dados_bancarios?.account,
+                    valor_solicitado: enrichedProcessData?.valor_total || process.value,
+                    descricao: enrichedProcessData?.descricao || process.purpose,
+                    status: enrichedProcessData?.status || process.status
+                  }}
+                />
+              </div>
               <div className="space-y-8">{renderFinancialImpact()}<div className="bg-slate-50 p-6 rounded-3xl border border-slate-200"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Parecer do Analista</h4><textarea className="w-full h-32 bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Insira observações técnicas ou ressalvas aqui..."></textarea></div></div>
             </div>
           )}
