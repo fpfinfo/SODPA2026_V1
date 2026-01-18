@@ -5,6 +5,7 @@ interface ProcessData {
   tipo?: string;
   type?: string;
   valor_total?: number;
+  valor_solicitado?: number;
   value?: number;
   descricao?: string;
   description?: string;
@@ -44,8 +45,23 @@ export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => 
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
+  // Helper to get element description from code
+  const getElementDescription = (code: string, fallbackDesc?: string) => {
+    if (fallbackDesc && fallbackDesc.trim()) return fallbackDesc;
+    
+    const elementMap: Record<string, string> = {
+      '3.3.90.30.01': 'Material de Consumo',
+      '3.3.90.30.02': 'Combustíveis e Lubrificantes',
+      '3.3.90.33': 'Passagens e Locomoção',
+      '3.3.90.36': 'Outros Serviços de Terceiros – Pessoa Física',
+      '3.3.90.39': 'Outros Serviços de Terceiros – Pessoa Jurídica'
+    };
+    
+    return elementMap[code] || fallbackDesc || 'Despesa';
+  };
+
   const items = processData.itens_despesa || [];
-  const totalValue = processData.valor_total || processData.value || 0;
+  const totalValue = processData.valor_total || processData.valor_solicitado || processData.value || 0;
 
   return (
     <div className="space-y-8">
@@ -118,7 +134,7 @@ export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => 
                 items.map((item, idx) => (
                   <tr key={idx}>
                     <td className="px-4 py-3 font-mono">{item.codigo || 'N/A'}</td>
-                    <td className="px-4 py-3">{item.descricao || 'Item'}</td>
+                    <td className="px-4 py-3">{getElementDescription(item.codigo || '', item.descricao)}</td>
                     <td className="px-4 py-3 text-center">{item.quantidade || 1}</td>
                     <td className="px-4 py-3 text-right">{formatCurrency(item.valor_unitario)}</td>
                     <td className="px-4 py-3 text-right font-bold">{formatCurrency(item.valor_total)}</td>
