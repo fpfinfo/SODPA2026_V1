@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UniversalProcessDetailsPage } from '../ProcessDetails';
+import { UniversalProcessDetailsPage } from './ProcessDetails';
 import { FileText, Zap } from 'lucide-react';
 
 /**
