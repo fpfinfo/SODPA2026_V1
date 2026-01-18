@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Process, ProcessType, StaffMember } from '../types';
 import { STAFF_MEMBERS, CURRENT_USER_ID } from '../constants';
 import { Clock, FileText, UserPlus, FileCheck, Send, MoreHorizontal, UserCheck, Calculator, AlertCircle, ArrowDown, ArrowUp, Minus, ShieldCheck, AlertTriangle, Shield, ShieldAlert } from 'lucide-react';
@@ -12,7 +12,7 @@ interface ProcessCardProps {
   onPriorityChange?: (id: string, priority: 'NORMAL' | 'HIGH' | 'CRITICAL') => void;
 }
 
-const ProcessCardComponent: React.FC<ProcessCardProps> = ({ process, onAction, onClick, currentWorkload, onPriorityChange }) => {
+export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onAction, onClick, currentWorkload, onPriorityChange }) => {
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -242,15 +242,3 @@ const ProcessCardComponent: React.FC<ProcessCardProps> = ({ process, onAction, o
     </div>
   );
 };
-
-// Memoized export - prevents re-renders when parent updates but props unchanged
-export const ProcessCard = memo(ProcessCardComponent, (prevProps, nextProps) => {
-  // Custom comparison for shallow equality of critical props
-  return (
-    prevProps.process.id === nextProps.process.id &&
-    prevProps.process.status === nextProps.process.status &&
-    prevProps.process.priority === nextProps.process.priority &&
-    prevProps.process.assignedToId === nextProps.process.assignedToId &&
-    prevProps.currentWorkload === nextProps.currentWorkload
-  );
-});

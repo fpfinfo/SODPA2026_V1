@@ -43,52 +43,55 @@ export function useLocations(): UseLocationsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all data
+  // Fetch all data - OPTIMIZED with selective columns and parallel fetches
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
-    // Fetch comarcas (independent)
-    try {
-      const { data: comarcasData, error: comarcasError } = await supabase
+    // Parallel fetch all three tables at once
+    const [comarcasResult, municipiosResult, lotacoesResult] = await Promise.all([
+      // Comarcas - select only needed columns
+      supabase
         .from('comarcas')
-        .select('*')
-        .order('nome');
+        .select('id, codigo, nome, entrancia, varas, teto_anual, dist_elemento_30_01, dist_elemento_30_02, dist_elemento_33, dist_elemento_36, dist_elemento_39, status, polo, regiao')
+        .order('nome'),
       
-      if (comarcasError) throw comarcasError;
-      setComarcas(comarcasData || []);
-    } catch (err: any) {
-      console.error('Error fetching comarcas:', err);
-      setComarcas(MOCK_COMARCAS_FALLBACK);
-    }
-
-    // Fetch municipios (independent)
-    try {
-      const { data: municipiosData, error: municipiosError } = await supabase
+      // Municipios - select only needed columns
+      supabase
         .from('municipios')
-        .select('*')
-        .order('nome');
+        .select('id, codigo_ibge, nome, comarca_id, populacao')
+        .order('nome'),
       
-      if (municipiosError) throw municipiosError;
-      setMunicipios(municipiosData || []);
-    } catch (err: any) {
-      console.error('Error fetching municipios:', err);
-      setMunicipios(MOCK_MUNICIPIOS_FALLBACK);
-    }
-
-    // Fetch lotações (independent)
-    try {
-      const { data: lotacoesData, error: lotacoesError } = await supabase
+      // Lotações - select only needed columns
+      supabase
         .from('lotacoes')
-        .select('*')
-        .order('nome');
-      
-      if (lotacoesError) throw lotacoesError;
-      setLotacoes(lotacoesData || []);
-    } catch (err: any) {
-      console.error('Error fetching lotacoes:', err);
-      setError(err.message || 'Erro ao carregar lotações');
+        .select('id, codigo, nome, tipo, comarca_id')
+        .order('nome'),
+    ]);
+    
+    // Process comarcas result
+    if (comarcasResult.error) {
+      console.error('Error fetching comarcas:', comarcasResult.error);
+      setComarcas(MOCK_COMARCAS_FALLBACK);
+    } else {
+      setComarcas(comarcasResult.data || []);
+    }
+    
+    // Process municipios result
+    if (municipiosResult.error) {
+      console.error('Error fetching municipios:', municipiosResult.error);
+      setMunicipios(MOCK_MUNICIPIOS_FALLBACK);
+    } else {
+      setMunicipios(municipiosResult.data || []);
+    }
+    
+    // Process lotacoes result
+    if (lotacoesResult.error) {
+      console.error('Error fetching lotacoes:', lotacoesResult.error);
+      setError(lotacoesResult.error.message || 'Erro ao carregar lotações');
       setLotacoes(MOCK_LOTACOES_FALLBACK);
+    } else {
+      setLotacoes(lotacoesResult.data || []);
     }
 
     setIsLoading(false);
