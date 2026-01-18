@@ -24,15 +24,25 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
+    const normalizedStatus = status?.toLowerCase().replace(/ /g, '_') || 'pendente_atesto';
+    
+    // Status mapping override for visuals
+    let visualKey = normalizedStatus;
+    if (normalizedStatus === 'atestado' || normalizedStatus.includes('sosfu')) {
+        visualKey = 'em_analise_sosfu';
+    }
+
+    const statusConfig: Record<string, { icon: any, color: string, label: string }> = {
       'pendente_atesto': { icon: Clock, color: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Pendente Atesto' },
       'atestado': { icon: CheckCircle2, color: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Atestado' },
       'em_analise_sosfu': { icon: AlertCircle, color: 'bg-purple-50 text-purple-700 border-purple-200', label: 'Em Análise SOSFU' },
       'aprovado': { icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Aprovado' },
       'devolvido': { icon: AlertCircle, color: 'bg-red-50 text-red-700 border-red-200', label: 'Devolvido' },
+      // Fallback keys match normalized DB values just in case
+      'pendente': { icon: Clock, color: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Pendente' },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['pendente_atesto'];
+    const config = statusConfig[visualKey] || statusConfig[normalizedStatus] || statusConfig['pendente_atesto'];
     const Icon = config.icon;
 
     return (
