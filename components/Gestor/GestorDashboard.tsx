@@ -60,6 +60,7 @@ interface DocPiece {
   content?: string;
   type?: string;
   author?: string;
+  authorName?: string;
   date?: string;
 }
 
