@@ -374,7 +374,7 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
       // Create SEFIN signing tasks for each document
       const docsToSign = [
         { tipo: 'PORTARIA', titulo: `Portaria SF ${portariaNumero} - ${process.interestedParty || process.suprido_nome}` },
-        { tipo: 'CERTIDAO', titulo: `Certidão de Regularidade - ${process.interestedParty || process.suprido_nome}` },
+        { tipo: 'CERTIDAO_REGULARIDADE', titulo: `Certidão de Regularidade - ${process.interestedParty || process.suprido_nome}` },
         { tipo: 'NOTA_EMPENHO', titulo: `Nota de Empenho ${neNumero} - ${process.nup}` },
       ];
 
