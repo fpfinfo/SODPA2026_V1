@@ -248,13 +248,9 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
         </div>
       );
     }
-    // 3. Ações Padrão (Concessão/Prestação)
-    return (
-      <div className="flex gap-4">
-        <button className="px-6 py-3 bg-white border-2 border-red-100 text-red-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-2"><AlertTriangle size={16}/> Solicitar Pendência</button>
-        <button disabled={!isApproved} className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl flex items-center gap-2 ${isApproved ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/30' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}><CheckCircle size={18} /> Aprovar e Encaminhar (SEFIN)</button>
-      </div>
-    );
+    // 3. Ações Padrão (Concessão/Prestação) - REMOVIDO
+    // Botão agora está APENAS na ExecutionTab
+    return null;
   };
 
   return (
