@@ -10,6 +10,7 @@ export interface ExecutionDocument {
   status: 'PENDENTE' | 'GERADO' | 'ASSINADO';
   arquivo_url?: string;
   metadata?: any;
+  fonte_recurso?: string; // 6 dígitos - Fonte de recurso para NE/DL/OB
   created_at: string;
   generated_at?: string;
   assinado_em?: string;

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Receipt, Calculator, Calendar, Banknote, FileText, CheckCircle, Clock, Send, AlertCircle, Loader2, Lock } from 'lucide-react';
 import { useExecutionDocuments } from '../../../hooks/useExecutionDocuments';
+import { useServidorRegularidade } from '../../../hooks/useServidorRegularidade';
 import { PortariaFormModal } from '../Modals/PortariaFormModal';
 import { NotaEmpenhoFormModal } from '../Modals/NotaEmpenhoFormModal';
+import { DocumentoLiquidacaoFormModal } from '../Modals/DocumentoLiquidacaoFormModal';
+import { OrdemBancariaFormModal } from '../Modals/OrdemBancariaFormModal';
 
 interface ExecutionTabProps {
   processData: any;
@@ -22,9 +25,12 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   enrichedProcessData 
 }) => {
   const { documents, isLoading, generateWithFormData, generateSingle, sendToSEFIN } = useExecutionDocuments(processData.id);
+  const { hasPendencias, detalhes, checkPendencias } = useServidorRegularidade(processData.suprido_id);
   const [isSending, setIsSending] = useState(false);
   const [showPortariaModal, setShowPortariaModal] = useState(false);
   const [showNEModal, setShowNEModal] = useState(false);
+  const [showDLModal, setShowDLModal] = useState(false);
+  const [showOBModal, setShowOBModal] = useState(false);
   const [generatingDoc, setGeneratingDoc] = useState<string | null>(null);
 
   const itens = enrichedProcessData?.itens_despesa || processData.items || [];
@@ -76,6 +82,17 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
 
   const handleGenerateCertidao = async () => {
     setGeneratingDoc('CERTIDAO_REGULARIDADE');
+    
+    // Validar pendências do servidor
+    const { data: pendenciasCheck } = await checkPendencias();
+    
+    if (pendenciasCheck?.has_pendencias) {
+      alert(`❌ Servidor possui pendências:\n\n${(pendenciasCheck.detalhes || []).join('\n')}\n\nRegularize antes de gerar a certidão.`);
+      setGeneratingDoc(null);
+      return;
+    }
+    
+    // Gerar certidão se regularizado
     await generateSingle('CERTIDAO_REGULARIDADE');
     setGeneratingDoc(null);
   };
@@ -87,16 +104,18 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
     setShowNEModal(false);
   };
 
-  const handleGenerateDL = async () => {
+  const handleDLSubmit = async (formData: any) => {
     setGeneratingDoc('NOTA_LIQUIDACAO');
-    await generateSingle('NOTA_LIQUIDACAO');
+    const result = await generateWithFormData('NOTA_LIQUIDACAO', formData);
     setGeneratingDoc(null);
+    setShowDLModal(false);
   };
 
-  const handleGenerateOB = async () => {
+  const handleOBSubmit = async (formData: any) => {
     setGeneratingDoc('ORDEM_BANCARIA');
-    await generateSingle('ORDEM_BANCARIA');
+    const result = await generateWithFormData('ORDEM_BANCARIA', formData);
     setGeneratingDoc(null);
+    setShowOBModal(false);
   };
 
   const handleSendToSEFIN = async () => {
@@ -241,8 +260,8 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
                         if (docConfig.tipo === 'PORTARIA') setShowPortariaModal(true);
                         else if (docConfig.tipo === 'CERTIDAO_REGULARIDADE') handleGenerateCertidao();
                         else if (docConfig.tipo === 'NOTA_EMPENHO') setShowNEModal(true);
-                        else if (docConfig.tipo === 'NOTA_LIQUIDACAO') handleGenerateDL();
-                        else if (docConfig.tipo === 'ORDEM_BANCARIA') handleGenerateOB();
+                        else if (docConfig.tipo === 'NOTA_LIQUIDACAO') setShowDLModal(true);
+                        else if (docConfig.tipo === 'ORDEM_BANCARIA') setShowOBModal(true);
                       }}
                       disabled={isGenerating}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-bold transition-all"
@@ -446,6 +465,38 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Modais */}
+      <PortariaFormModal
+        isOpen={showPortariaModal}
+        onClose={() => setShowPortariaModal(false)}
+        onSubmit={handlePortariaSubmit}
+        isLoading={generatingDoc === 'PORTARIA'}
+      />
+
+      <NotaEmpenhoFormModal
+        onSubmit={handleNESubmit}
+        onClose={() => setShowNEModal(false)}
+        isLoading={generatingDoc === 'NOTA_EMPENHO'}
+      />
+
+      {(showDLModal && documents.find(d => d.tipo === 'NOTA_EMPENHO')?.fonte_recurso) && (
+        <DocumentoLiquidacaoFormModal
+          fonteRecursoNE={documents.find(d => d.tipo === 'NOTA_EMPENHO')!.fonte_recurso!}
+          onSubmit={handleDLSubmit}
+          onClose={() => setShowDLModal(false)}
+          isLoading={generatingDoc === 'NOTA_LIQUIDACAO'}
+        />
+      )}
+
+      {(showOBModal && documents.find(d => d.tipo === 'NOTA_EMPENHO')?.fonte_recurso) && (
+        <OrdemBancariaFormModal
+          fonteRecursoNE={documents.find(d => d.tipo === 'NOTA_EMPENHO')!.fonte_recurso!}
+          onSubmit={handleOBSubmit}
+          onClose={() => setShowOBModal(false)}
+          isLoading={generatingDoc === 'ORDEM_BANCARIA'}
+        />
+      )}
     </div>
   );
 };

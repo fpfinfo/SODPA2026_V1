@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { X, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { DropdownFonteRecurso } from './BudgetDropdowns';
 
-export interface NotaEmpenhoFormData {
-  fonte_recurso: string;  // 6 dígitos
+export interface DocumentoLiquidacaoFormData {
+  fonte_recurso: string;  // Herdada da NE (read-only)
   numero_siafe: string;   // 6 dígitos
   data_emissao: string;
 }
 
-interface NotaEmpenhoFormModalProps {
-  onSubmit: (data: NotaEmpenhoFormData & { numero_completo: string }) => void;
+interface DocumentoLiquidacaoFormModalProps {
+  fonteRecursoNE: string; // Vem da NE já gerada
+  onSubmit: (data: DocumentoLiquidacaoFormData & { numero_completo: string }) => void;
   onClose: () => void;
   isLoading?: boolean;
 }
 
-export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({ 
+export const DocumentoLiquidacaoFormModal: React.FC<DocumentoLiquidacaoFormModalProps> = ({ 
+  fonteRecursoNE,
   onSubmit, 
   onClose, 
   isLoading = false 
@@ -22,27 +24,21 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
   const today = new Date().toISOString().split('T')[0];
   const ano = new Date().getFullYear();
   
-  const [formData, setFormData] = useState<NotaEmpenhoFormData>({
-    fonte_recurso: '',
+  const [formData, setFormData] = useState<DocumentoLiquidacaoFormData>({
+    fonte_recurso: fonteRecursoNE, // Pré-preenchida
     numero_siafe: '',
     data_emissao: today
   });
 
-  const [errors, setErrors] = useState<Partial<NotaEmpenhoFormData>>({});
+  const [errors, setErrors] = useState<Partial<DocumentoLiquidacaoFormData>>({});
 
-  // Compor número completo: YYYYFFFFFFNENNNNNN
-  const numeroCompleto = formData.fonte_recurso && formData.numero_siafe
-    ? `${ano}${formData.fonte_recurso}NE${formData.numero_siafe}`
+  // Compor número completo: YYYYFFFFFFDLNNNNNN
+  const numeroCompleto = formData.numero_siafe
+    ? `${ano}${formData.fonte_recurso}DL${formData.numero_siafe}`
     : '';
 
   const validate = (): boolean => {
-    const newErrors: Partial<NotaEmpenhoFormData> = {};
-
-    if (!formData.fonte_recurso) {
-      newErrors.fonte_recurso = 'Fonte de recurso é obrigatória';
-    } else if (!/^\d{6}$/.test(formData.fonte_recurso)) {
-      newErrors.fonte_recurso = 'Fonte deve ter exatamente 6 dígitos';
-    }
+    const newErrors: Partial<DocumentoLiquidacaoFormData> = {};
 
     if (!formData.numero_siafe.trim()) {
       newErrors.numero_siafe = 'Número SIAFE é obrigatório';
@@ -74,20 +70,20 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
       
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in zoom-in-95">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-emerald-50 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200 bg-amber-50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-600 rounded-lg text-white">
+            <div className="p-2 bg-amber-600 rounded-lg text-white">
               <FileText size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Gerar Nota de Empenho</h3>
-              <p className="text-xs text-slate-600">Informe fonte de recurso e número SIAFE</p>
+              <h3 className="text-lg font-bold text-slate-900">Gerar Documento de Liquidação</h3>
+              <p className="text-xs text-slate-600">Informe o número SIAFE (fonte herdada da NE)</p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="p-2 hover:bg-emerald-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-amber-100 rounded-lg transition-colors"
           >
             <X size={20} className="text-slate-500" />
           </button>
@@ -95,14 +91,11 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Fonte de Recurso */}
+          {/* Fonte de Recurso (Read-only) */}
           <DropdownFonteRecurso
             value={formData.fonte_recurso}
-            onChange={(code) => {
-              setFormData({ ...formData, fonte_recurso: code });
-              setErrors({ ...errors, fonte_recurso: undefined });
-            }}
-            error={errors.fonte_recurso}
+            onChange={() => {}} // Não permite mudança
+            readOnly={true}
           />
 
           {/* Número SIAFE */}
@@ -116,7 +109,7 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
               value={formData.numero_siafe}
               maxLength={6}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, ''); // Apenas dígitos
+                const value = e.target.value.replace(/\D/g, '');
                 setFormData({ ...formData, numero_siafe: value });
                 setErrors({ ...errors, numero_siafe: undefined });
               }}
@@ -124,7 +117,7 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
                 errors.numero_siafe 
                   ? 'border-red-300 bg-red-50' 
                   : 'border-slate-200 bg-white'
-              } focus:border-emerald-500 focus:outline-none transition-colors font-mono text-lg tracking-wider`}
+              } focus:border-amber-500 focus:outline-none transition-colors font-mono text-lg tracking-wider`}
             />
             {errors.numero_siafe && (
               <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
@@ -133,9 +126,7 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
               </p>
             )}
             <p className="mt-1.5 text-xs text-slate-500">
-              Exemplos: <code className="bg-slate-100 px-1 rounded">000111</code>, 
-              <code className="bg-slate-100 px-1 rounded ml-1">000222</code>, 
-              <code className="bg-slate-100 px-1 rounded ml-1">001500</code>
+              Número da liquidação emitido pelo SIAFE
             </p>
           </div>
 
@@ -156,7 +147,7 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
                 errors.data_emissao 
                   ? 'border-red-300 bg-red-50' 
                   : 'border-slate-200 bg-white'
-              } focus:border-emerald-500 focus:outline-none transition-colors`}
+              } focus:border-amber-500 focus:outline-none transition-colors`}
             />
             {errors.data_emissao && (
               <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
@@ -168,15 +159,15 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
 
           {/* Preview do Número Completo */}
           {numeroCompleto && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-              <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-2">
-                📋 Número Completo da Nota de Empenho
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-xs font-bold text-amber-700 mb-2 flex items-center gap-2">
+                📋 Número Completo do Documento de Liquidação
               </p>
-              <p className="text-2xl font-black text-emerald-900 font-mono tracking-wider">
+              <p className="text-2xl font-black text-amber-900 font-mono tracking-wider">
                 {numeroCompleto}
               </p>
-              <p className="text-xs text-emerald-600 mt-2">
-                {ano} (ano) + {formData.fonte_recurso} (fonte) + NE + {formData.numero_siafe} (SIAFE)
+              <p className="text-xs text-amber-600 mt-2">
+                {ano} (ano) + {formData.fonte_recurso} (fonte) + DL + {formData.numero_siafe} (SIAFE)
               </p>
             </div>
           )}
@@ -194,7 +185,7 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
             <button
               type="submit"
               disabled={isLoading || !numeroCompleto}
-              className="flex-1 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-xl font-bold text-sm transition-colors shadow-lg flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white rounded-xl font-bold text-sm transition-colors shadow-lg flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
@@ -202,7 +193,7 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
                   Gerando...
                 </>
               ) : (
-                'Gerar Nota de Empenho'
+                'Gerar DL'
               )}
             </button>
           </div>
