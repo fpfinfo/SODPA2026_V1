@@ -3,38 +3,46 @@ import { X, DollarSign, AlertCircle, Loader2 } from 'lucide-react';
 import { DropdownFonteRecurso } from './BudgetDropdowns';
 
 export interface OrdemBancariaFormData {
-  fonte_recurso: string;  // Herdada da NE (read-only)
+  ug: string;            // UG: Unidade Gestora (fixo: 040102)
   numero_siafe: string;   // 6 dígitos
   data_emissao: string;
 }
 
 interface OrdemBancariaFormModalProps {
-  fonteRecursoNE: string; // Vem da NE já gerada
   onSubmit: (data: OrdemBancariaFormData & { numero_completo: string }) => void;
   onClose: () => void;
   isLoading?: boolean;
+  isOpen?: boolean;
+  processData?: any;
+  neData?: any;
 }
 
 export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({ 
-  fonteRecursoNE,
   onSubmit, 
   onClose, 
-  isLoading = false 
+  isLoading = false,
+  isOpen = true
 }) => {
+  if (!isOpen) return null;
+
   const today = new Date().toISOString().split('T')[0];
   const ano = new Date().getFullYear();
   
+  // UG fixo para Suprimento de Fundos
+  const UG_SUPRIMENTO_FUNDOS = '040102';
+  
   const [formData, setFormData] = useState<OrdemBancariaFormData>({
-    fonte_recurso: fonteRecursoNE, // Pré-preenchida
+    ug: UG_SUPRIMENTO_FUNDOS,
     numero_siafe: '',
     data_emissao: today
   });
 
   const [errors, setErrors] = useState<Partial<OrdemBancariaFormData>>({});
 
-  // Compor número completo: YYYYFFFFFFOBNNNNNN
+  // Compor número completo: YYYYUUUUUUOBNNNNNN
+  // Exemplo: 2026040102OB000112
   const numeroCompleto = formData.numero_siafe
-    ? `${ano}${formData.fonte_recurso}OB${formData.numero_siafe}`
+    ? `${ano}${formData.ug}OB${formData.numero_siafe}`
     : '';
 
   const validate = (): boolean => {
@@ -77,7 +85,7 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">Gerar Ordem Bancária</h3>
-              <p className="text-xs text-slate-600">Informe o número SIAFE (fonte herdada da NE)</p>
+              <p className="text-xs text-slate-600">Informe o número SIAFE</p>
             </div>
           </div>
           <button
@@ -91,12 +99,26 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Fonte de Recurso (Read-only) */}
-          <DropdownFonteRecurso
-            value={formData.fonte_recurso}
-            onChange={() => {}} // Não permite mudança
-            readOnly={true}
-          />
+          {/* UG: Unidade Gestora (Fixo) */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              UG: Unidade Gestora
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={UG_SUPRIMENTO_FUNDOS}
+                disabled
+                className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-500 font-mono text-lg tracking-wider cursor-not-allowed"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">
+                FIXO
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-600">
+              💡 Código fixo da Unidade Gestora para <strong>Suprimento de Fundos</strong>
+            </p>
+          </div>
 
           {/* Número SIAFE */}
           <div>
@@ -167,7 +189,7 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
                 {numeroCompleto}
               </p>
               <p className="text-xs text-purple-600 mt-2">
-                {ano} (ano) + {formData.fonte_recurso} (fonte) + OB + {formData.numero_siafe} (SIAFE)
+                {ano} (ano) + {formData.ug} (UG) + OB + {formData.numero_siafe} (SIAFE)
               </p>
             </div>
           )}
