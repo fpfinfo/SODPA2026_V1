@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 
 interface PTRES {
@@ -26,15 +26,25 @@ export const useBudgetDropdowns = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orcamento_sosfu')
-        .select('ptres_code, ptres_description, valor_disponivel')
+        .select('ptres, descricao, teto_anual, executado')
         .eq('ano', ano)
-        .not('ptres_code', 'is', null)
-        .order('ptres_code');
+        .not('ptres', 'is', null)
+        .order('ptres');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar PTRES:', error);
+        throw error;
+      }
+      
+      // Mapear para formato esperado
+      const mapped = (data || []).map(item => ({
+        ptres_code: item.ptres,
+        ptres_description: item.descricao,
+        valor_disponivel: Number(item.teto_anual) - Number(item.executado)
+      }));
       
       // Agrupar por PTRES e somar valores
-      const grouped = (data || []).reduce((acc, current) => {
+      const grouped = mapped.reduce((acc, current) => {
         const existing = acc.find(item => item.ptres_code === current.ptres_code);
         if (existing) {
           existing.valor_disponivel += current.valor_disponivel;
@@ -55,14 +65,25 @@ export const useBudgetDropdowns = () => {
     
     const { data, error } = await supabase
       .from('orcamento_sosfu')
-      .select('dotacao_code, dotacao_description, valor_disponivel')
+      .select('dotacao, dotacao_descricao, teto_anual, executado')
       .eq('ano', ano)
-      .eq('ptres_code', ptresCode)
-      .not('dotacao_code', 'is', null)
-      .order('dotacao_code');
+      .eq('ptres', ptresCode)
+      .not('dotacao', 'is', null)
+      .order('dotacao');
     
-    if (error) throw error;
-    return data || [];
+    if (error) {
+      console.error('Erro ao buscar dotações:', error);
+      throw error;
+    }
+    
+    // Mapear para formato esperado
+    const mapped = (data || []).map(item => ({
+      dotacao_code: item.dotacao,
+      dotacao_description: item.dotacao_descricao,
+      valor_disponivel: Number(item.teto_anual) - Number(item.executado)
+    }));
+    
+    return mapped;
   };
 
   return { 
