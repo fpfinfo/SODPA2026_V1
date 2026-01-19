@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { X, FileText, AlertCircle, Loader2 } from 'lucide-react';
-import { DropdownFonteRecurso } from './BudgetDropdowns';
 
 export interface NotaEmpenhoFormData {
-  fonte_recurso: string;  // 6 dígitos
-  numero_siafe: string;   // 6 dígitos
+  ug: string;            // UG: Unidade Gestora (fixo: 040102)
+  numero_siafe: string;  // 6 dígitos
   data_emissao: string;
 }
 
@@ -12,37 +11,40 @@ interface NotaEmpenhoFormModalProps {
   onSubmit: (data: NotaEmpenhoFormData & { numero_completo: string }) => void;
   onClose: () => void;
   isLoading?: boolean;
+  isOpen?: boolean;
+  processData?: any;
 }
 
 export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({ 
   onSubmit, 
   onClose, 
-  isLoading = false 
+  isLoading = false,
+  isOpen = true
 }) => {
+  if (!isOpen) return null;
+
   const today = new Date().toISOString().split('T')[0];
   const ano = new Date().getFullYear();
   
+  // UG fixo para Suprimento de Fundos
+  const UG_SUPRIMENTO_FUNDOS = '040102';
+  
   const [formData, setFormData] = useState<NotaEmpenhoFormData>({
-    fonte_recurso: '',
+    ug: UG_SUPRIMENTO_FUNDOS,
     numero_siafe: '',
     data_emissao: today
   });
 
   const [errors, setErrors] = useState<Partial<NotaEmpenhoFormData>>({});
 
-  // Compor número completo: YYYYFFFFFFNENNNNNN
-  const numeroCompleto = formData.fonte_recurso && formData.numero_siafe
-    ? `${ano}${formData.fonte_recurso}NE${formData.numero_siafe}`
+  // Compor número completo: YYYYUUUUUUNNENNNNNN (18 caracteres)
+  // Exemplo: 2026040102NE000111
+  const numeroCompleto = formData.numero_siafe
+    ? `${ano}${formData.ug}NE${formData.numero_siafe}`
     : '';
 
   const validate = (): boolean => {
     const newErrors: Partial<NotaEmpenhoFormData> = {};
-
-    if (!formData.fonte_recurso) {
-      newErrors.fonte_recurso = 'Fonte de recurso é obrigatória';
-    } else if (!/^\d{6}$/.test(formData.fonte_recurso)) {
-      newErrors.fonte_recurso = 'Fonte deve ter exatamente 6 dígitos';
-    }
 
     if (!formData.numero_siafe.trim()) {
       newErrors.numero_siafe = 'Número SIAFE é obrigatório';
@@ -81,7 +83,7 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">Gerar Nota de Empenho</h3>
-              <p className="text-xs text-slate-600">Informe fonte de recurso e número SIAFE</p>
+              <p className="text-xs text-slate-600">Informe número SIAFE da NE</p>
             </div>
           </div>
           <button
@@ -95,15 +97,26 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Fonte de Recurso */}
-          <DropdownFonteRecurso
-            value={formData.fonte_recurso}
-            onChange={(code) => {
-              setFormData({ ...formData, fonte_recurso: code });
-              setErrors({ ...errors, fonte_recurso: undefined });
-            }}
-            error={errors.fonte_recurso}
-          />
+          {/* UG: Unidade Gestora (Fixo) */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              UG: Unidade Gestora
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={UG_SUPRIMENTO_FUNDOS}
+                disabled
+                className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-500 font-mono text-lg tracking-wider cursor-not-allowed"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">
+                FIXO
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-600">
+              💡 Código fixo da Unidade Gestora para <strong>Suprimento de Fundos</strong>
+            </p>
+          </div>
 
           {/* Número SIAFE */}
           <div>
@@ -168,37 +181,48 @@ export const NotaEmpenhoFormModal: React.FC<NotaEmpenhoFormModalProps> = ({
 
           {/* Preview do Número Completo */}
           {numeroCompleto && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-              <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-2">
-                📋 Número Completo da Nota de Empenho
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+              <p className="text-xs font-bold text-blue-900 uppercase tracking-wide mb-2">
+                Prévia do Número de Empenho
               </p>
-              <p className="text-2xl font-black text-emerald-900 font-mono tracking-wider">
+              <p className="font-mono text-2xl font-bold text-blue-600 tracking-wider">
                 {numeroCompleto}
               </p>
-              <p className="text-xs text-emerald-600 mt-2">
-                {ano} (ano) + {formData.fonte_recurso} (fonte) + NE + {formData.numero_siafe} (SIAFE)
-              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <p className="text-slate-500 font-medium">Ano</p>
+                  <p className="font-mono font-bold text-slate-700">{ano}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 font-medium">UG</p>
+                  <p className="font-mono font-bold text-slate-700">{UG_SUPRIMENTO_FUNDOS}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 font-medium">Número</p>
+                  <p className="font-mono font-bold text-slate-700">NE{formData.numero_siafe}</p>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-slate-200">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="flex-1 px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 disabled:opacity-50 transition-all"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={isLoading || !numeroCompleto}
-              className="flex-1 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-xl font-bold text-sm transition-colors shadow-lg flex items-center justify-center gap-2"
+              disabled={isLoading || !formData.numero_siafe}
+              className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                   Gerando...
                 </>
               ) : (
