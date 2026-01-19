@@ -1331,7 +1331,7 @@ const INITIAL_FORM_STATE: FormState = {
 
                             <div className="text-right px-4 border-l border-slate-100 hidden md:block w-32">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor</p>
-                                <p className="text-base font-black text-slate-900">{formatCurrency(Math.round(p.value || 0))}</p>
+                                <p className="text-base font-black text-slate-900">{formatCurrency(p.val || 0)}</p>
                             </div>
 
                             {/* Status & Action */}
