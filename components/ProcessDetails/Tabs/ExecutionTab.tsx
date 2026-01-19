@@ -13,11 +13,11 @@ interface ExecutionTabProps {
 }
 
 const EXECUTION_DOCUMENTS = [
-  { tipo: 'PORTARIA', titulo: 'Portaria de Concessão', requiredForSEFIN: true, needsForm: true },
-  { tipo: 'CERTIDAO_REGULARIDADE', titulo: 'Certidão de Regularidade', requiredForSEFIN: true, needsForm: false },
-  { tipo: 'NOTA_EMPENHO', titulo: 'Nota de Empenho', requiredForSEFIN: true, needsForm: true },
-  { tipo: 'NOTA_LIQUIDACAO', titulo: 'Nota de Liquidação', requiredForSEFIN: false, needsForm: false },
-  { tipo: 'ORDEM_BANCARIA', titulo: 'Ordem Bancária', requiredForSEFIN: false, needsForm: false }
+  { tipo: 'PORTARIA', titulo: 'Portaria de Concessão', requiredForSEFIN: true },
+  { tipo: 'CERTIDAO_REGULARIDADE', titulo: 'Certidão de Regularidade', requiredForSEFIN: true },
+  { tipo: 'NOTA_EMPENHO', titulo: 'Nota de Empenho', requiredForSEFIN: true },
+  { tipo: 'NOTA_LIQUIDACAO', titulo: 'Nota de Liquidação', requiredForSEFIN: false },
+  { tipo: 'ORDEM_BANCARIA', titulo: 'Ordem Bancária', requiredForSEFIN: false }
 ];
 
 export const ExecutionTab: React.FC<ExecutionTabProps> = ({ 
@@ -56,6 +56,9 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const itens = enrichedProcessData?.itens_despesa || processData.items || [];
   const totalGeral = enrichedProcessData?.valor_total || processData.value || 0;
 
+  // ========================================
+  // HELPERS
+  // ========================================
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { 
       style: 'currency', 
@@ -74,128 +77,100 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   // ========================================
   // HANDLERS
   // ========================================
-
   const handlePortariaSubmit = async (formData: any) => {
     generateDocument({ tipo: 'PORTARIA', formData });
     setShowPortariaModal(false);
   };
 
   const handleGenerateCertidao = async () => {
-    setGeneratingDoc('CERTIDAO_REGULARIDADE');
-    
     // Validar pendências do servidor
     const { data: pendenciasCheck } = await checkPendencias();
     
     if (pendenciasCheck?.has_pendencias) {
       alert(`❌ Servidor possui pendências:\n\n${(pendenciasCheck.detalhes || []).join('\n')}\n\nRegularize antes de gerar a certidão.`);
-      setGeneratingDoc(null);
       return;
     }
     
     // Gerar certidão se regularizado
-    await generateSingle('CERTIDAO_REGULARIDADE');
-    setGeneratingDoc(null);
+    generateDocument({ tipo: 'CERTIDAO_REGULARIDADE' });
   };
 
   const handleNESubmit = async (formData: any) => {
-    console.log('📝 Gerando NE...');
-    setGeneratingDoc('NOTA_EMPENHO');
-    const result = await generateWithFormData('NOTA_EMPENHO', formData);
-    console.log('✅ NE gerada:', result);
-    setGeneratingDoc(null);
+    generateDocument({ tipo: 'NOTA_EMPENHO', formData });
     setShowNEModal(false);
   };
 
   const handleDLSubmit = async (formData: any) => {
-    setGeneratingDoc('NOTA_LIQUIDACAO');
-    const result = await generateWithFormData('NOTA_LIQUIDACAO', formData);
-    setGeneratingDoc(null);
+    generateDocument({ tipo: 'NOTA_LIQUIDACAO', formData });
     setShowDLModal(false);
   };
 
   const handleOBSubmit = async (formData: any) => {
-    setGeneratingDoc('ORDEM_BANCARIA');
-    const result = await generateWithFormData('ORDEM_BANCARIA', formData);
-    setGeneratingDoc(null);
+    generateDocument({ tipo: 'ORDEM_BANCARIA', formData });
     setShowOBModal(false);
   };
 
-  const handleSendToSEFIN = async () => {
-    setIsSending(true);
-    const result = await sendToSEFIN();
-    setIsSending(false);
+  const handleSendToSEFIN = () => {
+    sendToSEFIN();
   };
 
-  const getButtonConfig = (tipo: string) => {
-    const status = getDocStatus(tipo);
-    let canGenerate = false;
-    let isLocked = false;
-    let lockReason = '';
+  // ========================================
+  // RENDER HELPERS
+  // ========================================
+  const getDocumentStatus = (tipo: string): 'PENDENTE' | 'GERADO' | 'ASSINADO' => {
+    const doc = documents.find(d => d.tipo === tipo);
+    return doc?.status || 'PENDENTE';
+  };
 
-    switch(tipo) {
-      case 'PORTARIA':
-        canGenerate = canGeneratePortaria && status === 'PENDENTE';
-        break;
-      case 'CERTIDAO_REGULARIDADE':
-        canGenerate = canGenerateCertidao && status === 'PENDENTE';
-        isLocked = !canGenerateCertidao;
-        lockReason = 'Gere a Portaria primeiro';
-        break;
-      case 'NOTA_EMPENHO':
-        canGenerate = canGenerateNE && status === 'PENDENTE';
-        isLocked = !canGenerateNE;
-        lockReason = 'Gere a Certidão primeiro';
-        break;
-      case 'NOTA_LIQUIDACAO':
-        canGenerate = canGenerateDL && status === 'PENDENTE';
-        isLocked = !canGenerateDL;
-        lockReason = 'Aguarde retorno da SEFIN';
-        break;
-      case 'ORDEM_BANCARIA':
-        canGenerate = canGenerateOB && status === 'PENDENTE';
-        isLocked = !canGenerateOB;
-        lockReason = 'Gere a Nota de Liquidação primeiro';
-        break;
+  const canGenerateDoc = (tipo: string): boolean => {
+    switch (tipo) {
+      case 'PORTARIA': return canGeneratePortaria;
+      case 'CERTIDAO_REGULARIDADE': return canGenerateCertidao;
+      case 'NOTA_EMPENHO': return canGenerateNE;
+      case 'NOTA_LIQUIDACAO': return canGenerateDL;
+      case 'ORDEM_BANCARIA': return canGenerateOB;
+      default: return false;
     }
-
-    return { canGenerate, isLocked, lockReason, status };
   };
+
+  const getStatusText = (status: string): string => {
+    switch (status) {
+      case 'ASSINADO': return 'Assinado';
+      case 'GERADO': return 'Gerado';
+      default: return 'Pendente';
+    }
+  };
+
+  const getLockReason = (tipo: string): string | null => {
+    if (canGenerateDoc(tipo)) return null;
+    
+    switch (tipo) {
+      case 'CERTIDAO_REGULARIDADE': return 'Gere a Portaria primeiro';
+      case 'NOTA_EMPENHO': return 'Gere a Certidão primeiro';
+      case 'NOTA_LIQUIDACAO': return 'Aguarde retorno da SEFIN';
+      case 'ORDEM_BANCARIA': return 'Gere a Nota de Liquidação primeiro';
+      default: return null;
+    }
+  };
+
+  // ========================================
+  // RENDER
+  // ========================================
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-slate-600">Carregando documentos...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 space-y-8">
-      {/* Modals */}
-      {showPortariaModal && (
-        <PortariaFormModal
-          onSubmit={handlePortariaSubmit}
-          onClose={() => setShowPortariaModal(false)}
-          isLoading={generatingDoc === 'PORTARIA'}
-        />
-      )}
-      {showNEModal && (
-        <NotaEmpenhoFormModal
-          onSubmit={handleNESubmit}
-          onClose={() => setShowNEModal(false)}
-          isLoading={generatingDoc === 'NOTA_EMPENHO'}
-        />
-      )}
-
-      {/* Status Card */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-black">Fase de Execução</h3>
-            <p className="text-sm opacity-90 mt-1">
-              {canSendToSEFIN 
-                ? 'Documentos prontos - Tramite para SEFIN'
-                : docsRetornadosSEFIN
-                ? 'Complete os documentos finais'
-                : 'Gere os documentos na sequência indicada'}
-            </p>
-          </div>
-          {canSendToSEFIN && (
-            <CheckCircle className="w-12 h-12 opacity-80" />
-          )}
-        </div>
+    <div className="space-y-6">
+      {/* Fase de Execução Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
+        <h3 className="text-lg font-black uppercase tracking-wide mb-2">Fase de Execução</h3>
+        <p className="text-sm text-blue-100">Gere os documentos na sequência indicada</p>
       </div>
 
       {/* Documentos de Execução */}
@@ -208,8 +183,10 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
 
         <div className="divide-y divide-slate-100">
           {EXECUTION_DOCUMENTS.map((docConfig, idx) => {
-            const { canGenerate, isLocked, lockReason, status } = getButtonConfig(docConfig.tipo);
-            const isGenerating = generatingDoc === docConfig.tipo;
+            const status = getDocumentStatus(docConfig.tipo);
+            const canGenerate = canGenerateDoc(docConfig.tipo);
+            const isLocked = !canGenerate && status === 'PENDENTE';
+            const lockReason = getLockReason(docConfig.tipo);
             
             return (
               <div key={idx} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
@@ -253,7 +230,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-slate-100 text-slate-500'
                   }`}>
-                    {status === 'ASSINADO' ? 'Assinado' : status === 'GERADO' ? 'Gerado' : 'Pendente'}
+                    {getStatusText(status)}
                   </span>
                   
                   {status === 'PENDENTE' && canGenerate && (
@@ -285,220 +262,125 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
         </div>
       </div>
 
-      {/* Botão Enviar para SEFIN */}
-      {canSendToSEFIN && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <h4 className="font-black text-amber-900 mb-2">
-                Documentos Prontos para Assinatura
-              </h4>
-              <p className="text-sm text-amber-800 mb-4">
-                A Portaria, Certidão e Nota de Empenho foram geradas e precisam ser 
-                tramitadas para a SEFIN para assinatura.
-              </p>
-              <button
-                onClick={handleSendToSEFIN}
-                disabled={isSending}
-                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all"
-              >
-                {isSending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    Tramitar para SEFIN (Assinatura)
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-blue-100 rounded-xl">
-          <Receipt className="w-6 h-6 text-blue-600" />
-        </div>
-        <div>
-          <h3 className="text-xl font-black text-slate-900">Detalhamento Financeiro</h3>
-          <p className="text-sm text-slate-500">Elementos de despesa e cronograma de execução</p>
-        </div>
-      </div>
-
-      {/* Itens de Despesa */}
+      {/* Detalhamento Financeiro */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-          <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Elementos de Despesa
-          </h4>
-        </div>
-        <table className="w-full">
-          <thead className="bg-slate-100 text-xs font-bold text-slate-600 uppercase">
-            <tr>
-              <th className="px-6 py-3 text-left">Código</th>
-              <th className="px-6 py-3 text-left">Descrição</th>
-              <th className="px-6 py-3 text-right">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {itens.length > 0 ? (
-              itens.map((item: any, idx: number) => (
-                <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-sm text-blue-600 font-bold">
-                    {item.codigo || item.element || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-700">
-                    {item.descricao || item.description || item.desc || 'Despesa'}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-sm text-slate-900">
-                    {formatCurrency(item.valor_total || item.value || item.val || 0)}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={3} className="px-6 py-8 text-center text-sm text-slate-400">
-                  Nenhum item de despesa cadastrado
-                </td>
-              </tr>
-            )}
-          </tbody>
-          {itens.length > 0 && (
-            <tfoot className="bg-slate-800 text-white">
-              <tr>
-                <td colSpan={2} className="px-6 py-4 text-sm font-bold uppercase">
-                  Total Geral
-                </td>
-                <td className="px-6 py-4 text-right text-lg font-black">
-                  {formatCurrency(totalGeral)}
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-
-      {/* Timeline de Execução */}
-      <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-slate-200 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Calendar className="w-5 h-5 text-blue-600" />
           <h4 className="text-sm font-black text-slate-700 uppercase">
-            Cronograma de Execução
+            Detalhamento Financeiro
           </h4>
+          <p className="text-xs text-slate-500 mt-1">
+            Elementos de despesa e cronograma de execução
+          </p>
         </div>
-        <div className="space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-              <div className="w-4 h-4 rounded-full bg-white"></div>
+
+        <div className="p-6">
+          {/* Itens de Despesa Table */}
+          {itens && itens.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-3 px-4 font-bold text-slate-700">Elemento</th>
+                    <th className="text-left py-3 px-4 font-bold text-slate-700">Descrição</th>
+                    <th className="text-right py-3 px-4 font-bold text-slate-700">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itens.map((item: any, idx: number) => (
+                    <tr key={idx} className="border-b border-slate-100">
+                      <td className="py-3 px-4 font-mono text-slate-600">{item.codigo || item.element_code}</td>
+                      <td className="py-3 px-4 text-slate-700">{item.descricao || item.description}</td>
+                      <td className="py-3 px-4 text-right font-bold text-slate-800">
+                        {formatCurrency(item.valor || item.value)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50">
+                    <td colSpan={2} className="py-3 px-4 font-bold text-slate-800">Total Geral</td>
+                    <td className="py-3 px-4 text-right font-bold text-blue-600 text-lg">
+                      {formatCurrency(totalGeral)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-            <div className="flex-1 bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-sm font-bold text-slate-800">Solicitação Criada</p>
-              <p className="text-xs text-slate-500 mt-1">
-                {formatDate(processData.createdAt || processData.created_at)}
-              </p>
-            </div>
-          </div>
-          
-          {enrichedProcessData?.data_inicio && enrichedProcessData?.data_fim && (
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                <div className="w-4 h-4 rounded-full bg-white"></div>
-              </div>
-              <div className="flex-1 bg-white rounded-xl p-4 shadow-sm">
-                <p className="text-sm font-bold text-slate-800">Período de Execução</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  De {formatDate(enrichedProcessData.data_inicio)} até{' '}
-                  {formatDate(enrichedProcessData.data_fim)}
-                </p>
-              </div>
-            </div>
+          ) : (
+            <p className="text-center text-slate-500 py-8">Nenhum item de despesa cadastrado</p>
           )}
-
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-slate-300 flex items-center justify-center flex-shrink-0">
-              <div className="w-4 h-4 rounded-full bg-white"></div>
-            </div>
-            <div className="flex-1 bg-white/50 rounded-xl p-4 border-2 border-dashed border-slate-200">
-              <p className="text-sm font-bold text-slate-400">Prestação de Contas</p>
-              <p className="text-xs text-slate-400 mt-1">
-                Aguardando execução
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Resumo Financeiro */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Banknote className="w-4 h-4 text-blue-600" />
-            <p className="text-xs font-bold text-slate-500 uppercase">Valor Solicitado</p>
-          </div>
-          <p className="text-2xl font-black text-blue-600">
-            {formatCurrency(totalGeral)}
-          </p>
-        </div>
+      {/* Ações Finais */}
+      <div className="flex items-center justify-between gap-4 pt-4">
+        <button
+          onClick={() => window.history.back()}
+          className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all"
+        >
+          Voltar
+        </button>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Calculator className="w-4 h-4 text-amber-600" />
-            <p className="text-xs font-bold text-slate-500 uppercase">INSS Retido</p>
-          </div>
-          <p className="text-2xl font-black text-amber-600">
-            {formatCurrency(enrichedProcessData?.inss_total || 0)}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Receipt className="w-4 h-4 text-emerald-600" />
-            <p className="text-xs font-bold text-slate-500 uppercase">Valor Líquido</p>
-          </div>
-          <p className="text-2xl font-black text-emerald-600">
-            {formatCurrency(totalGeral - (enrichedProcessData?.inss_total || 0))}
-          </p>
-        </div>
+        {canSendToSEFIN && (
+          <button
+            onClick={handleSendToSEFIN}
+            disabled={isSending}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg font-bold flex items-center gap-2 transition-all"
+          >
+            {isSending ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                Aprovar e Encaminhar (SEFIN)
+              </>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Modais */}
-      <PortariaFormModal
-        isOpen={showPortariaModal}
-        onClose={() => setShowPortariaModal(false)}
-        onSubmit={handlePortariaSubmit}
-        isLoading={generatingDoc === 'PORTARIA'}
-      />
+      {/* ========================================
+          MODAIS
+          ======================================== */}
+      
+      {showPortariaModal && (
+        <PortariaFormModal
+          isOpen={showPortariaModal}
+          onClose={() => setShowPortariaModal(false)}
+          onSubmit={handlePortariaSubmit}
+          processData={processData}
+        />
+      )}
 
       {showNEModal && (
         <NotaEmpenhoFormModal
-          onSubmit={handleNESubmit}
+          isOpen={showNEModal}
           onClose={() => setShowNEModal(false)}
-          isLoading={generatingDoc === 'NOTA_EMPENHO'}
+          onSubmit={handleNESubmit}
+          processData={processData}
         />
       )}
 
-      {(showDLModal && documents.find(d => d.tipo === 'NOTA_EMPENHO')?.fonte_recurso) && (
+      {showDLModal && (
         <DocumentoLiquidacaoFormModal
-          fonteRecursoNE={documents.find(d => d.tipo === 'NOTA_EMPENHO')!.fonte_recurso!}
-          onSubmit={handleDLSubmit}
+          isOpen={showDLModal}
           onClose={() => setShowDLModal(false)}
-          isLoading={generatingDoc === 'NOTA_LIQUIDACAO'}
+          onSubmit={handleDLSubmit}
+          processData={processData}
+          neData={state.ne || undefined}
         />
       )}
 
-      {(showOBModal && documents.find(d => d.tipo === 'NOTA_EMPENHO')?.fonte_recurso) && (
+      {showOBModal && (
         <OrdemBancariaFormModal
-          fonteRecursoNE={documents.find(d => d.tipo === 'NOTA_EMPENHO')!.fonte_recurso!}
-          onSubmit={handleOBSubmit}
+          isOpen={showOBModal}
           onClose={() => setShowOBModal(false)}
-          isLoading={generatingDoc === 'ORDEM_BANCARIA'}
+          onSubmit={handleOBSubmit}
+          processData={processData}
+          neData={state.ne || undefined}
         />
       )}
     </div>
