@@ -351,7 +351,6 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
           isOpen={showPortariaModal}
           onClose={() => setShowPortariaModal(false)}
           onSubmit={handlePortariaSubmit}
-          processData={processData}
         />
       )}
 
@@ -360,7 +359,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
           isOpen={showNEModal}
           onClose={() => setShowNEModal(false)}
           onSubmit={handleNESubmit}
-          processData={processData}
+          processData={enrichedProcessData || processData}
         />
       )}
 
@@ -369,7 +368,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
           isOpen={showDLModal}
           onClose={() => setShowDLModal(false)}
           onSubmit={handleDLSubmit}
-          processData={processData}
+          processData={enrichedProcessData || processData}
           neData={state.ne || undefined}
         />
       )}
@@ -379,7 +378,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
           isOpen={showOBModal}
           onClose={() => setShowOBModal(false)}
           onSubmit={handleOBSubmit}
-          processData={processData}
+          processData={enrichedProcessData || processData}
           neData={state.ne || undefined}
         />
       )}

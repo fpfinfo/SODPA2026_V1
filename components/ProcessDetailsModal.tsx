@@ -357,13 +357,17 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
               <div>
                 <ConformityChecklist 
                   processData={{
-                    nome: enrichedProcessData?.servidor_dados?.nome || enrichedProcessData?.suprido_nome || process.suprido?.nome,
-                    cpf: enrichedProcessData?.servidor_dados?.cpf || enrichedProcessData?.perfil_cpf || process.suprido?.cpf,
-                    banco: enrichedProcessData?.banco || process.banco,
-                    agencia: enrichedProcessData?.agencia || process.agencia,
-                    conta_corrente: enrichedProcessData?.conta || process.conta,
-                    valor_solicitado: enrichedProcessData?.valor_total || process.valor_total,
-                    descricao: enrichedProcessData?.justificativa || process.justificativa,
+                    // Use the same mapping as the OVERVIEW tab (see lines 288-303)
+                    nome: enrichedProcessData?.suprido_nome || process.interestedParty || process.providerName || '',
+                    cpf: enrichedProcessData?.servidor_dados?.cpf || process.providerCpf || '',
+                    // Map bank details - enrichedProcessData uses dados_bancarios, process uses bankData
+                    banco: enrichedProcessData?.dados_bancarios?.bankName || process.bankData?.bankName || '',
+                    agencia: enrichedProcessData?.dados_bancarios?.agency || process.bankData?.agency || '',
+                    conta_corrente: enrichedProcessData?.dados_bancarios?.account || process.bankData?.account || '',
+                    // Map value - both use valor_total/value
+                    valor_solicitado: enrichedProcessData?.valor_total || process.value || 0,
+                    // Map description - enrichedProcessData has descricao, process has purpose
+                    descricao: enrichedProcessData?.descricao || process.purpose || '',
                     status: process.status,
                     has_certidao_regularidade: hasCertidaoAtesto
                   }}

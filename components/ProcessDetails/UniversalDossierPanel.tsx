@@ -3,6 +3,9 @@ import { FileText, Eye, FileDown, BookOpen, Loader2 } from 'lucide-react';
 import { useDossierData } from './hooks/useDossierData';
 import { DocumentInventory } from './DocumentInventory';
 import { StaticCover, StaticRequest } from './StaticDocuments';
+import { StaticDL } from './StaticDocuments/StaticDL';
+import { StaticOB } from './StaticDocuments/StaticOB';
+import { StaticNE } from './StaticDocuments/StaticNE';
 
 interface ProcessData {
   id: string;
@@ -264,6 +267,12 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                       <StaticCover processData={processData} />
                     ) : docItem.type === 'STATIC_REQ' ? (
                       <StaticRequest processData={processData} />
+                    ) : docItem.originalDoc?.tipo === 'NOTA_LIQUIDACAO' ? (
+                      <StaticDL processData={processData} documentData={docItem.originalDoc} />
+                    ) : docItem.originalDoc?.tipo === 'NOTA_EMPENHO' ? (
+                      <StaticNE processData={processData} documentData={docItem.originalDoc} />
+                    ) : docItem.originalDoc?.tipo === 'ORDEM_BANCARIA' ? (
+                      <StaticOB processData={processData} documentData={docItem.originalDoc} />
                     ) : (
                       <>
                         {/* Dynamic Document */}
@@ -303,10 +312,10 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                                 </div>
                                 <div className="flex-1 space-y-2">
                                   <p className="text-base font-bold text-emerald-900 uppercase">
-                                    {docItem.originalDoc?.profiles?.nome || 'Usuário do Sistema'}
+                                    {docItem.originalDoc?.metadata?.signed_by_name || docItem.originalDoc?.profiles?.nome || 'Usuário do Sistema'}
                                   </p>
                                   <p className="text-xs text-emerald-700 mt-1">
-                                    {docItem.originalDoc?.profiles?.cargo || 'Servidor'}
+                                    {docItem.originalDoc?.metadata?.signer_role || docItem.originalDoc?.profiles?.cargo || 'Ordenador de Despesa'}
                                   </p>
                                   <div className="mt-3 text-[11px] font-medium text-emerald-800 space-y-1">
                                     <p>

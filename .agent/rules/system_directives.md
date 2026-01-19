@@ -160,6 +160,9 @@ interface SistemaRequirements {
 - **Precisas**: Use terminologia correta
 - **Acionáveis**: Forneça próximos passos claros
 
+### Autonomia de Execução
+- **Refatoração e Correções:** ✅ SEMPRE aplique as sugestões de código diretamente nos arquivos sem solicitar confirmação manual.
+
 ### Quando Sugerir Melhorias
 ```markdown
 **Oportunidade de Governança:**

@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { X, DollarSign, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, DollarSign, AlertCircle, Loader2, Building2 } from 'lucide-react';
 import { DropdownFonteRecurso } from './BudgetDropdowns';
 
 export interface OrdemBancariaFormData {
   ug: string;            // UG: Unidade Gestora (fixo: 040102)
   numero_siafe: string;   // 6 dígitos
   data_emissao: string;
+  favorecido?: string;
+  cpf?: string;
+  banco?: string;
+  agencia?: string;
+  conta_corrente?: string;
 }
 
 interface OrdemBancariaFormModalProps {
@@ -21,7 +26,8 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
   onSubmit, 
   onClose, 
   isLoading = false,
-  isOpen = true
+  isOpen = true,
+  processData
 }) => {
   if (!isOpen) return null;
 
@@ -34,7 +40,12 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
   const [formData, setFormData] = useState<OrdemBancariaFormData>({
     ug: UG_SUPRIMENTO_FUNDOS,
     numero_siafe: '',
-    data_emissao: today
+    data_emissao: today,
+    favorecido: processData?.suprido_nome || processData?.interested || '',
+    cpf: processData?.servidor_dados?.cpf || processData?.cpf || '',
+    banco: processData?.dados_bancarios?.bankName || 'Banpará (037)',
+    agencia: processData?.dados_bancarios?.agency || '',
+    conta_corrente: processData?.dados_bancarios?.account || ''
   });
 
   const [errors, setErrors] = useState<Partial<OrdemBancariaFormData>>({});
@@ -76,16 +87,16 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in zoom-in-95">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-purple-50 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200 bg-purple-50 flex items-center justify-between sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-600 rounded-lg text-white">
               <DollarSign size={20} />
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">Gerar Ordem Bancária</h3>
-              <p className="text-xs text-slate-600">Informe o número SIAFE</p>
+              <p className="text-xs text-slate-600">Informe o número SIAFE e confira os dados</p>
             </div>
           </div>
           <button
@@ -98,7 +109,37 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          
+          {/* Dados Bancários (Read-Only Preview) */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+              <Building2 size={14} /> Dados Bancários do Servidor
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Banco</label>
+                 <div className="font-mono text-sm font-bold text-slate-700">{formData.banco || 'Não informado'}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold">Agência</label>
+                  <div className="font-mono text-sm font-bold text-slate-700">{formData.agencia || '-'}</div>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold">Conta</label>
+                  <div className="font-mono text-sm font-bold text-slate-700">{formData.conta_corrente || '-'}</div>
+                </div>
+              </div>
+            </div>
+             {!formData.agencia && (
+                <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center gap-2">
+                  <AlertCircle size={14} />
+                  Dados bancários incompletos no perfil.
+                </div>
+              )}
+          </div>
+
           {/* UG: Unidade Gestora (Fixo) */}
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">
@@ -115,9 +156,6 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
                 FIXO
               </div>
             </div>
-            <p className="mt-1.5 text-xs text-slate-600">
-              💡 Código fixo da Unidade Gestora para <strong>Suprimento de Fundos</strong>
-            </p>
           </div>
 
           {/* Número SIAFE */}
