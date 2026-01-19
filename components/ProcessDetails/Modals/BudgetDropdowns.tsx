@@ -96,17 +96,34 @@ export const DropdownDotacao: React.FC<DropdownDotacaoProps> = ({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 DropdownDotacao useEffect - PTRES:', ptres);
+    
+    // Limpar dotações imediatamente
+    setDotacoes([]);
+    
     if (ptres) {
+      // Limpar seleção quando PTRES mudar
+      onChange('');
+      
+      console.log('🔍 Buscando dotações para PTRES:', ptres);
       setLoading(true);
+      
       getDotacoes(ptres)
-        .then(data => setDotacoes(data))
-        .catch(err => console.error('Erro ao carregar dotações:', err))
+        .then(data => {
+          console.log('✅ Dotações carregadas:', data?.length, 'itens');
+          console.log('📊 Dados:', data);
+          setDotacoes(data || []);
+        })
+        .catch(err => {
+          console.error('❌ Erro ao carregar dotações:', err);
+          setDotacoes([]);
+        })
         .finally(() => setLoading(false));
     } else {
-      setDotacoes([]);
-      onChange(''); // Limpar seleção quando PTRES mudar
+      console.log('⚠️ PTRES vazio, limpando dotações');
+      onChange(''); // Clear selection when PTRES becomes empty
     }
-  }, [ptres, getDotacoes]);
+  }, [ptres]); // ✅ Apenas ptres como dependência!
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { 
@@ -133,7 +150,13 @@ export const DropdownDotacao: React.FC<DropdownDotacaoProps> = ({
             text-sm font-medium appearance-none`}
         >
           <option value="">
-            {!ptres ? 'Selecione o PTRES primeiro' : 'Selecione a Dotação'}
+            {!ptres 
+              ? 'Selecione o PTRES primeiro' 
+              : loading 
+                ? '⏳ Carregando dotações...'
+                : dotacoes.length === 0
+                  ? '❌ Nenhuma dotação disponível'
+                  : 'Selecione a Dotação'}
           </option>
           {dotacoes?.map(dotacao => (
             <option key={dotacao.dotacao_code} value={dotacao.dotacao_code}>
@@ -155,6 +178,12 @@ export const DropdownDotacao: React.FC<DropdownDotacaoProps> = ({
       
       {error && (
         <p className="mt-1 text-xs text-red-600">{error}</p>
+      )}
+      
+      {dotacoes.length > 0 && !loading && (
+        <p className="mt-1 text-xs text-green-600">
+          ✅ {dotacoes.length} dotação(ões) disponível(is)
+        </p>
       )}
       
       <p className="mt-1 text-xs text-slate-400">
