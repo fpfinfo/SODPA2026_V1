@@ -42,6 +42,10 @@ import { Process, ConcessionStatus } from '../types';
 import { UNIT_PTRES_MAP, BudgetUnit } from '../constants';
 import { useSefinTasks, SigningTask as DbSigningTask } from '../hooks/useSefinTasks';
 import { useFinancialAnalytics } from '../hooks/useFinancialAnalytics';
+import { StaticPortaria } from './ProcessDetails/StaticDocuments/StaticPortaria';
+import { StaticNE } from './ProcessDetails/StaticDocuments/StaticNE';
+import { StaticDL } from './ProcessDetails/StaticDocuments/StaticDL';
+import { StaticOB } from './ProcessDetails/StaticDocuments/StaticOB';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -510,7 +514,143 @@ export const SefinDashboard: React.FC<SefinDashboardProps> = ({ processes = [], 
         {viewMode === 'OPERATIONAL' && (<div className="w-72 bg-white border-r border-slate-200 p-6 flex flex-col gap-8 z-10 animate-in slide-in-from-left-4"><div className="space-y-2"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3">Fluxo de Assinaturas</p><button onClick={() => { setActiveTab('INBOX'); setOriginFilter('ALL'); }} className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === 'INBOX' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}><span className="text-sm font-bold flex items-center gap-3"><PenTool size={16}/> Pendentes</span><span className={`text-xs font-black px-2 py-0.5 rounded-md ${activeTab === 'INBOX' ? 'bg-white/20' : 'bg-slate-100'}`}>{allTasks.filter(t => t.status === 'PENDING').length}</span></button><button onClick={() => setActiveTab('SIGNED')} className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === 'SIGNED' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}><span className="text-sm font-bold flex items-center gap-3"><FileSignature size={16}/> Assinados</span></button></div></div>)}
         <div className="flex-1 overflow-hidden relative bg-slate-50">{viewMode === 'OPERATIONAL' ? renderOperational() : renderAnalytics()}</div>
 
-        {previewTask && (<div className="absolute inset-0 z-40 flex justify-end"><div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setPreviewTask(null)}></div><div className="w-[850px] bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col relative z-50"><div className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm shrink-0"><div className="flex items-center gap-4"><button onClick={() => setPreviewTask(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"><X size={20}/></button><div><h3 className="text-sm font-black text-slate-800 flex items-center gap-2">{previewTask.title}<span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] rounded uppercase tracking-widest">Minuta</span></h3><p className="text-xs text-slate-500 font-mono">{previewTask.protocol}</p></div></div><div className="flex gap-3"><button onClick={() => setIsReturnModalOpen(true)} className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-red-50 flex items-center gap-2"><MessageSquare size={14}/> Devolver</button><button onClick={() => { setSelectedIds(new Set([previewTask.id])); setIsSignModalOpen(true); }} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-md flex items-center gap-2"><PenTool size={14}/> Assinar</button></div></div><div className="flex-1 overflow-y-auto p-12 bg-slate-100 flex justify-center custom-scrollbar"><div className="w-[650px] bg-white shadow-xl min-h-[900px] p-16 text-slate-800 font-serif leading-relaxed relative"><div className="absolute top-0 right-0 p-8 opacity-5"><img src={BRASAO_TJPA_URL} className="w-32 grayscale" /></div><div className="text-center mb-12 space-y-2"><img src={BRASAO_TJPA_URL} className="w-16 mx-auto mb-4" /><h4 className="text-xs font-bold uppercase tracking-widest text-slate-900">Tribunal de Justiça do Estado do Pará</h4><h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Secretaria de Finanças</h5></div><h2 className="text-lg font-black text-center mb-8 uppercase border-y-2 border-slate-900 py-2">{previewTask.type.replace('_', ' ')}</h2><div className="text-justify space-y-6 text-sm"><p>{previewTask.content_preview}</p><p>Considerando o disposto na Lei Complementar nº... e a disponibilidade orçamentária atestada pela SOSFU.</p><p><strong>DETERMINO</strong> o prosseguimento do feito conforme solicitado, autorizando a despesa no valor de {previewTask.value && formatCurrency(previewTask.value)}.</p></div><div className="mt-24 pt-8 border-t border-slate-300 text-center"><div className="w-48 h-px bg-slate-900 mx-auto mb-2"></div><p className="font-bold text-xs uppercase">Ordenador de Despesas</p><p className="text-[10px] text-slate-400 uppercase">Aguardando Assinatura Digital</p></div></div></div></div></div>)}
+        {previewTask && (
+          <div className="absolute inset-0 z-40 flex justify-end">
+            <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setPreviewTask(null)}></div>
+            <div className="w-[850px] bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col relative z-50">
+              {/* Header */}
+              <div className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm shrink-0">
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setPreviewTask(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600">
+                    <X size={20}/>
+                  </button>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                      {previewTask.title}
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] rounded uppercase tracking-widest">Minuta</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 font-mono">{previewTask.protocol}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setIsReturnModalOpen(true)} className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-red-50 flex items-center gap-2">
+                    <MessageSquare size={14}/> Devolver
+                  </button>
+                  <button onClick={() => { setSelectedIds(new Set([previewTask.id])); setIsSignModalOpen(true); }} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-md flex items-center gap-2">
+                    <PenTool size={14}/> Assinar
+                  </button>
+                </div>
+              </div>
+              
+              {/* Document Preview */}
+              <div className="flex-1 overflow-y-auto p-8 bg-slate-100 flex justify-center custom-scrollbar">
+                <div className="w-[650px] bg-white shadow-xl rounded-lg overflow-hidden">
+                  {/* Render the appropriate document component based on type */}
+                  {previewTask.type === 'PORTARIA' && (
+                    <StaticPortaria 
+                      processData={{
+                        suprido_nome: previewTask.description?.split(' - ')[1] || previewTask.title?.split(' - ')[1] || 'Servidor',
+                        nup: previewTask.protocol,
+                        valor_total: previewTask.value || 0,
+                        value: previewTask.value || 0,
+                      }}
+                      documentData={{
+                        id: previewTask.id,
+                        conteudo: previewTask.content_preview,
+                        created_at: new Date().toISOString(),
+                        metadata: {
+                          numero_portaria: previewTask.protocol?.split('-').pop() || '001',
+                          ptres_code: '8727',
+                          dotacao_code: '162',
+                        }
+                      }}
+                    />
+                  )}
+                  {previewTask.type === 'NOTA_EMPENHO' && (
+                    <StaticNE 
+                      processData={{
+                        suprido_nome: previewTask.description?.split(' - ')[1] || 'Servidor',
+                        nup: previewTask.protocol,
+                        valor_total: previewTask.value || 0,
+                      }}
+                      documentData={{
+                        id: previewTask.id,
+                        conteudo: previewTask.content_preview,
+                        created_at: new Date().toISOString(),
+                        metadata: {
+                          numero_completo: previewTask.protocol,
+                          valor: previewTask.value || 0,
+                        }
+                      }}
+                    />
+                  )}
+                  {(previewTask.type as string) === 'NOTA_LIQUIDACAO' && (
+                    <StaticDL 
+                      processData={{
+                        suprido_nome: previewTask.description?.split(' - ')[1] || 'Servidor',
+                        nup: previewTask.protocol,
+                        valor_total: previewTask.value || 0,
+                      }}
+                      documentData={{
+                        id: previewTask.id,
+                        conteudo: previewTask.content_preview,
+                        created_at: new Date().toISOString(),
+                        metadata: {
+                          numero_completo: previewTask.protocol,
+                          valor: previewTask.value || 0,
+                        }
+                      }}
+                    />
+                  )}
+                  {(previewTask.type as string) === 'ORDEM_BANCARIA' && (
+                    <StaticOB 
+                      processData={{
+                        suprido_nome: previewTask.description?.split(' - ')[1] || 'Servidor',
+                        nup: previewTask.protocol,
+                        valor_total: previewTask.value || 0,
+                      }}
+                      documentData={{
+                        id: previewTask.id,
+                        conteudo: previewTask.content_preview,
+                        created_at: new Date().toISOString(),
+                        metadata: {
+                          numero_completo: previewTask.protocol,
+                          valor: previewTask.value || 0,
+                        }
+                      }}
+                    />
+                  )}
+                  {/* Fallback for other document types */}
+                  {!['PORTARIA', 'NOTA_EMPENHO', 'NOTA_LIQUIDACAO', 'ORDEM_BANCARIA'].includes(previewTask.type as string) && (
+
+                    <div className="p-16 text-slate-800 font-serif leading-relaxed relative min-h-[900px]">
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <img src={BRASAO_TJPA_URL} className="w-32 grayscale" alt="" />
+                      </div>
+                      <div className="text-center mb-12 space-y-2">
+                        <img src={BRASAO_TJPA_URL} className="w-16 mx-auto mb-4" alt="" />
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-900">Tribunal de Justiça do Estado do Pará</h4>
+                        <h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Secretaria de Finanças</h5>
+                      </div>
+                      <h2 className="text-lg font-black text-center mb-8 uppercase border-y-2 border-slate-900 py-2">{previewTask.type.replace('_', ' ')}</h2>
+                      <div className="text-justify space-y-6 text-sm">
+                        <p>{previewTask.content_preview}</p>
+                        <p>Considerando o disposto na Lei Complementar nº... e a disponibilidade orçamentária atestada pela SOSFU.</p>
+                        <p><strong>DETERMINO</strong> o prosseguimento do feito conforme solicitado, autorizando a despesa no valor de {previewTask.value && formatCurrency(previewTask.value)}.</p>
+                      </div>
+                      <div className="mt-24 pt-8 border-t border-slate-300 text-center">
+                        <div className="w-48 h-px bg-slate-900 mx-auto mb-2"></div>
+                        <p className="font-bold text-xs uppercase">Ordenador de Despesas</p>
+                        <p className="text-[10px] text-slate-400 uppercase">Aguardando Assinatura Digital</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         {isSignModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
