@@ -286,13 +286,15 @@ export function useProcessExecution(solicitacaoId: string) {
   // VALIDAÇÕES DE FLUXO
   // ========================================
   const canGeneratePortaria = true;
-  const canGenerateCertidao = state.portaria?.status === 'GERADO';
-  const canGenerateNE = state.certidao?.status === 'GERADO';
+  const canGenerateCertidao = 
+    state.portaria?.status === 'GERADO' || state.portaria?.status === 'ASSINADO';
+  const canGenerateNE = 
+    state.certidao?.status === 'GERADO' || state.certidao?.status === 'ASSINADO';
   const canGenerateDL = 
     state.portaria?.status === 'ASSINADO' &&
     state.certidao?.status === 'ASSINADO' &&
     state.ne?.status === 'ASSINADO';
-  const canGenerateOB = state.dl?.status === 'GERADO';
+  const canGenerateOB = state.dl?.status === 'GERADO' || state.dl?.status === 'ASSINADO';
   const canSendToSEFIN = 
     state.portaria?.status === 'GERADO' &&
     state.certidao?.status === 'GERADO' &&
@@ -306,7 +308,9 @@ export function useProcessExecution(solicitacaoId: string) {
     canGenerateOB,
     canSendToSEFIN,
     portariaStatus: state.portaria?.status,
-    certidaoStatus: state.certidao?.status
+    certidaoStatus: state.certidao?.status,
+    neStatus: state.ne?.status,
+    dlStatus: state.dl?.status
   });
 
   // ========================================
