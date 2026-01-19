@@ -24,7 +24,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   processData, 
   enrichedProcessData 
 }) => {
-  const { documents, isLoading, generateWithFormData, generateSingle, sendToSEFIN } = useExecutionDocuments(processData.id);
+  const { documents, isLoading, generateWithFormData, generateSingle, sendToSEFIN, refreshDocuments } = useExecutionDocuments(processData.id);
   const { hasPendencias, detalhes, checkPendencias } = useServidorRegularidade(processData.suprido_id);
   const [isSending, setIsSending] = useState(false);
   const [showPortariaModal, setShowPortariaModal] = useState(false);
@@ -73,11 +73,12 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
 
   // Handlers
   const handlePortariaSubmit = async (formData: any) => {
+    console.log('📝 Gerando Portaria...');
     setGeneratingDoc('PORTARIA');
     const result = await generateWithFormData('PORTARIA', formData);
+    console.log('✅ Portaria gerada:', result);
     setGeneratingDoc(null);
     setShowPortariaModal(false);
-    // TODO: Show toast
   };
 
   const handleGenerateCertidao = async () => {
@@ -98,8 +99,10 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   };
 
   const handleNESubmit = async (formData: any) => {
+    console.log('📝 Gerando NE...');
     setGeneratingDoc('NOTA_EMPENHO');
     const result = await generateWithFormData('NOTA_EMPENHO', formData);
+    console.log('✅ NE gerada:', result);
     setGeneratingDoc(null);
     setShowNEModal(false);
   };
