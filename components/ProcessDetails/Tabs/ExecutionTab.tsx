@@ -288,10 +288,10 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
                 <tbody>
                   {itens.map((item: any, idx: number) => (
                     <tr key={idx} className="border-b border-slate-100">
-                      <td className="py-3 px-4 font-mono text-slate-600">{item.codigo || item.element_code}</td>
-                      <td className="py-3 px-4 text-slate-700">{item.descricao || item.description}</td>
+                      <td className="py-3 px-4 font-mono text-slate-600">{item.element || item.codigo || item.element_code || '-'}</td>
+                      <td className="py-3 px-4 text-slate-700">{item.desc || item.descricao || item.description || '-'}</td>
                       <td className="py-3 px-4 text-right font-bold text-slate-800">
-                        {formatCurrency(item.valor || item.value)}
+                        {formatCurrency(item.val || item.valor || item.value || 0)}
                       </td>
                     </tr>
                   ))}
