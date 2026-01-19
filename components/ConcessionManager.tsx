@@ -196,15 +196,16 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
           await supabase
             .from('solicitacoes')
             .update({
-              status: ConcessionStatus.AWAITING_SIGNATURE,
+              status: 'AGUARDANDO ASSINATURA SEFIN',
               destino_atual: 'SEFIN',
               execution_status: 'AGUARDANDO_ASSINATURA_SEFIN',
               sefin_sent_at: new Date().toISOString()
             })
             .eq('id', selectedProcess.id);
 
-          // 3. ESSENCIAL: Criar task na tabela sefin_tasks para aparecer na Caixa!
-          const { error: taskError } = await supabase
+          // 3. ESSENCIAL: Criar tasks na tabela sefin_tasks para aparecer na Caixa!
+          // 3a. Task para Portaria
+          await supabase
             .from('sefin_tasks')
             .insert({
               solicitacao_id: selectedProcess.id,
@@ -216,10 +217,32 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
               created_at: new Date().toISOString()
             });
 
-          if (taskError) {
-            console.error('Erro ao criar task SEFIN:', taskError);
-            // Não falha a operação, apenas loga
-          }
+          // 3b. Task para Certidão
+          await supabase
+            .from('sefin_tasks')
+            .insert({
+              solicitacao_id: selectedProcess.id,
+              tipo: 'CERTIDAO_REGULARIDADE',
+              titulo: `Certidão de Regularidade - ${selectedProcess.interestedParty}`,
+              origem: 'SOSFU',
+              valor: selectedProcess.value,
+              status: 'PENDING',
+              created_at: new Date().toISOString()
+            });
+
+          // 3c. Task para Nota de Empenho
+          await supabase
+            .from('sefin_tasks')
+            .insert({
+              solicitacao_id: selectedProcess.id,
+              tipo: 'NOTA_EMPENHO',
+              titulo: `Nota de Empenho - ${selectedProcess.protocolNumber}`,
+              origem: 'SOSFU',
+              valor: selectedProcess.value,
+              status: 'PENDING',
+              created_at: new Date().toISOString()
+            });
+
 
           setSuccessMessage(`✅ Processo ${selectedProcess.protocolNumber} tramitado para SEFIN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
           setTimeout(() => setSuccessMessage(null), 10000);

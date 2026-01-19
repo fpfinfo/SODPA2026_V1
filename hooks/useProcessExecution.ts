@@ -220,7 +220,7 @@ export function useProcessExecution(solicitacaoId: string) {
       const { error: updateError } = await supabase
         .from('solicitacoes')
         .update({
-          status: 'AWAITING_SIGNATURE',
+          status: 'AGUARDANDO ASSINATURA SEFIN',
           destino_atual: 'SEFIN',
           execution_status: 'AGUARDANDO_ASSINATURA_SEFIN',
           sefin_sent_at: new Date().toISOString()
