@@ -1,17 +1,20 @@
 import React, { useState, useRef } from 'react';
-import { Shield, CheckCircle, XCircle, Clock, Loader2, AlertCircle } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Clock, Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useConformityValidation, ProcessData, ExecutionDocument } from '../hooks/useConformityValidation';
+import { useBudgetValidation } from '../hooks/useBudgetValidation';
 
 interface ConformityChecklistProps {
   processData: ProcessData;
   executionDocuments?: ExecutionDocument[];
   className?: string;
+  ptresCode?: string; // For real-time budget validation
 }
 
 export const ConformityChecklist: React.FC<ConformityChecklistProps> = ({ 
   processData,
   executionDocuments = [],
-  className = '' 
+  className = '',
+  ptresCode
 }) => {
   const checklistRef = useRef<HTMLDivElement>(null);
   const {
@@ -21,6 +24,12 @@ export const ConformityChecklist: React.FC<ConformityChecklistProps> = ({
   } = useConformityValidation(processData, executionDocuments);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const firstErrorRef = useRef<HTMLDivElement>(null);
+
+  // Real-time budget validation
+  const budgetValidation = useBudgetValidation({
+    ptresCode,
+    valorSolicitado: processData.valor_solicitado || 0
+  });
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
@@ -117,6 +126,54 @@ export const ConformityChecklist: React.FC<ConformityChecklistProps> = ({
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold text-slate-900">{item.label}</h4>
                   <p className="text-xs text-slate-600 mt-0.5">{item.description}</p>
+                  
+                  {/* Budget Validation Alert for Valor Solicitado */}
+                  {item.id === 'valor_solicitado' && budgetValidation.status !== 'LOADING' && budgetValidation.status !== 'UNAVAILABLE' && (
+                    <div className={`mt-3 p-3 rounded-lg border-2 ${
+                      budgetValidation.status === 'OVER_BUDGET' ? 'bg-red-50 border-red-300' :
+                      budgetValidation.status === 'LIMITE_CRITICO' ? 'bg-amber-50 border-amber-300' :
+                      'bg-emerald-50 border-emerald-300'
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        {budgetValidation.status === 'OVER_BUDGET' ? (
+                          <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                        ) : budgetValidation.status === 'LIMITE_CRITICO' ? (
+                          <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-bold ${
+                            budgetValidation.status === 'OVER_BUDGET' ? 'text-red-700' :
+                            budgetValidation.status === 'LIMITE_CRITICO' ? 'text-amber-700' :
+                            'text-emerald-700'
+                          }`}>
+                            ✨ Validação Orçamentária Automática
+                          </p>
+                          <p className={`text-xs mt-1 ${
+                            budgetValidation.status === 'OVER_BUDGET' ? 'text-red-600' :
+                            budgetValidation.status === 'LIMITE_CRITICO' ? 'text-amber-600' :
+                            'text-emerald-600'
+                          }`}>
+                            {budgetValidation.message}
+                          </p>
+                          <div className="mt-2 text-[10px] text-slate-600 space-y-0.5">
+                            <div className="flex justify-between">
+                              <span>Utilização após aprovação:</span>
+                              <span className={`font-mono font-bold ${
+                                budgetValidation.status === 'OVER_BUDGET' ? 'text-red-700' :
+                                budgetValidation.status === 'LIMITE_CRITICO' ? 'text-amber-700' :
+                                'text-emerald-700'
+                              }`}>
+                                {budgetValidation.percentualUtilizado.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {item.errorMessage && (
                     <p className="text-xs text-red-600 font-medium mt-2 flex items-center gap-1">
                       <XCircle className="w-3 h-3" />

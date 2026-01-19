@@ -372,6 +372,7 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                     has_certidao_regularidade: hasCertidaoAtesto
                   }}
                   executionDocuments={executionDocuments}
+                  ptresCode={enrichedProcessData?.ptres}
                 />
               </div>
               <div className="space-y-8">{renderFinancialImpact()}<div className="bg-slate-50 p-6 rounded-3xl border border-slate-200"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Parecer do Analista</h4><textarea className="w-full h-32 bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Insira observações técnicas ou ressalvas aqui..."></textarea></div></div>

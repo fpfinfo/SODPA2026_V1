@@ -55,7 +55,7 @@ export function useBudgetValidation({ ptresCode, valorSolicitado }: UseBudgetVal
       };
     }
 
-    const tetoAnual = orcamento.tetoAnual || 0;
+    const tetoAnual = orcamento.teto_anual || 0;
     const executado = orcamento.executado || 0;
     const saldoDisponivel = tetoAnual - executado;
     const saldoAposAprovacao = saldoDisponivel - valorSolicitado;
