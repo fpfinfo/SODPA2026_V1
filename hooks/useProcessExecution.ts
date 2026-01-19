@@ -273,13 +273,20 @@ export function useProcessExecution(solicitacaoId: string) {
   const linkToDossier = async (doc: ExecutionDocument) => {
     console.log('📁 [linkToDossier] Vinculando ao dossiê:', doc.tipo);
     
+    // Buscar ID do usuário atual
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+    
+    console.log('👤 [linkToDossier] Usuário:', userId);
+    
     const { data, error } = await supabase.from('documentos').insert({
       solicitacao_id: solicitacaoId,
       tipo: doc.tipo,
       nome: doc.titulo,
       titulo: doc.titulo,
       url_storage: doc.arquivo_url,
-      status: 'MINUTA'
+      status: 'MINUTA',
+      created_by: userId  // <- Habilita CRUD no dossiê!
     }).select();
 
     if (error) {
