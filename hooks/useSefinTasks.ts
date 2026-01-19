@@ -14,7 +14,7 @@ export interface SigningTask {
   titulo: string;
   origem: string;
   valor?: number;
-  status: 'PENDING' | 'SIGNED' | 'REJECTED';
+  status: 'PENDING' | 'SIGNED' | 'REJECTED' | 'SENT';
   ordenador_id?: string;
   assinado_em?: string;
   created_at?: string;
