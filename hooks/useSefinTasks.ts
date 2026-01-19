@@ -130,24 +130,49 @@ export function useSefinTasks(): UseSefinTasksReturn {
         .map(t => t.solicitacao_id)
         .filter(Boolean) as string[];
 
-      // 2. Determine destinations (SOSFU if origin SOSFU or AJSEFIN)
-      // Standard flow: SEFIN -> SOSFU (Payment/End).
-      // So we update solicitacoes status to 'APROVADO' and destination to 'SOSFU'.
-      
+      // 2. Update solicitacoes - status to RETORNO SEFIN, destination to SOSFU
       if (solicitacaoIds.length > 0) {
         const { error: solError } = await supabase
           .from('solicitacoes')
           .update({
-            status: 'APROVADO',
+            status: 'RETORNO SEFIN',
             destino_atual: 'SOSFU',
+            execution_status: 'AGUARDANDO_DL_OB',
             updated_at: new Date().toISOString()
           })
           .in('id', solicitacaoIds);
           
         if (solError) throw solError;
+
+        // 3. ESSENCIAL: Atualizar execution_documents para ASSINADO!
+        const { error: docError } = await supabase
+          .from('execution_documents')
+          .update({
+            status: 'ASSINADO',
+            assinado_em: new Date().toISOString()
+          })
+          .in('solicitacao_id', solicitacaoIds)
+          .in('tipo', ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO']);
+          
+        if (docError) {
+          console.error('Erro ao atualizar documentos:', docError);
+          // Não falha, apenas loga
+        }
+
+        // 4. Criar histórico de tramitação
+        for (const solId of solicitacaoIds) {
+          await supabase.from('historico_tramitacao').insert({
+            solicitacao_id: solId,
+            origem: 'SEFIN',
+            destino: 'SOSFU',
+            status_anterior: 'AGUARDANDO ASSINATURA SEFIN',
+            status_novo: 'RETORNO SEFIN',
+            observacao: 'Documentos assinados pelo Ordenador. Processo retorna para SOSFU gerar DL e OB.'
+          });
+        }
       }
 
-      // 3. Mark tasks as SENT
+      // 5. Mark tasks as SENT
       const { error } = await supabase
         .from('sefin_tasks')
         .update({ 
