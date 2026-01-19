@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Receipt, Calculator, Calendar, Banknote, FileText, CheckCircle, Clock, Send, AlertCircle, Loader2, Lock } from 'lucide-react';
-import { useExecutionDocuments } from '../../../hooks/useExecutionDocuments';
+import { useProcessExecution } from '../../../hooks/useProcessExecution';
 import { useServidorRegularidade } from '../../../hooks/useServidorRegularidade';
 import { PortariaFormModal } from '../Modals/PortariaFormModal';
 import { NotaEmpenhoFormModal } from '../Modals/NotaEmpenhoFormModal';
@@ -24,14 +24,34 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   processData, 
   enrichedProcessData 
 }) => {
-  const { documents, isLoading, generateWithFormData, generateSingle, sendToSEFIN, refreshDocuments } = useExecutionDocuments(processData.id);
-  const { hasPendencias, detalhes, checkPendencias } = useServidorRegularidade(processData.suprido_id);
-  const [isSending, setIsSending] = useState(false);
+  // ========================================
+  // HOOKS
+  // ========================================
+  const {
+    state,
+    documents,
+    isLoading,
+    canGeneratePortaria,
+    canGenerateCertidao,
+    canGenerateNE,
+    canGenerateDL,
+    canGenerateOB,
+    canSendToSEFIN,
+    generateDocument,
+    sendToSEFIN,
+    isGenerating,
+    isSending
+  } = useProcessExecution(processData.id);
+  
+  const { checkPendencias } = useServidorRegularidade(processData.suprido_id);
+  
+  // ========================================
+  // LOCAL STATE
+  // ========================================
   const [showPortariaModal, setShowPortariaModal] = useState(false);
   const [showNEModal, setShowNEModal] = useState(false);
   const [showDLModal, setShowDLModal] = useState(false);
   const [showOBModal, setShowOBModal] = useState(false);
-  const [generatingDoc, setGeneratingDoc] = useState<string | null>(null);
 
   const itens = enrichedProcessData?.itens_despesa || processData.items || [];
   const totalGeral = enrichedProcessData?.valor_total || processData.value || 0;
@@ -51,33 +71,12 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
     });
   };
 
-  // Lógica de controle de fluxo sequencial
-  const getDocStatus = (tipo: string) => {
-    const doc = documents.find(d => d.tipo === tipo);
-    return doc?.status || 'PENDENTE';
-  };
+  // ========================================
+  // HANDLERS
+  // ========================================
 
-  const canGeneratePortaria = true; // Sempre pode gerar a primeira
-  const canGenerateCertidao = getDocStatus('PORTARIA') === 'GERADO';
-  const canGenerateNE = getDocStatus('CERTIDAO_REGULARIDADE') === 'GERADO';
-  
-  const requiredDocsForSEFIN = documents.filter(doc => 
-    ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'].includes(doc.tipo)
-  );
-  const canSendToSEFIN = requiredDocsForSEFIN.length === 3 && requiredDocsForSEFIN.every(doc => doc.status === 'GERADO');
-  
-  // Após retorno da SEFIN (documentos assinados)
-  const docsRetornadosSEFIN = requiredDocsForSEFIN.length === 3 && requiredDocsForSEFIN.every(doc => doc.status === 'ASSINADO');
-  const canGenerateDL = docsRetornadosSEFIN;
-  const canGenerateOB = docsRetornadosSEFIN && getDocStatus('NOTA_LIQUIDACAO') === 'GERADO';
-
-  // Handlers
   const handlePortariaSubmit = async (formData: any) => {
-    console.log('📝 Gerando Portaria...');
-    setGeneratingDoc('PORTARIA');
-    const result = await generateWithFormData('PORTARIA', formData);
-    console.log('✅ Portaria gerada:', result);
-    setGeneratingDoc(null);
+    generateDocument({ tipo: 'PORTARIA', formData });
     setShowPortariaModal(false);
   };
 
