@@ -271,17 +271,24 @@ export function useProcessExecution(solicitacaoId: string) {
   // HELPER: Vincular ao dossiê
   // ========================================
   const linkToDossier = async (doc: ExecutionDocument) => {
-    await supabase.from('documentos').insert({
+    console.log('📁 [linkToDossier] Vinculando ao dossiê:', doc.tipo);
+    
+    const { data, error } = await supabase.from('documentos').insert({
       solicitacao_id: solicitacaoId,
       tipo: doc.tipo,
+      nome: doc.titulo,
       titulo: doc.titulo,
-      arquivo_url: doc.arquivo_url,
-      metadata: {
-        execution_document_id: doc.id,
-        is_execution_document: true,
-        ...doc.metadata
-      }
-    });
+      url_storage: doc.arquivo_url,
+      status: 'MINUTA'
+    }).select();
+
+    if (error) {
+      console.error('❌ [linkToDossier] Erro:', error);
+      throw error;
+    }
+
+    console.log('✅ [linkToDossier] Sucesso:', data);
+    return data;
   };
 
   // ========================================
