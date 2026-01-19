@@ -250,35 +250,58 @@ export function useProcessExecution(solicitacaoId: string) {
         throw tramitError;
       }
 
-      // 3. ESSENCIAL: Criar task na tabela sefin_tasks para aparecer na Caixa!
+      // 3. ESSENCIAL: Criar tasks na tabela sefin_tasks para aparecer na Caixa!
       const { data: solData } = await supabase
         .from('solicitacoes')
         .select('nup, valor_solicitado, user_id, profiles(nome)')
         .eq('id', solicitacaoId)
         .single();
 
-      const portariaTitle = solData 
-        ? `Portaria de Concessão - ${(solData as any).profiles?.nome || 'Suprido'}`
-        : `Portaria de Concessão - Processo ${solicitacaoId.slice(0, 8)}`;
-      
-      const { error: taskError } = await supabase
+      const suprNome = (solData as any)?.profiles?.nome || 'Suprido';
+      const valorSol = solData?.valor_solicitado || 0;
+
+      // 3a. Task para Portaria
+      const portariaTitle = `Portaria de Concessão - ${suprNome}`;
+      await supabase
         .from('sefin_tasks')
         .insert({
           solicitacao_id: solicitacaoId,
           tipo: 'PORTARIA',
           titulo: portariaTitle,
           origem: 'SOSFU',
-          valor: solData?.valor_solicitado || 0,
+          valor: valorSol,
           status: 'PENDING',
           created_at: new Date().toISOString()
         });
 
-      if (taskError) {
-        console.error('❌ [SEFIN] Erro ao criar task:', taskError);
-        // Não falha a operação, apenas loga
-      }
+      // 3b. Task para Certidão de Regularidade
+      await supabase
+        .from('sefin_tasks')
+        .insert({
+          solicitacao_id: solicitacaoId,
+          tipo: 'CERTIDAO_REGULARIDADE',
+          titulo: `Certidão de Regularidade - ${suprNome}`,
+          origem: 'SOSFU',
+          valor: valorSol,
+          status: 'PENDING',
+          created_at: new Date().toISOString()
+        });
 
-      console.log('✅ [SEFIN] Processo enviado com sucesso!');
+      // 3c. Task para Nota de Empenho
+      await supabase
+        .from('sefin_tasks')
+        .insert({
+          solicitacao_id: solicitacaoId,
+          tipo: 'NOTA_EMPENHO',
+          titulo: `Nota de Empenho - ${suprNome}`,
+          origem: 'SOSFU',
+          valor: valorSol,
+          status: 'PENDING',
+          created_at: new Date().toISOString()
+        });
+
+      console.log('✅ [SEFIN] Processo enviado com sucesso! 3 tasks criadas (Portaria, Certidão, NE)');
+
     },
     onSuccess: () => {
       showToast({
