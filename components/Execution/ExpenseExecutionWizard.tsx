@@ -419,17 +419,17 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
 
   const generatePortariaContent = (numero: string, ptres: string, dotacoes: string[]) => {
     const nup = process.nup || process.protocolNumber || 'N/I';
-    const interessado = process.interestedParty || 'Servidor não identificado';
-    const valor = process.value || 0;
+    const interessado = process.interestedParty || process.suprido_nome || 'Servidor não identificado';
+    const valor = process.value || process.valor_total || 0;
     const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
     
     const dotacaoText = dotacoes.length === 1 
       ? `Dotação Orçamentária ${dotacoes[0]}`
       : `Dotações Orçamentárias: ${dotacoes.join(', ')}`;
 
-    return `PORTARIA DE SUPRIMENTO DE FUNDOS Nº ${numero}
+    return `PORTARIA SF Nº ${numero}
 
-O SECRETÁRIO EXECUTIVO DE FINANÇAS DO TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ, no uso de suas atribuições legais, e considerando o disposto na Resolução nº XX/XXXX-TJE,
+Secretário de Planejamento, Coordenação e Finanças do Tribunal de Justiça do Estado do Pará, no exercício das suas atribuições, estabelecidas na Portaria nº XXXX/2026-GP,
 
 RESOLVE:
 
@@ -441,7 +441,7 @@ Art. 3º O prazo de aplicação é de 90 (noventa) dias contados da data de rece
 
 Art. 4º Esta Portaria entra em vigor na data de sua publicação.
 
-Belém-PA, ${new Date().toLocaleDateString('pt-BR')}.
+Belém-PA, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}.
 
 _____________________________
 SECRETÁRIO EXECUTIVO DE FINANÇAS

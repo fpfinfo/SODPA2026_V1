@@ -6,6 +6,7 @@ import { StaticCover, StaticRequest } from './StaticDocuments';
 import { StaticDL } from './StaticDocuments/StaticDL';
 import { StaticOB } from './StaticDocuments/StaticOB';
 import { StaticNE } from './StaticDocuments/StaticNE';
+import { StaticPortaria } from './StaticDocuments/StaticPortaria';
 
 interface ProcessData {
   id: string;
@@ -273,6 +274,8 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                       <StaticNE processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'ORDEM_BANCARIA' ? (
                       <StaticOB processData={processData} documentData={docItem.originalDoc} />
+                    ) : docItem.originalDoc?.tipo === 'PORTARIA' ? (
+                      <StaticPortaria processData={processData} documentData={docItem.originalDoc} />
                     ) : (
                       <>
                         {/* Dynamic Document */}

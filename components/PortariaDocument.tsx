@@ -84,15 +84,27 @@ export function PortariaDocument({
           alt="Brasão TJPA" 
           className="w-20 mx-auto mb-4"
         />
-        <p className="text-lg font-bold">PODER JUDICIÁRIO</p>
-        <p className="text-lg font-bold">TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ</p>
-        <p className="text-sm text-slate-600">Secretaria de Finanças</p>
-        <p className="text-xs text-slate-500">Av. Almirante Barroso, 3089 - CEP 66.613-710 - Fone/Fax (091) 3205-3241</p>
+        <p className="text-base font-bold">PODER JUDICIÁRIO</p>
+        <p className="text-sm">Tribunal de Justiça do Estado do Pará</p>
+        <p className="text-sm font-semibold">Secretaria de Planejamento e Finanças</p>
+        <p className="text-xs text-slate-600">Av. Almirante Barroso, 3089 Cep, 66.613-710 Fone/Fax (091) 3205-3241</p>
       </div>
 
       {/* Title */}
-      <div className="bg-slate-700 text-white text-center py-2 px-4 mb-8 font-bold">
-        PORTARIA DE SUPRIMENTO DE FUNDOS Nº {numeroPortaria}/{anoPortaria}-SEFIN/TJE
+      <div className="text-left mb-6">
+        <p className="text-sm">
+          <span className="font-bold">PORTARIA SF Nº</span>{' '}
+          <span className="font-black text-lg ml-2">{numeroPortaria}</span>{' '}
+          <span className="font-bold">/{anoPortaria}-SEPLAN/TJE</span>
+        </p>
+      </div>
+
+      {/* Opening paragraph */}
+      <div className="mb-6 text-justify text-sm leading-relaxed">
+        <p>
+          Secretário de Planejamento, Coordenação e Finanças do Tribunal de Justiça do Estado do Pará, 
+          no exercício das suas atribuições, estabelecidas na Portaria nº XXXX/2026-GP,
+        </p>
       </div>
 
       {/* RESOLVE */}
