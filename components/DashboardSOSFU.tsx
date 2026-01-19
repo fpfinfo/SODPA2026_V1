@@ -423,13 +423,6 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
                 setDetailsModalTab('DETAILS');
               }
             }}
-            onStart={(processId) => {
-              const process = processes.find(p => p.id === processId);
-              if (process) {
-                setExecutionProcess(process);
-                setShowExecutionWizard(true);
-              }
-            }}
           />
         </div>
       );

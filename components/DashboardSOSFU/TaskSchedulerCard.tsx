@@ -4,7 +4,6 @@ import {
   Clock, 
   Flag, 
   MoreHorizontal, 
-  Play, 
   Eye,
   ChevronDown,
   ChevronLeft,
@@ -30,7 +29,6 @@ interface TaskSchedulerCardProps {
   };
   onSchedule: (processId: string, date: string | null, priority?: number, notes?: string) => Promise<void>;
   onViewDetails: (processId: string) => void;
-  onStart?: (processId: string) => void;
 }
 
 const PRIORITY_CONFIG = {
@@ -255,7 +253,6 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
   process,
   onSchedule,
   onViewDetails,
-  onStart,
 }) => {
   const [isScheduling, setIsScheduling] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -442,15 +439,6 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
           >
             <Eye size={16} />
           </button>
-          {onStart && (
-            <button
-              onClick={() => onStart(process.id)}
-              className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors"
-              title="Iniciar análise"
-            >
-              <Play size={16} />
-            </button>
-          )}
         </div>
       </div>
     </div>
