@@ -237,6 +237,8 @@ export function useProcessExecution(solicitacaoId: string) {
           solicitacao_id: solicitacaoId,
           origem: 'SUPRIDO',
           destino: 'SEFIN',
+          status_anterior: 'EM ANÁLISE SOSFU',
+          status_novo: 'AGUARDANDO ASSINATURA SEFIN',
           observacao: 'Documentos de execução enviados para assinatura (Portaria, Certidão, NE)',
           created_at: new Date().toISOString()
         });
