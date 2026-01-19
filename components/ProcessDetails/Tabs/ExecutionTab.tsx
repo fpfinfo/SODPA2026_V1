@@ -53,8 +53,27 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const [showDLModal, setShowDLModal] = useState(false);
   const [showOBModal, setShowOBModal] = useState(false);
 
-  const itens = enrichedProcessData?.itens_despesa || processData.items || [];
-  const totalGeral = enrichedProcessData?.valor_total || processData.value || 0;
+  // Safe parse function for itens_despesa (may be JSON string from database)
+  const parseItens = (data: any): any[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const rawItens = enrichedProcessData?.itens_despesa || processData.items || processData.itens_despesa;
+  const itens = parseItens(rawItens);
+  const totalGeral = enrichedProcessData?.valor_total || processData.value || processData.valor_total || 0;
+
+  // Debug: Log what we're receiving
+  console.log('[ExecutionTab Debug] rawItens:', rawItens, 'parsed itens:', itens, 'processData:', processData);
 
   // ========================================
   // HELPERS
