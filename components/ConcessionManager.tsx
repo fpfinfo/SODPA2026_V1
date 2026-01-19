@@ -151,14 +151,57 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
   const hasDoc = (type: DocType) => selectedProcess?.generatedDocuments?.some(d => d.type === type);
 
   const handleTramitarSefin = async () => {
-      if (!hasDoc('PORTARIA') || !hasDoc('CERTIDAO_REGULARIDADE') || !hasDoc('NOTA_EMPENHO')) {
+      if (!selectedProcess) return;
+      
+      // Verificar documentos na tabela execution_documents
+      const { data: execDocs, error: fetchError } = await supabase
+        .from('execution_documents')
+        .select('tipo, status')
+        .eq('solicitacao_id', selectedProcess.id);
+
+      if (fetchError) {
+        alert('Erro ao verificar documentos: ' + fetchError.message);
+        return;
+      }
+
+      const hasPortaria = execDocs?.some(d => d.tipo === 'PORTARIA');
+      const hasCertidao = execDocs?.some(d => d.tipo === 'CERTIDAO_REGULARIDADE');
+      const hasNE = execDocs?.some(d => d.tipo === 'NOTA_EMPENHO');
+
+      if (!hasPortaria || !hasCertidao || !hasNE) {
           alert('Gere a Portaria, a Certidão e a NE antes de tramitar.');
           return;
       }
       
       try {
-          await onTramitToSefin(selectedProcess!.id);
-          setSuccessMessage(`✅ Processo ${selectedProcess!.protocolNumber} tramitado para SEFIN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
+          // Criar tramitação com status_novo
+          const { error: tramitError } = await supabase
+            .from('historico_tramitacao')
+            .insert({
+              solicitacao_id: selectedProcess.id,
+              origem: 'SOSFU',
+              destino: 'SEFIN',
+              status_anterior: 'EM ANÁLISE SOSFU',
+              status_novo: 'AGUARDANDO ASSINATURA SEFIN',
+              observacao: 'Documentos enviados para assinatura em lote (Portaria, Certidão, NE)',
+              created_at: new Date().toISOString()
+            });
+
+          if (tramitError) {
+            console.error('Erro na tramitação:', tramitError);
+            throw tramitError;
+          }
+
+          // Atualizar status da solicitação
+          await supabase
+            .from('solicitacoes')
+            .update({
+              execution_status: 'AGUARDANDO_ASSINATURA_SEFIN',
+              sefin_sent_at: new Date().toISOString()
+            })
+            .eq('id', selectedProcess.id);
+
+          setSuccessMessage(`✅ Processo ${selectedProcess.protocolNumber} tramitado para SEFIN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
           setTimeout(() => setSuccessMessage(null), 10000);
           refresh();
       } catch (err) {
