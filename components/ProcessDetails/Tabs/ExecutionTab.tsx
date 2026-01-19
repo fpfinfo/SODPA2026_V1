@@ -474,11 +474,13 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
         isLoading={generatingDoc === 'PORTARIA'}
       />
 
-      <NotaEmpenhoFormModal
-        onSubmit={handleNESubmit}
-        onClose={() => setShowNEModal(false)}
-        isLoading={generatingDoc === 'NOTA_EMPENHO'}
-      />
+      {showNEModal && (
+        <NotaEmpenhoFormModal
+          onSubmit={handleNESubmit}
+          onClose={() => setShowNEModal(false)}
+          isLoading={generatingDoc === 'NOTA_EMPENHO'}
+        />
+      )}
 
       {(showDLModal && documents.find(d => d.tipo === 'NOTA_EMPENHO')?.fonte_recurso) && (
         <DocumentoLiquidacaoFormModal
