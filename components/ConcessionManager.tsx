@@ -174,7 +174,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
       }
       
       try {
-          // Criar tramitação com status_novo
+          // 1. Criar tramitação com status_novo
           const { error: tramitError } = await supabase
             .from('historico_tramitacao')
             .insert({
@@ -192,16 +192,34 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
             throw tramitError;
           }
 
-          // Atualizar status da solicitação
+          // 2. Atualizar status da solicitação
           await supabase
             .from('solicitacoes')
             .update({
-              status: ConcessionStatus.AWAITING_SIGNATURE, // ESSENCIAL para aparecer na SEFIN!
+              status: ConcessionStatus.AWAITING_SIGNATURE,
               destino_atual: 'SEFIN',
               execution_status: 'AGUARDANDO_ASSINATURA_SEFIN',
               sefin_sent_at: new Date().toISOString()
             })
             .eq('id', selectedProcess.id);
+
+          // 3. ESSENCIAL: Criar task na tabela sefin_tasks para aparecer na Caixa!
+          const { error: taskError } = await supabase
+            .from('sefin_tasks')
+            .insert({
+              solicitacao_id: selectedProcess.id,
+              tipo: 'PORTARIA',
+              titulo: `Portaria de Concessão - ${selectedProcess.interestedParty}`,
+              origem: 'SOSFU',
+              valor: selectedProcess.value,
+              status: 'PENDING',
+              created_at: new Date().toISOString()
+            });
+
+          if (taskError) {
+            console.error('Erro ao criar task SEFIN:', taskError);
+            // Não falha a operação, apenas loga
+          }
 
           setSuccessMessage(`✅ Processo ${selectedProcess.protocolNumber} tramitado para SEFIN! O processo agora aguarda assinatura do Ordenador de Despesas.`);
           setTimeout(() => setSuccessMessage(null), 10000);

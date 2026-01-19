@@ -220,7 +220,7 @@ export function useProcessExecution(solicitacaoId: string) {
       const { error: updateError } = await supabase
         .from('solicitacoes')
         .update({
-          status: 'AWAITING_SIGNATURE', // ESSENCIAL para aparecer na SEFIN!
+          status: 'AWAITING_SIGNATURE',
           destino_atual: 'SEFIN',
           execution_status: 'AGUARDANDO_ASSINATURA_SEFIN',
           sefin_sent_at: new Date().toISOString()
@@ -237,7 +237,7 @@ export function useProcessExecution(solicitacaoId: string) {
         .from('historico_tramitacao')
         .insert({
           solicitacao_id: solicitacaoId,
-          origem: 'SUPRIDO',
+          origem: 'SOSFU',
           destino: 'SEFIN',
           status_anterior: 'EM ANÁLISE SOSFU',
           status_novo: 'AGUARDANDO ASSINATURA SEFIN',
@@ -248,6 +248,34 @@ export function useProcessExecution(solicitacaoId: string) {
       if (tramitError) {
         console.error('❌ [SEFIN] Erro ao criar tramitação:', tramitError);
         throw tramitError;
+      }
+
+      // 3. ESSENCIAL: Criar task na tabela sefin_tasks para aparecer na Caixa!
+      const { data: solData } = await supabase
+        .from('solicitacoes')
+        .select('nup, valor_solicitado, user_id, profiles(nome)')
+        .eq('id', solicitacaoId)
+        .single();
+
+      const portariaTitle = solData 
+        ? `Portaria de Concessão - ${(solData as any).profiles?.nome || 'Suprido'}`
+        : `Portaria de Concessão - Processo ${solicitacaoId.slice(0, 8)}`;
+      
+      const { error: taskError } = await supabase
+        .from('sefin_tasks')
+        .insert({
+          solicitacao_id: solicitacaoId,
+          tipo: 'PORTARIA',
+          titulo: portariaTitle,
+          origem: 'SOSFU',
+          valor: solData?.valor_solicitado || 0,
+          status: 'PENDING',
+          created_at: new Date().toISOString()
+        });
+
+      if (taskError) {
+        console.error('❌ [SEFIN] Erro ao criar task:', taskError);
+        // Não falha a operação, apenas loga
       }
 
       console.log('✅ [SEFIN] Processo enviado com sucesso!');
