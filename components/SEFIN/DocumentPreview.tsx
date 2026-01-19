@@ -188,22 +188,22 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           </div>
         </div>
         
-        {/* Document Area */}
-        <div className="flex-1 overflow-y-auto bg-slate-100 p-8">
+        {/* Document Area - Full height scrollable container */}
+        <div className="flex-1 overflow-y-auto bg-slate-100 p-6">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <Loader2 size={32} className="animate-spin text-blue-600 mx-auto mb-4" />
                 <p className="text-slate-500 font-medium">Carregando documento...</p>
               </div>
             </div>
           ) : (
-            <div className="max-w-[210mm] mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
+            <div className="max-w-[210mm] mx-auto bg-white shadow-xl rounded-lg overflow-hidden min-h-[297mm]">
               {/* TJPA Header */}
               <DocumentHeader />
               
-              {/* Document Content */}
-              <div className="p-12">
+              {/* Document Content - with internal padding */}
+              <div className="px-16 py-8">
                 {renderDocument()}
               </div>
             </div>
