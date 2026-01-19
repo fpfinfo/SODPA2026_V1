@@ -20,6 +20,16 @@ const EXECUTION_DOCUMENTS = [
   { tipo: 'ORDEM_BANCARIA', titulo: 'Ordem Bancária', requiredForSEFIN: false }
 ];
 
+// Mapeamento de códigos de elemento de despesa para descrições
+const EXPENSE_ELEMENT_LABELS: Record<string, string> = {
+  '3.3.90.30.01': 'Material de Consumo',
+  '3.3.90.30.02': 'Combustíveis e Lubrificantes',
+  '3.3.90.30': 'Material de Consumo',
+  '3.3.90.33': 'Passagens e Despesas com Locomoção',
+  '3.3.90.36': 'Outros Serviços de Terceiros - PF',
+  '3.3.90.39': 'Outros Serviços de Terceiros - PJ',
+};
+
 export const ExecutionTab: React.FC<ExecutionTabProps> = ({ 
   processData, 
   enrichedProcessData 
@@ -305,15 +315,19 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {itens.map((item: any, idx: number) => (
-                    <tr key={idx} className="border-b border-slate-100">
-                      <td className="py-3 px-4 font-mono text-slate-600">{item.element || item.codigo || item.element_code || '-'}</td>
-                      <td className="py-3 px-4 text-slate-700">{item.desc || item.descricao || item.description || '-'}</td>
-                      <td className="py-3 px-4 text-right font-bold text-slate-800">
-                        {formatCurrency(item.val || item.valor || item.value || 0)}
-                      </td>
-                    </tr>
-                  ))}
+                  {itens.map((item: any, idx: number) => {
+                    const elementCode = item.element || item.codigo || item.element_code || '';
+                    const description = item.desc || item.descricao || item.description || EXPENSE_ELEMENT_LABELS[elementCode] || '-';
+                    return (
+                      <tr key={idx} className="border-b border-slate-100">
+                        <td className="py-3 px-4 font-mono text-slate-600">{elementCode || '-'}</td>
+                        <td className="py-3 px-4 text-slate-700">{description}</td>
+                        <td className="py-3 px-4 text-right font-bold text-slate-800">
+                          {formatCurrency(item.val || item.valor || item.value || 0)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-50">
