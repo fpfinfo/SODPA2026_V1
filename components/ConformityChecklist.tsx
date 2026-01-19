@@ -2,19 +2,24 @@ import React, { useState, useRef } from 'react';
 import { Shield, CheckCircle, XCircle, Clock, Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useConformityValidation, ProcessData, ExecutionDocument } from '../hooks/useConformityValidation';
 import { useBudgetValidation } from '../hooks/useBudgetValidation';
+import { JustificationAnalysis, NLPAnalysis } from './JustificationAnalysis';
 
 interface ConformityChecklistProps {
   processData: ProcessData;
   executionDocuments?: ExecutionDocument[];
   className?: string;
   ptresCode?: string; // For real-time budget validation
+  nlpAnalysis?: NLPAnalysis; // AI-powered justification analysis
+  solicitacaoId?: string; // For triggering analysis
 }
 
 export const ConformityChecklist: React.FC<ConformityChecklistProps> = ({ 
   processData,
   executionDocuments = [],
   className = '',
-  ptresCode
+  ptresCode,
+  nlpAnalysis,
+  solicitacaoId
 }) => {
   const checklistRef = useRef<HTMLDivElement>(null);
   const {
@@ -172,6 +177,11 @@ export const ConformityChecklist: React.FC<ConformityChecklistProps> = ({
                         </div>
                       </div>
                     </div>
+                  )}
+
+                  {/* NLP Justification Analysis for Justificativa */}
+                  {item.id === 'justificativa' && nlpAnalysis && (
+                    <JustificationAnalysis nlpAnalysis={nlpAnalysis} />
                   )}
 
                   {item.errorMessage && (
