@@ -114,14 +114,38 @@ const parseItens = (data: any): any[] => {
 export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, documentData }) => {
   const metadata = documentData.metadata?.form_data || {};
   
-  // Parse expense items
-  const itens = parseItens(processData.itens_despesa || processData.items);
+  // Parse expense items and sort by element code
+  const rawItens = parseItens(processData.itens_despesa || processData.items);
+  const itens = [...rawItens].sort((a, b) => {
+    const codeA = a.element || a.codigo || a.elemento || '';
+    const codeB = b.element || b.codigo || b.elemento || '';
+    return codeA.localeCompare(codeB);
+  });
   
   // Get dotações from metadata (may be Record or single string)
   const dotacoes = metadata.dotacoes || {};
   const dotacoesArray = Object.values(dotacoes).filter(Boolean) as string[];
   const dotacaoSingle = metadata.dotacao_code;
   const allDotacoes = dotacoesArray.length > 0 ? dotacoesArray : (dotacaoSingle ? [dotacaoSingle] : ['---']);
+  
+  // PTRES para lógica de dados bancários
+  const ptresCode = metadata.ptres_code || processData.ptres_code || '';
+  
+  // Lógica: Se PTRES 8193 ou 8163 → Dados da Comarca, senão → Dados do Suprido
+  const usarDadosComarca = ptresCode === '8193' || ptresCode === '8163';
+  
+  // Dados bancários
+  const bancoDados = usarDadosComarca ? {
+    banco: processData.comarca_banco || processData.lotacao_banco || '---',
+    agencia: processData.comarca_agencia || processData.lotacao_agencia || '---',
+    conta: processData.comarca_conta || processData.lotacao_conta_corrente || '---',
+    titular: processData.lotacao || processData.comarca_nome || 'Comarca'
+  } : {
+    banco: processData.banco || processData.suprido_banco || '---',
+    agencia: processData.agencia || processData.suprido_agencia || '---',
+    conta: processData.conta_corrente || processData.suprido_conta || '---',
+    titular: processData.suprido_nome || 'Suprido'
+  };
   
   const formatDate = (date?: string) => {
     if (!date) return new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -150,10 +174,10 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
 
   // Cálculo dos prazos
   const dataEmissao = new Date(documentData.created_at || Date.now());
-  const dataFimEvento = processData.end_date ? new Date(processData.end_date) : new Date(dataEmissao.getTime() + 90 * 24 * 60 * 60 * 1000); // Default 90 dias
-  const dataLimitePrestacao = new Date(dataFimEvento.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 dias
+  const dataFimEvento = processData.end_date ? new Date(processData.end_date) : new Date(dataEmissao.getTime() + 90 * 24 * 60 * 60 * 1000);
+  const dataLimitePrestacao = new Date(dataFimEvento.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  // Formatação das dotações para Art. 1°
+  // Formatação das dotações para Art. 2°
   const formatDotacoes = () => {
     if (allDotacoes.length === 1) {
       return <strong>{allDotacoes[0]}</strong>;
@@ -208,16 +232,27 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
           <strong>{processData.nup || 'TJPA-EXT-2026-7128'}</strong>.
         </div>
 
-        {/* Art. 2º - Valor por extenso + Incisos por elemento */}
+        {/* Art. 2º - Valor por extenso + Dotações + Dados bancários + Incisos */}
         <div className="leading-loose">
           <span className="font-bold">Art. 2º</span>{' '}
           O valor total do presente Suprimento de Fundos é de{' '}
           <strong>{formatCurrency(valorTotal)}</strong>{' '}
-          <strong>({valorPorExtenso(valorTotal)})</strong>, obedecendo aos limites estabelecidos 
-          pela Resolução CNJ nº 169/2013, distribuídos nos seguintes elementos de despesa:
+          <strong>({valorPorExtenso(valorTotal)})</strong>, nas{' '}
+          {allDotacoes.length > 1 ? 'Dotações Orçamentárias' : 'Dotação Orçamentária'}{' '}
+          {formatDotacoes()}, e deverá atender às despesas miúdas de pronto pagamento 
+          e ser creditado na conta corrente, abaixo:
         </div>
         
-        {/* Incisos com elementos de despesa */}
+        {/* Parágrafo único - Dados bancários */}
+        <div className="pl-8 leading-loose">
+          <strong>Parágrafo único.</strong>{' '}
+          Dados bancários para crédito{usarDadosComarca ? ' (Comarca)' : ''}: 
+          Banco <strong>{bancoDados.banco}</strong>, 
+          Agência <strong>{bancoDados.agencia}</strong>, 
+          Conta Corrente <strong>{bancoDados.conta}</strong>.
+        </div>
+        
+        {/* Incisos com elementos de despesa - Ordenados por código */}
         {itens.length > 0 && (
           <div className="pl-8 space-y-2">
             {itens.map((item: any, index: number) => {
