@@ -383,6 +383,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
           isOpen={showPortariaModal}
           onClose={() => setShowPortariaModal(false)}
           onSubmit={handlePortariaSubmit}
+          expenseElements={itens.map((item: any) => item.element || item.codigo || item.elemento).filter(Boolean)}
         />
       )}
 
