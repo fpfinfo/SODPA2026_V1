@@ -127,13 +127,7 @@ export function useProcessExecution(solicitacaoId: string) {
       ob: documents.find(d => d.tipo === 'ORDEM_BANCARIA') || null
     };
 
-    console.log('📊 [Estado] Mapeamento atualizado:', {
-      portaria: newState.portaria?.status || 'PENDENTE',
-      certidao: newState.certidao?.status || 'PENDENTE',
-      ne: newState.ne?.status || 'PENDENTE',
-      dl: newState.dl?.status || 'PENDENTE',
-      ob: newState.ob?.status || 'PENDENTE'
-    });
+    // Debug logs removed - was causing console spam
 
     setState(newState);
   }, [documents]);
@@ -369,18 +363,7 @@ export function useProcessExecution(solicitacaoId: string) {
     state.certidao?.status === 'GERADO' &&
     state.ne?.status === 'GERADO';
 
-  console.log('🎯 [Validações]', {
-    canGeneratePortaria,
-    canGenerateCertidao,
-    canGenerateNE,
-    canGenerateDL,
-    canGenerateOB,
-    canSendToSEFIN,
-    portariaStatus: state.portaria?.status,
-    certidaoStatus: state.certidao?.status,
-    neStatus: state.ne?.status,
-    dlStatus: state.dl?.status
-  });
+  // Debug logs removed - was causing console spam
 
   // ========================================
   // RETURN

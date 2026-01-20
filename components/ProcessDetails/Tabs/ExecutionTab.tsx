@@ -82,8 +82,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const itens = parseItens(rawItens);
   const totalGeral = enrichedProcessData?.valor_total || processData.value || processData.valor_total || 0;
 
-  // Debug: Log what we're receiving
-  console.log('[ExecutionTab Debug] rawItens:', rawItens, 'parsed itens:', itens, 'processData:', processData);
+  // Debug log removed - was causing console spam
 
   // ========================================
   // HELPERS
