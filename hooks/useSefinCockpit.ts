@@ -350,12 +350,16 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
         throw new Error('PIN inválido')
       }
 
+      // Get current user ID from auth
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
       const { error } = await supabase
         .from('sefin_tasks')
         .update({
           status: 'SIGNED',
           assinado_em: new Date().toISOString(),
-          ordenador_id: 'current-user-id' // TODO: Get from auth context
+          ordenador_id: user.id
         })
         .eq('id', taskId)
 
@@ -375,12 +379,16 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
         throw new Error('PIN inválido')
       }
 
+      // Get current user ID from auth
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
       const { error } = await supabase
         .from('sefin_tasks')
         .update({
           status: 'SIGNED',
           assinado_em: new Date().toISOString(),
-          ordenador_id: 'current-user-id'
+          ordenador_id: user.id
         })
         .in('id', taskIds)
 
