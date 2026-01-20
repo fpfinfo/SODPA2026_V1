@@ -526,10 +526,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
               matricula: servidorData.matricula,
               cargo: servidorData.cargo,
               lotacao: servidorData.lotacao,
-              municipio_id: null, // IDs might need specific lookup, keeping generic for now
-              unidade_id: null,
               updated_at: new Date().toISOString()
-            });
+            }, { onConflict: 'id' });
 
             setProfileData({
               id: user.id, // Use auth user ID for consistency
