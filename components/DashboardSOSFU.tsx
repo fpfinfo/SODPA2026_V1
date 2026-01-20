@@ -17,6 +17,8 @@ import { BudgetManager } from './BudgetManager';
 import { BudgetDistributionMatrix } from './BudgetDistributionMatrix';
 import { BudgetMatrixConfig } from './BudgetMatrixConfig';
 import { SupridoManager } from './SupridoManager';
+import { SupridoMasterTable } from './SOSFU/SupridoMasterTable';
+import { OrdinaryProcessFactory } from './SOSFU/OrdinaryProcessFactory';
 import { SiafeManager } from './SiafeManager';
 import { ExpenseExecutionWizard } from './Execution/ExpenseExecutionWizard';
 import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
@@ -540,6 +542,19 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
             processes={getPCConcluidas()}
             onUpdateStatus={handleSiafeUpdate}
           />
+        ) : isSupridoManagement ? (
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <SupridoMasterTable 
+              onEditTitular={(unidade) => console.log('Edit:', unidade)}
+              onViewHistory={(id) => console.log('History:', id)}
+            />
+          </div>
+        ) : isOrdinaryManagement ? (
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <OrdinaryProcessFactory 
+              onProcessComplete={() => refreshProcesses()}
+            />
+          </div>
         ) : activeTab === 'ALL' ? (
           <div className="h-full overflow-y-auto custom-scrollbar">
             {isOrdinaryManagement && <div className="mb-8"><BudgetManager budget={budget} onLaunchBatch={handleBatchLaunch} /></div>}

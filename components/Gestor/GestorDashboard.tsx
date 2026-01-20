@@ -352,6 +352,17 @@ export const GestorDashboard: React.FC = () => {
     doc.nome?.toLowerCase().includes('atesto') ||
     doc.titulo?.toLowerCase().includes('atesto')
   );
+  
+  // Auto-atesto: When Gestor is the Suprido (owner of the request), atesto is dispensed
+  const isAutoAtesto = selectedProcess?.user_id === currentUserId || 
+                       selectedProcess?.suprido_id === currentUserId;
+  
+  // Needs atesto only if: not auto-atesto AND no atesto document exists
+  const needsAtesto = !isAutoAtesto && !hasAtesto;
+  
+  // Can tramitar if: auto-atesto OR has atesto document
+  const canTramitarToSOSFU = isAutoAtesto || hasAtesto;
+  
   const isChecklistComplete = Object.values(checklist).every(Boolean);
 
   const handleGenerateAtestoClick = () => {
@@ -403,8 +414,8 @@ export const GestorDashboard: React.FC = () => {
             setSelectedProcess(null);
             setView('LIST');
           }}
-          canTramitar={hasAtesto}
-          canGenerateAtesto={!hasAtesto}
+          canTramitar={canTramitarToSOSFU}
+          canGenerateAtesto={needsAtesto}
           canCreateDocument={true}
           isLoadingAtesto={isGeneratingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
