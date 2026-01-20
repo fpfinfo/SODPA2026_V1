@@ -61,6 +61,46 @@ export const TramitarModal: React.FC<TramitarModalProps> = ({
       return;
     }
 
+    // Business Rule: GESTOR must have CERTIDAO_ATESTO before sending to SOSFU
+    // Exception: Auto-Atesto - When Gestor is the Suprido (owner of the request), atesto is dispensed
+    if (currentModule === 'GESTOR' && selectedDestination === 'SOSFU') {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Check if current user is the suprido (auto-atesto case)
+      const { data: solicitacao } = await supabase
+        .from('solicitacoes')
+        .select('user_id, suprido_id')
+        .eq('id', processId)
+        .single();
+
+      const isAutoAtesto = solicitacao?.user_id === user?.id || solicitacao?.suprido_id === user?.id;
+
+      if (!isAutoAtesto) {
+        // Only check for atesto document if NOT auto-atesto
+        const { data: atestoDoc, error: atestoError } = await supabase
+          .from('documentos')
+          .select('id')
+          .eq('solicitacao_id', processId)
+          .in('tipo', ['CERTIDAO_ATESTO', 'ATESTO', 'CERTIDAO'])
+          .maybeSingle();
+
+        if (atestoError) {
+          console.error('Error checking atesto:', atestoError);
+        }
+
+        if (!atestoDoc) {
+          showToast({ 
+            type: 'error', 
+            title: 'Atesto Obrigatório', 
+            message: 'Você precisa gerar a Certidão de Atesto antes de encaminhar para a SOSFU.' 
+          });
+          return;
+        }
+      } else {
+        console.log('✅ Auto-Atesto: Gestor é o próprio Suprido - atesto dispensado');
+      }
+    }
+
     setIsProcessing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();

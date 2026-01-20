@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { 
   X, 
   FileText, 
@@ -18,9 +18,11 @@ import {
   Send,
   RotateCcw,
   KeyRound,
-  Search
+  Search,
+  Loader2
 } from 'lucide-react'
 import { SefinTask } from '../../../hooks/useSefinCockpit'
+import { supabase } from '../../../lib/supabaseClient'
 
 export type SimilarSearchType = 'comarca' | 'suprido'
 
@@ -86,6 +88,45 @@ function InfoRow({ icon: Icon, label, value }: {
 
 export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewSimilar }: ContextDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
+  const [realDocumentContent, setRealDocumentContent] = useState<string | null>(null)
+  const [isLoadingDocument, setIsLoadingDocument] = useState(false)
+
+  // Fetch real document content from database
+  useEffect(() => {
+    const fetchDocumentContent = async () => {
+      if (!task?.documento_id) {
+        setRealDocumentContent(null)
+        return
+      }
+
+      setIsLoadingDocument(true)
+      try {
+        const { data: documento, error } = await supabase
+          .from('documentos')
+          .select('conteudo, titulo, tipo')
+          .eq('id', task.documento_id)
+          .single()
+
+        if (error) {
+          console.error('Error fetching document content:', error)
+          setRealDocumentContent(null)
+        } else if (documento?.conteudo) {
+          setRealDocumentContent(documento.conteudo)
+        } else {
+          setRealDocumentContent(null)
+        }
+      } catch (err) {
+        console.error('Error fetching document:', err)
+        setRealDocumentContent(null)
+      } finally {
+        setIsLoadingDocument(false)
+      }
+    }
+
+    if (isOpen && task) {
+      fetchDocumentContent()
+    }
+  }, [task?.documento_id, isOpen])
 
   // Close on Escape key
   useEffect(() => {
@@ -389,11 +430,26 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
           <div className="bg-slate-100 rounded-xl p-4 mb-6 border border-slate-200">
             <div className="aspect-[210/297] bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-4 h-full overflow-y-auto">
-                {/* Render generated document preview */}
-                <div 
-                  className="text-slate-700 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: generateDocumentPreview() }}
-                />
+                {isLoadingDocument ? (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <Loader2 size={24} className="animate-spin mb-2" />
+                    <span className="text-xs">Carregando documento...</span>
+                  </div>
+                ) : realDocumentContent ? (
+                  /* Render REAL document content from database */
+                  <div 
+                    className="text-slate-700 leading-relaxed whitespace-pre-wrap text-xs"
+                    style={{ fontFamily: 'serif' }}
+                  >
+                    {realDocumentContent}
+                  </div>
+                ) : (
+                  /* Fallback: Render generated preview if no real content */
+                  <div 
+                    className="text-slate-700 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: generateDocumentPreview() }}
+                  />
+                )}
               </div>
             </div>
           </div>

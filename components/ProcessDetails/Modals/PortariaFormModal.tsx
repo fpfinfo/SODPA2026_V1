@@ -237,6 +237,7 @@ export const PortariaFormModal: React.FC<PortariaFormModalProps> = ({
                     value={formData.dotacoes[group] || ''}
                     onChange={(code) => updateDotacao(group, code)}
                     error={errors[group]}
+                    elementFilter={group}
                   />
                 </div>
               ))}

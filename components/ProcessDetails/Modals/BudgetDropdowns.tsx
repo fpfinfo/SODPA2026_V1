@@ -83,23 +83,25 @@ interface DropdownDotacaoProps {
   value: string;
   onChange: (code: string) => void;
   error?: string;
+  elementFilter?: string; // e.g., "3.3.90.30" - filters dotações to match this natureza
 }
 
 export const DropdownDotacao: React.FC<DropdownDotacaoProps> = ({ 
   ptres, 
   value, 
   onChange, 
-  error 
+  error,
+  elementFilter
 }) => {
   const { getDotacoes } = useBudgetDropdowns();
-  const [dotacoes, setDotacoes] = useState<any[]>([]);
+  const [allDotacoes, setAllDotacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log('🔄 DropdownDotacao useEffect - PTRES:', ptres);
+    console.log('🔄 DropdownDotacao useEffect - PTRES:', ptres, 'Filter:', elementFilter);
     
     // Limpar dotações imediatamente
-    setDotacoes([]);
+    setAllDotacoes([]);
     
     if (ptres) {
       // Limpar seleção quando PTRES mudar
@@ -112,11 +114,11 @@ export const DropdownDotacao: React.FC<DropdownDotacaoProps> = ({
         .then(data => {
           console.log('✅ Dotações carregadas:', data?.length, 'itens');
           console.log('📊 Dados:', data);
-          setDotacoes(data || []);
+          setAllDotacoes(data || []);
         })
         .catch(err => {
           console.error('❌ Erro ao carregar dotações:', err);
-          setDotacoes([]);
+          setAllDotacoes([]);
         })
         .finally(() => setLoading(false));
     } else {
@@ -124,6 +126,22 @@ export const DropdownDotacao: React.FC<DropdownDotacaoProps> = ({
       onChange(''); // Clear selection when PTRES becomes empty
     }
   }, [ptres]); // ✅ Apenas ptres como dependência!
+
+  // Filter dotações by element prefix if elementFilter is provided
+  // e.g., elementFilter="3.3.90.30" should match element_code "3.3.90.30"
+  const dotacoes = React.useMemo(() => {
+    if (!elementFilter || !allDotacoes.length) return allDotacoes;
+    
+    console.log('🔍 Filtering by element:', elementFilter);
+    
+    return allDotacoes.filter(d => {
+      // Direct match on element_code (e.g., "3.3.90.30" === "3.3.90.30")
+      const elementCode = d.element_code || '';
+      const match = elementCode === elementFilter || elementCode.startsWith(elementFilter);
+      console.log(`  Checking ${d.dotacao_code} element="${elementCode}" against "${elementFilter}":`, match);
+      return match;
+    });
+  }, [allDotacoes, elementFilter]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { 
