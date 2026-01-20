@@ -403,7 +403,7 @@ export const GestorDashboard: React.FC = () => {
             setSelectedProcess(null);
             setView('LIST');
           }}
-          canTramitar={true}
+          canTramitar={hasAtesto}
           canGenerateAtesto={!hasAtesto}
           canCreateDocument={true}
           isLoadingAtesto={isGeneratingAtesto}
