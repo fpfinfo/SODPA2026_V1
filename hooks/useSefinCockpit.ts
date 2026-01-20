@@ -354,6 +354,16 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
+      // First, get the task to find documento_id and solicitacao_id
+      const { data: task, error: taskError } = await supabase
+        .from('sefin_tasks')
+        .select('documento_id, solicitacao_id')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError) throw taskError
+
+      // Update sefin_tasks status
       const { error } = await supabase
         .from('sefin_tasks')
         .update({
@@ -364,6 +374,35 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
         .eq('id', taskId)
 
       if (error) throw error
+
+      // Update documento status to ASSINADO
+      if (task?.documento_id) {
+        await supabase
+          .from('documentos')
+          .update({ status: 'ASSINADO' })
+          .eq('id', task.documento_id)
+      }
+
+      // Check if all documents for this solicitacao are signed
+      if (task?.solicitacao_id) {
+        const { data: pendingTasks } = await supabase
+          .from('sefin_tasks')
+          .select('id')
+          .eq('solicitacao_id', task.solicitacao_id)
+          .neq('status', 'SIGNED')
+
+        // If no more pending tasks for this process, update solicitacao status
+        if (!pendingTasks || pendingTasks.length === 0) {
+          await supabase
+            .from('solicitacoes')
+            .update({ 
+              status: 'APROVADO',
+              destino_atual: 'SOSFU',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', task.solicitacao_id)
+        }
+      }
 
       // Refresh tasks
       await fetchTasks()
@@ -383,6 +422,15 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
+      // Get task details for updating related tables
+      const { data: tasks, error: fetchError } = await supabase
+        .from('sefin_tasks')
+        .select('id, documento_id, solicitacao_id')
+        .in('id', taskIds)
+
+      if (fetchError) throw fetchError
+
+      // Update sefin_tasks status
       const { error } = await supabase
         .from('sefin_tasks')
         .update({
@@ -393,6 +441,37 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
         .in('id', taskIds)
 
       if (error) throw error
+
+      // Update documento status for each signed task
+      const documentoIds = (tasks || []).map(t => t.documento_id).filter(Boolean)
+      if (documentoIds.length > 0) {
+        await supabase
+          .from('documentos')
+          .update({ status: 'ASSINADO' })
+          .in('id', documentoIds)
+      }
+
+      // Get unique solicitacao_ids and check if all tasks are signed
+      const solicitacaoIds = [...new Set((tasks || []).map(t => t.solicitacao_id).filter(Boolean))]
+      for (const solicitacaoId of solicitacaoIds) {
+        const { data: pendingTasks } = await supabase
+          .from('sefin_tasks')
+          .select('id')
+          .eq('solicitacao_id', solicitacaoId)
+          .neq('status', 'SIGNED')
+
+        // If no pending tasks, update solicitacao status
+        if (!pendingTasks || pendingTasks.length === 0) {
+          await supabase
+            .from('solicitacoes')
+            .update({ 
+              status: 'APROVADO',
+              destino_atual: 'SOSFU',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', solicitacaoId)
+        }
+      }
 
       await fetchTasks()
       return { success: true, count: taskIds.length }

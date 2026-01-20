@@ -128,17 +128,22 @@ export const DropdownDotacao: React.FC<DropdownDotacaoProps> = ({
   }, [ptres]); // ✅ Apenas ptres como dependência!
 
   // Filter dotações by element prefix if elementFilter is provided
-  // e.g., elementFilter="3.3.90.30" should match element_code "3.3.90.30"
+  // Database has element_code like "33.90.30" but modal uses "3.3.90.30"
   const dotacoes = React.useMemo(() => {
     if (!elementFilter || !allDotacoes.length) return allDotacoes;
     
-    console.log('🔍 Filtering by element:', elementFilter);
+    // Normalize filter: "3.3.90.33" → "33.90.33" to match database format
+    // This removes the first dot only: "3.3" → "33"
+    const normalizedFilter = elementFilter.replace(/^(\d)\.(\d)/, '$1$2');
+    console.log('🔍 Filtering by element:', elementFilter, '→ normalized:', normalizedFilter);
     
     return allDotacoes.filter(d => {
-      // Direct match on element_code (e.g., "3.3.90.30" === "3.3.90.30")
       const elementCode = d.element_code || '';
-      const match = elementCode === elementFilter || elementCode.startsWith(elementFilter);
-      console.log(`  Checking ${d.dotacao_code} element="${elementCode}" against "${elementFilter}":`, match);
+      // Match both original and normalized format
+      const match = elementCode === elementFilter || 
+                   elementCode === normalizedFilter ||
+                   elementCode.startsWith(normalizedFilter);
+      console.log(`  Checking ${d.dotacao_code} element="${elementCode}" against normalized="${normalizedFilter}":`, match);
       return match;
     });
   }, [allDotacoes, elementFilter]);
