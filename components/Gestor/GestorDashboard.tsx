@@ -404,7 +404,7 @@ export const GestorDashboard: React.FC = () => {
             setView('LIST');
           }}
           canTramitar={true}
-          canGenerateAtesto={true}
+          canGenerateAtesto={!hasAtesto}
           canCreateDocument={true}
           isLoadingAtesto={isGeneratingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
