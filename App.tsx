@@ -13,7 +13,7 @@ import { AlertBanner } from './components/ui/AlertBanner';
 // Lazy load heavy dashboard components for better initial load performance
 const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').then(m => ({ default: m.DashboardSOSFU })));
 const SupridoDashboard = React.lazy(() => import('./components/Suprido/SupridoDashboard').then(m => ({ default: m.SupridoDashboard })));
-const GestorDashboard = React.lazy(() => import('./components/Gestor/GestorDashboard').then(m => ({ default: m.GestorDashboard })));
+const GestorCockpit = React.lazy(() => import('./components/Gestor/GestorCockpit').then(m => ({ default: m.GestorCockpit })));
 const SefinDashboard = React.lazy(() => import('./components/SefinDashboard').then(m => ({ default: m.SefinDashboard })));
 const SefinCockpit = React.lazy(() => import('./components/SEFIN/SefinCockpit').then(m => ({ default: m.SefinCockpit })));
 const AjsefinDashboard = React.lazy(() => import('./components/AjsefinDashboard').then(m => ({ default: m.AjsefinDashboard })));
@@ -289,7 +289,7 @@ const AppContent: React.FC = () => {
           />
         )}
         {activeRole === AppRole.GESTOR && (
-          <GestorDashboard />
+          <GestorCockpit />
         )}
         {activeRole === AppRole.SOSFU && (
           <DashboardSOSFU 
