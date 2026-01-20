@@ -11,6 +11,7 @@ import { StaticPortaria } from '../ProcessDetails/StaticDocuments/StaticPortaria
 import { StaticNE } from '../ProcessDetails/StaticDocuments/StaticNE';
 import { StaticDL } from '../ProcessDetails/StaticDocuments/StaticDL';
 import { StaticOB } from '../ProcessDetails/StaticDocuments/StaticOB';
+import { StaticCertidao } from '../ProcessDetails/StaticDocuments/StaticCertidao';
 
 export interface PreviewTask {
   id: string;
@@ -106,13 +107,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       case 'ORDEM_BANCARIA':
         return <StaticOB processData={processData} documentData={documentData} />;
       case 'CERTIDAO_REGULARIDADE':
-        return (
-          <div className="p-12 text-center">
-            <FileText size={48} className="mx-auto text-emerald-500 mb-4" />
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Certidão de Regularidade</h3>
-            <p className="text-slate-600">{task.content_preview}</p>
-          </div>
-        );
+        return <StaticCertidao processData={processData} documentData={documentData} />;
       default:
         // Fallback for unknown types
         return (
