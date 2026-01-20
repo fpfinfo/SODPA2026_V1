@@ -277,9 +277,31 @@ export const UniversalProcessPanel: React.FC<UniversalProcessPanelProps> = ({
                 <button onClick={() => setViewingDoc(null)} className="p-2 hover:bg-slate-100 rounded-lg">✕</button>
               </div>
               <div className="p-8 max-h-[70vh] overflow-y-auto">
-                <pre className="whitespace-pre-wrap font-serif text-slate-700 leading-relaxed">
-                  {viewingDoc.conteudo || 'Sem conteúdo disponível'}
-                </pre>
+                {/* For documents with static templates, show formatted message */}
+                {['CERTIDAO_REGULARIDADE', 'PORTARIA', 'NOTA_EMPENHO', 'NOTA_LIQUIDACAO', 'ORDEM_BANCARIA'].includes(viewingDoc.tipo) ? (
+                  <div className="text-center py-12 space-y-4">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                      <FileText className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h4 className="text-xl font-black text-slate-800">{viewingDoc.titulo || viewingDoc.nome}</h4>
+                    <p className="text-slate-500 text-sm max-w-md mx-auto">
+                      Este documento possui visualização formatada. Acesse o <strong>PDF Consolidado</strong> no Dossiê Digital para visualizar o documento completo com layout oficial.
+                    </p>
+                    <button 
+                      onClick={() => {
+                        setViewingDoc(null);
+                        onSubViewChange('DOSSIER');
+                      }}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all"
+                    >
+                      Ir para Dossiê Digital
+                    </button>
+                  </div>
+                ) : (
+                  <pre className="whitespace-pre-wrap font-serif text-slate-700 leading-relaxed">
+                    {viewingDoc.conteudo || 'Sem conteúdo disponível'}
+                  </pre>
+                )}
               </div>
             </div>
           </div>
