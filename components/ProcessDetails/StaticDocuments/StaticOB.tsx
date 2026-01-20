@@ -6,7 +6,8 @@ interface StaticOBProps {
 }
 
 export const StaticOB: React.FC<StaticOBProps> = ({ processData, documentData }) => {
-  const metadata = documentData.metadata?.form_data || {};
+  // Support both form_data wrapper (dossier) and direct metadata (execution_documents)
+  const metadata = documentData.metadata?.form_data || documentData.metadata || {};
   
   const formatCurrency = (value?: number) => {
     if (!value && value !== 0) return 'R$ 0,00';

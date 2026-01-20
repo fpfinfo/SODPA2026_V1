@@ -6,7 +6,8 @@ interface StaticNEProps {
 }
 
 export const StaticNE: React.FC<StaticNEProps> = ({ processData, documentData }) => {
-  const metadata = documentData.metadata?.form_data || {};
+  // Support both form_data wrapper (dossier) and direct metadata (execution_documents)
+  const metadata = documentData.metadata?.form_data || documentData.metadata || {};
   
   const formatCurrency = (value?: number) => {
     if (!value && value !== 0) return 'R$ 0,00';

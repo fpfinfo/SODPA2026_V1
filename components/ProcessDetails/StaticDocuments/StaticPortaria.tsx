@@ -112,7 +112,8 @@ const parseItens = (data: any): any[] => {
 };
 
 export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, documentData }) => {
-  const metadata = documentData.metadata?.form_data || {};
+  // Support both form_data wrapper (dossier) and direct metadata (execution_documents)
+  const metadata = documentData.metadata?.form_data || documentData.metadata || {};
   
   // Parse expense items and sort by element code
   const rawItens = parseItens(processData.itens_despesa || processData.items);

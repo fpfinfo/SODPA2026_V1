@@ -8,7 +8,8 @@ interface StaticDLProps {
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
 export const StaticDL: React.FC<StaticDLProps> = ({ processData, documentData }) => {
-  const metadata = documentData.metadata?.form_data || {};
+  // Support both form_data wrapper (dossier) and direct metadata (execution_documents)
+  const metadata = documentData.metadata?.form_data || documentData.metadata || {};
   
   const formatCurrency = (value?: number) => {
     if (!value && value !== 0) return 'R$ 0,00';
