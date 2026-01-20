@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useSefinCockpit, SefinTask } from '../../../hooks/useSefinCockpit'
 import { ContextDrawer } from '../ContextDrawer'
+import { SignatureConfirmModal } from '../SignatureConfirmModal'
 
 interface SefinInboxViewProps {
   searchQuery?: string
@@ -227,6 +228,9 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [selectedTask, setSelectedTask] = useState<SefinTask | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [signModalOpen, setSignModalOpen] = useState(false)
+  const [signModalMode, setSignModalMode] = useState<'single' | 'batch'>('batch')
+  const [taskToSign, setTaskToSign] = useState<string | null>(null)
 
   // Apply search query from header
   React.useEffect(() => {
@@ -258,15 +262,24 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
   }
 
   const handleSign = async (taskId: string) => {
-    const pin = prompt('Digite seu PIN para assinar:')
-    if (!pin) return
+    setTaskToSign(taskId)
+    setSignModalMode('single')
+    setSignModalOpen(true)
+  }
 
-    const result = await signTask(taskId, pin)
-    if (result.success) {
-      handleCloseDrawer()
-      alert('Documento assinado com sucesso!')
+  const handleConfirmSign = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (signModalMode === 'single' && taskToSign) {
+      const result = await signTask(taskToSign, pin)
+      if (result.success) {
+        handleCloseDrawer()
+      }
+      return result
     } else {
-      alert(`Erro: ${result.error}`)
+      const result = await signMultipleTasks(Array.from(selectedIds), pin)
+      if (result.success) {
+        setSelectedIds(new Set())
+      }
+      return result
     }
   }
 
@@ -284,16 +297,13 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
   }
 
   const handleBatchSign = async () => {
-    const pin = prompt('Digite seu PIN para assinar os documentos selecionados:')
-    if (!pin) return
+    setSignModalMode('batch')
+    setSignModalOpen(true)
+  }
 
-    const result = await signMultipleTasks(Array.from(selectedIds), pin)
-    if (result.success) {
-      setSelectedIds(new Set())
-      alert(`${result.count} documentos assinados com sucesso!`)
-    } else {
-      alert(`Erro: ${result.error}`)
-    }
+  const handleCloseSignModal = () => {
+    setSignModalOpen(false)
+    setTaskToSign(null)
   }
 
   // Filter for pending tasks
@@ -377,6 +387,16 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
         onClose={handleCloseDrawer}
         onSign={handleSign}
         onReturn={handleReturn}
+      />
+
+      {/* Signature Confirmation Modal */}
+      <SignatureConfirmModal
+        isOpen={signModalOpen}
+        onClose={handleCloseSignModal}
+        onConfirm={handleConfirmSign}
+        documentsCount={signModalMode === 'batch' ? selectedIds.size : 1}
+        totalValue={signModalMode === 'batch' ? selectedTotalValue : (selectedTask?.processo?.valor_total || 0)}
+        documentType={signModalMode === 'single' ? selectedTask?.tipo : undefined}
       />
     </div>
   )
