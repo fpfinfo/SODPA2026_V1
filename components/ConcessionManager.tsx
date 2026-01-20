@@ -203,12 +203,24 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
             })
             .eq('id', selectedProcess.id);
 
-          // 3. ESSENCIAL: Criar tasks na tabela sefin_tasks para aparecer na Caixa!
+          // 3. ESSENCIAL: Criar tasks na tabela sefin_tasks com documento_id!
+          // Buscar IDs dos documentos de execution_documents
+          const { data: execDocsWithIds } = await supabase
+            .from('execution_documents')
+            .select('id, tipo')
+            .eq('solicitacao_id', selectedProcess.id)
+            .in('tipo', ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO']);
+
+          const portariaDoc = execDocsWithIds?.find(d => d.tipo === 'PORTARIA');
+          const certidaoDoc = execDocsWithIds?.find(d => d.tipo === 'CERTIDAO_REGULARIDADE');
+          const neDoc = execDocsWithIds?.find(d => d.tipo === 'NOTA_EMPENHO');
+
           // 3a. Task para Portaria
           await supabase
             .from('sefin_tasks')
             .insert({
               solicitacao_id: selectedProcess.id,
+              documento_id: portariaDoc?.id || null,
               tipo: 'PORTARIA',
               titulo: `Portaria de Concessão - ${selectedProcess.interestedParty}`,
               origem: 'SOSFU',
@@ -222,6 +234,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
             .from('sefin_tasks')
             .insert({
               solicitacao_id: selectedProcess.id,
+              documento_id: certidaoDoc?.id || null,
               tipo: 'CERTIDAO_REGULARIDADE',
               titulo: `Certidão de Regularidade - ${selectedProcess.interestedParty}`,
               origem: 'SOSFU',
@@ -235,6 +248,7 @@ export const ConcessionManager: React.FC<ConcessionManagerProps> = ({
             .from('sefin_tasks')
             .insert({
               solicitacao_id: selectedProcess.id,
+              documento_id: neDoc?.id || null,
               tipo: 'NOTA_EMPENHO',
               titulo: `Nota de Empenho - ${selectedProcess.protocolNumber}`,
               origem: 'SOSFU',

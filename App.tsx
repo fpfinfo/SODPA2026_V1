@@ -299,11 +299,7 @@ const AppContent: React.FC = () => {
           />
         )}
         {activeRole === AppRole.SEFIN && (
-          <SefinCockpit user={{
-            id: userProfile?.id || '',
-            nome: userProfile?.nome || 'Ordenador de Despesas',
-            cargo: userProfile?.cargo || 'SEFIN'
-          }} />
+          <SefinCockpit />
         )}
         {activeRole === AppRole.AJSEFIN && (
           <AjsefinDashboard />

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { 
   Search, 
   Filter,
@@ -10,20 +10,28 @@ import {
   FileText,
   Building2,
   User,
-  DollarSign
+  DollarSign,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { useSefinCockpit, SefinTask } from '../../../hooks/useSefinCockpit'
+import { ExportButtons } from '../Explorer'
+import { ContextDrawer, SimilarSearchType } from '../ContextDrawer'
 
 interface SefinExplorerViewProps {
   searchQuery?: string
 }
 
+// Pagination config
+const ITEMS_PER_PAGE = 25
+
 // Status Badge
 function StatusBadge({ status }: { status: string }) {
   const statusConfig: Record<string, { label: string; color: string }> = {
-    'PENDENTE': { label: 'Pendente', color: 'bg-amber-100 text-amber-700' },
-    'ASSINADO': { label: 'Assinado', color: 'bg-emerald-100 text-emerald-700' },
-    'DEVOLVIDO': { label: 'Devolvido', color: 'bg-red-100 text-red-700' }
+    'PENDING': { label: 'Pendente', color: 'bg-amber-100 text-amber-700' },
+    'SIGNED': { label: 'Assinado', color: 'bg-emerald-100 text-emerald-700' },
+    'REJECTED': { label: 'Devolvido', color: 'bg-red-100 text-red-700' },
+    'SENT': { label: 'Enviado', color: 'bg-blue-100 text-blue-700' }
   }
 
   const config = statusConfig[status] || { label: status, color: 'bg-slate-100 text-slate-700' }
@@ -39,19 +47,80 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
   const { tasks, isLoading, filters, updateFilter } = useSefinCockpit({ autoRefresh: false })
   const [localSearch, setLocalSearch] = useState(searchQuery || '')
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
+  
+  // Context Drawer state
+  const [selectedTask, setSelectedTask] = useState<SefinTask | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
 
-  // Apply filters
-  const searchedTasks = tasks.filter(task => {
-    if (!localSearch) return true
-    
-    const query = localSearch.toLowerCase()
-    const nup = task.processo?.nup?.toLowerCase() || ''
-    const suprido = task.processo?.suprido_nome?.toLowerCase() || ''
-    const lotacao = task.processo?.lotacao_nome?.toLowerCase() || ''
-    const tipo = task.tipo?.toLowerCase() || ''
+  // Apply filters (search + date range)
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      // Text search filter
+      if (localSearch) {
+        const query = localSearch.toLowerCase()
+        const nup = task.processo?.nup?.toLowerCase() || ''
+        const suprido = task.processo?.suprido_nome?.toLowerCase() || ''
+        const lotacao = task.processo?.lotacao_nome?.toLowerCase() || ''
+        const tipo = task.tipo?.toLowerCase() || ''
+        
+        const matchesSearch = nup.includes(query) || suprido.includes(query) || lotacao.includes(query) || tipo.includes(query)
+        if (!matchesSearch) return false
+      }
+      
+      // Date range filter
+      if (dateRange.start || dateRange.end) {
+        const taskDate = new Date(task.created_at)
+        const taskDateStr = taskDate.toISOString().split('T')[0]
+        
+        if (dateRange.start && taskDateStr < dateRange.start) return false
+        if (dateRange.end && taskDateStr > dateRange.end) return false
+      }
+      
+      return true
+    })
+  }, [tasks, localSearch, dateRange])
 
-    return nup.includes(query) || suprido.includes(query) || lotacao.includes(query) || tipo.includes(query)
-  })
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE)
+  const paginatedTasks = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    const end = start + ITEMS_PER_PAGE
+    return filteredTasks.slice(start, end)
+  }, [filteredTasks, currentPage])
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = (value: string) => {
+    setLocalSearch(value)
+    setCurrentPage(1)
+  }
+
+  const handleDateRangeChange = (field: 'start' | 'end', value: string) => {
+    setDateRange(prev => ({ ...prev, [field]: value }))
+    setCurrentPage(1)
+  }
+
+  // Context Drawer handlers
+  const handleOpenDrawer = (task: SefinTask) => {
+    setSelectedTask(task)
+    setIsDrawerOpen(true)
+  }
+
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false)
+    setSelectedTask(null)
+  }
+
+  // View Similar handler - searches by comarca or suprido
+  const handleViewSimilar = (searchType: SimilarSearchType, value: string) => {
+    if (value) {
+      handleSearchChange(value)
+      setIsDrawerOpen(false)
+      setSelectedTask(null)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -73,7 +142,7 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
               type="text"
               placeholder="Buscar por NUP, suprido, unidade, tipo..."
               value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-amber-300 focus:ring-2 focus:ring-amber-100 transition-all"
             />
           </div>
@@ -84,23 +153,23 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
             <input
               type="date"
               value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+              onChange={(e) => handleDateRangeChange('start', e.target.value)}
               className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
             />
             <span className="text-slate-400">até</span>
             <input
               type="date"
               value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              onChange={(e) => handleDateRangeChange('end', e.target.value)}
               className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
             />
           </div>
 
-          {/* Export */}
-          <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors">
-            <Download size={16} />
-            Exportar
-          </button>
+          {/* Export Buttons */}
+          <ExportButtons 
+            data={filteredTasks} 
+            filename={`sefin_relatorio_${new Date().toISOString().split('T')[0]}`}
+          />
         </div>
 
         {/* Quick Filters */}
@@ -118,6 +187,7 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
                   'Devolvidos': 'returned'
                 }
                 updateFilter('status', statusMap[filter])
+                setCurrentPage(1)
               }}
               className={`
                 px-3 py-1 rounded-full text-xs font-medium transition-all
@@ -150,8 +220,8 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {searchedTasks.length > 0 ? (
-                searchedTasks.map(task => (
+              {paginatedTasks.length > 0 ? (
+                paginatedTasks.map(task => (
                   <tr key={task.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3">
                       <span className="font-medium text-slate-800">
@@ -198,6 +268,7 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button 
+                        onClick={() => handleOpenDrawer(task)}
                         className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600"
                         title="Visualizar documento"
                       >
@@ -219,22 +290,41 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
         </div>
 
         {/* Pagination */}
-        {searchedTasks.length > 0 && (
+        {filteredTasks.length > 0 && (
           <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
             <span className="text-sm text-slate-500">
-              Mostrando {searchedTasks.length} de {tasks.length} documentos
+              Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredTasks.length)} de {filteredTasks.length} documentos
             </span>
             <div className="flex items-center gap-2">
-              <button className="px-3 py-1 text-sm text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50" disabled>
-                Anterior
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={18} />
               </button>
-              <button className="px-3 py-1 text-sm text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50" disabled>
-                Próximo
+              <span className="text-sm text-slate-600 min-w-[80px] text-center">
+                Página {currentPage} de {totalPages || 1}
+              </span>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="p-1.5 text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Context Drawer */}
+      <ContextDrawer
+        task={selectedTask}
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+        onViewSimilar={handleViewSimilar}
+      />
     </div>
   )
 }

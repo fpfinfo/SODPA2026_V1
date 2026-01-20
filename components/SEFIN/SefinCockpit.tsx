@@ -1,30 +1,26 @@
 'use client'
 
 import React, { useState } from 'react'
-import { SefinSidebar } from './SefinSidebar'
 import { SefinHeader } from './SefinHeader'
+import { useSefinCockpit } from '../../hooks/useSefinCockpit'
 
-// Views (to be implemented in later phases)
+// Views
 import { SefinDashboardView } from './views/SefinDashboardView'
 import { SefinInboxView } from './views/SefinInboxView'
 import { SefinExplorerView } from './views/SefinExplorerView'
 import { SefinInsightsView } from './views/SefinInsightsView'
+import { SefinIntelligenceView } from './views/SefinIntelligenceView'
 
-export type SefinViewType = 'dashboard' | 'inbox' | 'explorer' | 'insights'
+export type SefinViewType = 'dashboard' | 'inbox' | 'explorer' | 'insights' | 'intelligence'
 
-interface SefinCockpitProps {
-  user?: {
-    id: string
-    nome: string
-    cargo?: string
-    avatar?: string
-  }
-}
-
-export function SefinCockpit({ user }: SefinCockpitProps) {
+export function SefinCockpit() {
   const [activeView, setActiveView] = useState<SefinViewType>('dashboard')
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  
+  // Get counts for header badges
+  const { tasks, kpis } = useSefinCockpit()
+  const pendingCount = tasks.filter(t => t.status === 'PENDING').length
+  const urgentCount = kpis.urgentCount
 
   // Render active view based on navigation
   const renderActiveView = () => {
@@ -37,36 +33,29 @@ export function SefinCockpit({ user }: SefinCockpitProps) {
         return <SefinExplorerView searchQuery={searchQuery} />
       case 'insights':
         return <SefinInsightsView />
+      case 'intelligence':
+        return <SefinIntelligenceView />
       default:
         return <SefinDashboardView />
     }
   }
 
   return (
-    <div className="h-screen flex bg-slate-50">
-      {/* Sidebar - Left Column */}
-      <SefinSidebar
+    <div className="h-full flex flex-col bg-slate-50">
+      {/* Header with Navigation */}
+      <SefinHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
         activeView={activeView}
         onNavigate={setActiveView}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        pendingCount={pendingCount}
+        urgentCount={urgentCount}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header with Search */}
-        <SefinHeader
-          user={user}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          activeView={activeView}
-        />
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto">
-          {renderActiveView()}
-        </main>
-      </div>
+      {/* Main Content - Full Width */}
+      <main className="flex-1 overflow-auto">
+        {renderActiveView()}
+      </main>
     </div>
   )
 }

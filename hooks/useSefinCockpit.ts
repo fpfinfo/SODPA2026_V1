@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
 // Types
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
 export interface SefinTask {
   id: string
   documento_id: string
@@ -13,6 +15,15 @@ export interface SefinTask {
   created_at: string
   signed_at?: string
   signed_by?: string
+  // Risk assessment
+  riskScore: number       // 0-100
+  riskLevel: RiskLevel
+  riskFactors: {
+    valueDeviation: number   // 0-40 points
+    slaUrgency: number       // 0-30 points  
+    timePending: number      // 0-20 points
+    historicalRisk: number   // 0-10 points
+  }
   // Joined data
   processo?: {
     nup: string
@@ -23,9 +34,11 @@ export interface SefinTask {
     created_at: string
   }
   documento?: {
+    id: string
     tipo: string
     titulo: string
-    conteudo: string
+    status: string
+    metadata: Record<string, any>
   }
 }
 
@@ -48,6 +61,59 @@ export interface SefinFilters {
 interface UseSefinCockpitOptions {
   autoRefresh?: boolean
   refreshInterval?: number // ms
+}
+
+// Risk calculation function
+function calculateRisk(task: Omit<SefinTask, 'riskScore' | 'riskLevel' | 'riskFactors'>, avgValue: number = 5000): Pick<SefinTask, 'riskScore' | 'riskLevel' | 'riskFactors'> {
+  const factors = {
+    valueDeviation: 0,
+    slaUrgency: 0,
+    timePending: 0,
+    historicalRisk: 0
+  }
+
+  // 1. Value deviation (40 points max)
+  const valor = task.processo?.valor_total || 0
+  if (valor > 0 && avgValue > 0) {
+    const deviation = Math.abs(valor - avgValue) / avgValue
+    factors.valueDeviation = Math.min(40, Math.round(deviation * 40))
+  }
+
+  // 2. SLA urgency - based on 90 day limit (30 points max)
+  const created = new Date(task.processo?.created_at || task.created_at)
+  const daysElapsed = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24))
+  const daysRemaining = 90 - daysElapsed
+  
+  if (daysRemaining < 7) factors.slaUrgency = 30
+  else if (daysRemaining < 15) factors.slaUrgency = 20
+  else if (daysRemaining < 30) factors.slaUrgency = 10
+
+  // 3. Time pending in SEFIN queue (20 points max)
+  const taskCreated = new Date(task.created_at)
+  const hoursPending = (Date.now() - taskCreated.getTime()) / (1000 * 60 * 60)
+  
+  if (hoursPending > 72) factors.timePending = 20
+  else if (hoursPending > 48) factors.timePending = 15
+  else if (hoursPending > 24) factors.timePending = 10
+  else if (hoursPending > 8) factors.timePending = 5
+
+  // 4. Historical risk (10 points max) - simplified, could be enhanced with real data
+  // High value documents have slightly higher risk
+  if (valor > 10000) factors.historicalRisk = 5
+  if (valor > 14000) factors.historicalRisk = 10
+
+  const totalScore = factors.valueDeviation + factors.slaUrgency + factors.timePending + factors.historicalRisk
+  
+  let riskLevel: RiskLevel = 'low'
+  if (totalScore > 75) riskLevel = 'critical'
+  else if (totalScore > 50) riskLevel = 'high'
+  else if (totalScore > 25) riskLevel = 'medium'
+
+  return {
+    riskScore: Math.min(100, totalScore),
+    riskLevel,
+    riskFactors: factors
+  }
 }
 
 export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
@@ -83,6 +149,8 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           created_at,
           assinado_em,
           ordenador_id,
+          titulo,
+          valor,
           solicitacoes (
             nup,
             valor_solicitado,
@@ -93,41 +161,59 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
               nome,
               lotacao
             )
-          ),
-          documentos (
-            tipo,
-            titulo,
-            conteudo
           )
         `)
         .order('created_at', { ascending: false })
 
-      if (tasksError) throw tasksError
+      if (tasksError) {
+        console.error('Error fetching sefin_tasks:', tasksError)
+        throw tasksError
+      }
 
-      // Transform data
-      const transformedTasks: SefinTask[] = (tasksData || []).map((task: any) => ({
-        id: task.id,
-        documento_id: task.documento_id,
-        solicitacao_id: task.solicitacao_id,
-        tipo: task.tipo,
-        status: task.status,
-        created_at: task.created_at,
-        signed_at: task.assinado_em,
-        signed_by: task.ordenador_id,
-        processo: task.solicitacoes ? {
-          nup: task.solicitacoes.nup,
-          suprido_nome: task.solicitacoes.profiles?.nome || 'N/A',
-          lotacao_nome: task.solicitacoes.profiles?.lotacao || 'N/A',
-          valor_total: task.solicitacoes.valor_solicitado || 0,
-          status: task.solicitacoes.status,
-          created_at: task.solicitacoes.created_at
-        } : undefined,
-        documento: task.documentos ? {
-          tipo: task.documentos.tipo,
-          titulo: task.documentos.titulo,
-          conteudo: task.documentos.conteudo
-        } : undefined
-      }))
+      // Debug: log count of tasks
+      console.log('sefin_tasks loaded:', tasksData?.length || 0)
+
+      // Calculate average value for risk calculation
+      const allValues = (tasksData || []).map((t: any) => t.solicitacoes?.valor_solicitado || t.valor || 0).filter((v: number) => v > 0)
+      const avgValue = allValues.length > 0 ? allValues.reduce((a: number, b: number) => a + b, 0) / allValues.length : 5000
+
+      // Transform data with risk calculation
+      const transformedTasks: SefinTask[] = (tasksData || []).map((task: any) => {
+        const baseTask = {
+          id: task.id,
+          documento_id: task.documento_id,
+          solicitacao_id: task.solicitacao_id,
+          tipo: task.tipo,
+          status: task.status,
+          created_at: task.created_at,
+          signed_at: task.assinado_em,
+          signed_by: task.ordenador_id,
+          processo: task.solicitacoes ? {
+            nup: task.solicitacoes.nup,
+            suprido_nome: task.solicitacoes.profiles?.nome || task.titulo?.split(' - ')[1] || 'N/A',
+            lotacao_nome: task.solicitacoes.profiles?.lotacao || 'N/A',
+            valor_total: task.solicitacoes.valor_solicitado || task.valor || 0,
+            status: task.solicitacoes.status,
+            created_at: task.solicitacoes.created_at
+          } : {
+            nup: '',
+            suprido_nome: task.titulo?.split(' - ')[1] || 'N/A',
+            lotacao_nome: 'N/A',
+            valor_total: task.valor || 0,
+            status: task.status,
+            created_at: task.created_at
+          },
+          documento: undefined // Document preview uses templates
+        }
+        
+        // Calculate risk for this task
+        const risk = calculateRisk(baseTask as any, avgValue)
+        
+        return {
+          ...baseTask,
+          ...risk
+        }
+      })
 
 
       setTasks(transformedTasks)

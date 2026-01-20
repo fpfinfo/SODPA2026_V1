@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { 
   FileText, 
   Clock, 
@@ -12,15 +12,21 @@ import {
   Square,
   Signature,
   RotateCcw,
-  X
+  X,
+  Shield,
+  ArrowUpDown,
+  Zap,
+  Info
 } from 'lucide-react'
-import { useSefinCockpit, SefinTask } from '../../../hooks/useSefinCockpit'
+import { useSefinCockpit, SefinTask, RiskLevel } from '../../../hooks/useSefinCockpit'
 import { ContextDrawer } from '../ContextDrawer'
 import { SignatureConfirmModal } from '../SignatureConfirmModal'
 
 interface SefinInboxViewProps {
   searchQuery?: string
 }
+
+type SortOption = 'priority' | 'date' | 'value' | 'risk'
 
 // Document Type Badge
 function DocumentTypeBadge({ tipo }: { tipo: string }) {
@@ -59,6 +65,28 @@ function PriorityTag({ isUrgent, isHighValue }: { isUrgent: boolean; isHighValue
     )
   }
   return null
+}
+
+// Risk Badge Component
+function RiskBadge({ riskScore, riskLevel }: { riskScore: number; riskLevel: RiskLevel }) {
+  const config: Record<RiskLevel, { bg: string; text: string; label: string; icon: string }> = {
+    'low': { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Baixo', icon: '🟢' },
+    'medium': { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Médio', icon: '🟡' },
+    'high': { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Alto', icon: '🟠' },
+    'critical': { bg: 'bg-red-100', text: 'text-red-700', label: 'Crítico', icon: '🔴' }
+  }
+
+  const { bg, text, label, icon } = config[riskLevel]
+
+  return (
+    <span 
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${bg} ${text}`}
+      title={`Score: ${riskScore}/100`}
+    >
+      <span>{icon}</span>
+      {label}
+    </span>
+  )
 }
 
 // Task Card Component
@@ -102,6 +130,7 @@ function TaskCard({ task, isSelected, onSelect, onClick }: TaskCardProps) {
       <div className="flex-1 min-w-0" onClick={onClick}>
         <div className="flex items-center gap-2 mb-1">
           <DocumentTypeBadge tipo={task.tipo} />
+          <RiskBadge riskScore={task.riskScore} riskLevel={task.riskLevel} />
           <PriorityTag isUrgent={isUrgent} isHighValue={isHighValue} />
         </div>
 
@@ -231,13 +260,15 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
   const [signModalOpen, setSignModalOpen] = useState(false)
   const [signModalMode, setSignModalMode] = useState<'single' | 'batch'>('batch')
   const [taskToSign, setTaskToSign] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<SortOption>('priority')
 
-  // Apply search query from header
+  // Apply search query from header - only when searchQuery prop changes
   React.useEffect(() => {
-    if (searchQuery !== undefined) {
+    if (searchQuery !== undefined && searchQuery !== filters.searchQuery) {
       updateFilter('searchQuery', searchQuery)
     }
-  }, [searchQuery, updateFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery])
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -306,14 +337,47 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
     setTaskToSign(null)
   }
 
-  // Filter for pending tasks
-  const pendingTasks = filteredTasks.filter(t => t.status === 'PENDING')
-
   // Calculate total value of selected tasks
   const selectedTotalValue = Array.from(selectedIds).reduce((sum, id) => {
     const task = tasks.find(t => t.id === id)
     return sum + (task?.processo?.valor_total || 0)
   }, 0)
+
+  // Filter and sort pending tasks
+  const pendingTasks = useMemo(() => {
+    const pending = filteredTasks.filter(t => t.status === 'PENDING')
+    
+    // Apply sorting
+    return pending.sort((a, b) => {
+      switch (sortBy) {
+        case 'priority':
+          // Urgent first, then high risk, then low risk
+          const aUrgent = (Date.now() - new Date(a.created_at).getTime()) > 24 * 60 * 60 * 1000
+          const bUrgent = (Date.now() - new Date(b.created_at).getTime()) > 24 * 60 * 60 * 1000
+          if (aUrgent !== bUrgent) return aUrgent ? -1 : 1
+          return b.riskScore - a.riskScore
+        case 'date':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'value':
+          return (b.processo?.valor_total || 0) - (a.processo?.valor_total || 0)
+        case 'risk':
+          return b.riskScore - a.riskScore
+        default:
+          return 0
+      }
+    })
+  }, [filteredTasks, sortBy])
+
+  // Low-risk batch candidates
+  const batchCandidates = useMemo(() => {
+    return pendingTasks.filter(t => t.riskLevel === 'low')
+  }, [pendingTasks])
+
+  // Select all low-risk items
+  const selectAllLowRisk = () => {
+    const lowRiskIds = batchCandidates.map(t => t.id)
+    setSelectedIds(new Set(lowRiskIds))
+  }
 
   if (isLoading) {
     return (
@@ -322,6 +386,14 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
       </div>
     )
   }
+
+  // Sort options
+  const sortOptions = [
+    { id: 'priority' as const, label: 'Prioridade' },
+    { id: 'date' as const, label: 'Data' },
+    { id: 'value' as const, label: 'Valor' },
+    { id: 'risk' as const, label: 'Risco' }
+  ]
 
   return (
     <div className="p-6">
@@ -341,6 +413,20 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
             activeType={filters.type}
             onTypeChange={(type) => updateFilter('type', type as any)}
           />
+
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2">
+            <ArrowUpDown size={14} className="text-slate-400" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="px-3 py-2 text-sm bg-slate-100 border-none rounded-lg text-slate-600 focus:ring-2 focus:ring-amber-300"
+            >
+              {sortOptions.map(opt => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
           
           <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
             <Filter size={16} />
@@ -348,6 +434,32 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
           </button>
         </div>
       </div>
+
+      {/* Batch Candidates Banner */}
+      {batchCandidates.length > 0 && selectedIds.size === 0 && (
+        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <Shield size={18} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-emerald-800">
+                {batchCandidates.length} documento{batchCandidates.length !== 1 ? 's' : ''} de baixo risco
+              </p>
+              <p className="text-xs text-emerald-600">
+                Candidatos para assinatura em lote
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={selectAllLowRisk}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
+            <Zap size={16} />
+            Selecionar Todos
+          </button>
+        </div>
+      )}
 
       {/* Task List */}
       <div className="space-y-2">
