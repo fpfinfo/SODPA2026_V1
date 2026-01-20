@@ -190,6 +190,17 @@ export const OrdinaryProcessFactory: React.FC<OrdinaryProcessFactoryProps> = ({
       return;
     }
 
+    // Validation: Valor must be > 0
+    const unidadesSemValor = selectedUnidades.filter(u => (u.valor_custeio + u.valor_capital) <= 0);
+    if (unidadesSemValor.length > 0) {
+      showToast({ 
+        type: 'error', 
+        title: 'Valores inválidos', 
+        message: `${unidadesSemValor.length} unidade(s) possuem valor zerado ou negativo` 
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setProcessProgress({ current: 0, total: selectedUnidades.length });
 
@@ -252,6 +263,23 @@ export const OrdinaryProcessFactory: React.FC<OrdinaryProcessFactoryProps> = ({
         setUnidades(prev => prev.map(u => 
           u.id === unidade.id ? { ...u, processado: true, selected: false, solicitacao_id: solicitacao.id } : u
         ));
+
+        // 4. Create notification for the Suprido
+        await supabase.from('system_notifications').insert({
+          user_id: unidade.suprido_id,
+          type: 'SUCCESS',
+          category: 'FINANCE',
+          title: 'Recurso Creditado!',
+          message: `Suprimento Ordinário de ${formatCurrency(unidade.valor_custeio + unidade.valor_capital)} foi concedido para ${competenciaLabel}.`,
+          link_action: `/suprido/processo/${solicitacao.id}`,
+          metadata: {
+            processo_id: solicitacao.id,
+            nup: nup,
+            competencia: competencia,
+            valor: unidade.valor_custeio + unidade.valor_capital,
+            origem: 'ORDINARY_PROCESS_FACTORY'
+          }
+        });
 
         sucessos++;
       } catch (error) {

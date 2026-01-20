@@ -7,13 +7,15 @@ import {
   Eye,
   RefreshCw,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  BadgeCheck
 } from 'lucide-react'
 import { useGestorProcesses } from '../../../hooks/useGestorProcesses'
 import { UniversalProcessDetailsPage } from '../../ProcessDetails'
 import { TramitarModal } from '../../TramitarModal'
 import { DocumentCreationWizard } from '../../DocumentCreationWizard'
 import { supabase } from '../../../lib/supabaseClient'
+import { useToast } from '../../ui/ToastProvider'
 
 interface GestorInboxViewProps {
   searchQuery: string
@@ -21,12 +23,14 @@ interface GestorInboxViewProps {
 
 export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
   const { data: pendingProcesses = [], isLoading, refetch } = useGestorProcesses()
+  const { showToast } = useToast()
   
   const [selectedProcess, setSelectedProcess] = useState<any>(null)
   const [filterType, setFilterType] = useState<'ALL' | 'JURI' | 'EXTRA'>('ALL')
   const [showTramitarModal, setShowTramitarModal] = useState(false)
   const [showDocumentWizard, setShowDocumentWizard] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string>('')
+  const [isGeneratingAtesto, setIsGeneratingAtesto] = useState(false)
 
   // Fetch current user
   React.useEffect(() => {
@@ -39,6 +43,72 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
+  // Handle Atesto generation
+  const handleGenerateAtesto = async () => {
+    if (!selectedProcess || !currentUserId) return
+
+    setIsGeneratingAtesto(true)
+    try {
+      // Get current user profile for name
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nome, cargo')
+        .eq('id', currentUserId)
+        .single()
+
+      const gestor = profile?.nome || 'Gestor'
+      const cargo = profile?.cargo || 'Chefia Imediata'
+      
+      // Generate the Certidão de Atesto document
+      const atestoContent = `CERTIDÃO DE ATESTO DA CHEFIA IMEDIATA
+
+CERTIFICO, no uso das minhas atribuições legais e em conformidade com o Regulamento de Suprimento de Fundos do TJPA, que a despesa pretendida pelo servidor ${selectedProcess.interested} no processo ${selectedProcess.nup} reveste-se de interesse público e atende aos critérios de conveniência e oportunidade desta unidade judiciária.
+
+Declaro que verifiquei a disponibilidade orçamentária da unidade e a adequação dos itens solicitados.
+
+Atesto, ainda, a impossibilidade de atendimento da demanda via fluxo normal de compras/licitação em tempo hábil.
+
+Encaminhe-se ao Serviço de Suprimento de Fundos (SOSFU) para análise técnica.
+
+${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+
+${gestor}
+${cargo}`
+
+      // Save the Atesto document to Supabase
+      const { error } = await supabase.from('documentos').insert({
+        solicitacao_id: selectedProcess.id,
+        nome: `Certidão de Atesto do Gestor - ${selectedProcess.nup}`,
+        titulo: 'Certidão de Atesto do Gestor',
+        tipo: 'CERTIDAO_ATESTO',
+        status: 'ASSINADO',
+        conteudo: atestoContent,
+        created_by: currentUserId
+      })
+
+      if (error) throw error
+
+      showToast({ 
+        type: 'success', 
+        title: 'Atesto Gerado!', 
+        message: 'Certidão de Atesto salva com sucesso. Agora você pode tramitar.' 
+      })
+
+      // Refresh to show updated data
+      refetch()
+
+    } catch (error) {
+      console.error('Error generating atesto:', error)
+      showToast({ 
+        type: 'error', 
+        title: 'Erro', 
+        message: 'Não foi possível gerar a Certidão de Atesto.' 
+      })
+    } finally {
+      setIsGeneratingAtesto(false)
+    }
+  }
 
   // Filter processes
   const filteredProcesses = pendingProcesses.filter(p => {
@@ -69,7 +139,9 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
           canTramitar={true}
           canGenerateAtesto={true}
           canCreateDocument={true}
+          isLoadingAtesto={isGeneratingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
+          onGenerateAtesto={handleGenerateAtesto}
           onCreateDocument={() => setShowDocumentWizard(true)}
         />
 

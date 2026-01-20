@@ -35,7 +35,8 @@ import {
   Send as SendIcon,
   Edit,
   Trash2,
-  Loader2
+  Loader2,
+  Building2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { TramitarModal } from '../TramitarModal';
@@ -44,10 +45,11 @@ import { useToast } from '../ui/ToastProvider';
 import { TimelineHistory } from '../TimelineHistory';
 import { UniversalProcessDetailsPage } from '../ProcessDetails';
 import { useGestorProcesses, useGestorKPIs } from '../../hooks/useGestorProcesses';
+import PortariaManagement from './PortariaManagement';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-type GestorView = 'LIST' | 'DETAILS' | 'EDIT_DOC' | 'HISTORY';
+type GestorView = 'LIST' | 'DETAILS' | 'EDIT_DOC' | 'HISTORY' | 'ADMIN';
 type SubViewMode = 'DETAILS' | 'DOSSIER' | 'COVER' | 'REQUEST' | 'HISTORY';
 
 interface DocPiece {
@@ -105,6 +107,10 @@ export const GestorDashboard: React.FC = () => {
   const [dossierDocs, setDossierDocs] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  
+  // User's comarca context for Administração section
+  const [userComarcaId, setUserComarcaId] = useState<string>('');
+  const [userComarcaNome, setUserComarcaNome] = useState<string>('');
   
   // Document viewer state
   const [viewingDoc, setViewingDoc] = useState<any>(null);
@@ -241,11 +247,35 @@ export const GestorDashboard: React.FC = () => {
     }
   };
 
-  // Fetch current user on mount
+  // Fetch current user and their comarca on mount
   useEffect(() => {
     const fetchCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setCurrentUserId(user.id);
+      if (user) {
+        setCurrentUserId(user.id);
+        
+        // Fetch user's profile with lotacao to get comarca
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select(`
+            *,
+            lotacoes!profiles_lotacao_id_fkey (
+              id,
+              nome,
+              comarcas!lotacoes_comarca_id_fkey (
+                id,
+                nome
+              )
+            )
+          `)
+          .eq('id', user.id)
+          .single();
+        
+        if (profile?.lotacoes?.comarcas) {
+          setUserComarcaId(profile.lotacoes.comarcas.id);
+          setUserComarcaNome(profile.lotacoes.comarcas.nome);
+        }
+      }
     };
     fetchCurrentUser();
   }, []);
@@ -578,6 +608,18 @@ export const GestorDashboard: React.FC = () => {
                   <p className={`text-3xl font-black ${view === 'HISTORY' && historyFilter === 'SUPRIDO' ? 'text-white' : 'text-slate-800'}`}>{devolucoes}</p>
               </div>
               <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'HISTORY' && historyFilter === 'SUPRIDO' ? 'bg-red-500/30 text-white' : 'bg-red-50 text-red-600'}`}><ThumbsDown size={24}/></div>
+          </div>
+
+          {/* ADMIN Card - Administração */}
+          <div 
+            onClick={() => { setView('ADMIN'); }}
+            className={`p-6 rounded-[28px] border shadow-sm flex items-center justify-between group transition-all cursor-pointer relative overflow-hidden ${view === 'ADMIN' ? 'bg-violet-600 border-violet-600 ring-4 ring-violet-100' : 'bg-white border-slate-200 hover:border-violet-300'}`}
+          >
+              <div className="relative z-10">
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${view === 'ADMIN' ? 'text-violet-200' : 'text-slate-400'}`}>Administração</p>
+                  <p className={`text-xl font-black ${view === 'ADMIN' ? 'text-white' : 'text-slate-800'}`}>Portarias</p>
+              </div>
+              <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'ADMIN' ? 'bg-violet-500/30 text-white' : 'bg-violet-50 text-violet-600'}`}><Building2 size={24}/></div>
           </div>
       </div>
   );
@@ -1482,6 +1524,40 @@ export const GestorDashboard: React.FC = () => {
                 </div>
              </div>
           </div>
+        </div>
+      )}
+
+      {/* ADMIN View - Portarias Management */}
+      {view === 'ADMIN' && (
+        <div className="p-10 max-w-[1400px] mx-auto space-y-8 animate-in fade-in pb-20">
+          <div className="flex justify-between items-end">
+            <div>
+              <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Administração da Unidade</h1>
+              <p className="text-slate-500 text-sm font-medium mt-1 flex items-center gap-2">
+                <Building2 size={16} className="text-violet-600"/> Gestão de Titulares e Portarias
+              </p>
+            </div>
+            <div className="flex gap-3">
+                <button onClick={() => setView('LIST')} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                    <ArrowLeft size={16}/> Voltar
+                </button>
+            </div>
+          </div>
+
+          {/* PortariaManagement Component */}
+          {userComarcaId ? (
+            <PortariaManagement
+              comarcaId={userComarcaId}
+              comarcaNome={userComarcaNome || 'Comarca'}
+              currentUserId={currentUserId}
+              onClose={() => setView('LIST')}
+            />
+          ) : (
+            <div className="bg-white p-16 rounded-[32px] border border-slate-200 text-center">
+              <RefreshCw size={32} className="mx-auto text-violet-500 animate-spin mb-4" />
+              <p className="text-sm text-slate-500">Carregando informações da comarca...</p>
+            </div>
+          )}
         </div>
       )}
 
