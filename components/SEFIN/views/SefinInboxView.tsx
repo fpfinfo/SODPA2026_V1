@@ -1,0 +1,328 @@
+'use client'
+
+import React, { useState } from 'react'
+import { 
+  FileText, 
+  Clock, 
+  CheckCircle2, 
+  AlertTriangle,
+  ChevronRight,
+  Filter,
+  CheckSquare,
+  Square,
+  Signature,
+  RotateCcw,
+  X
+} from 'lucide-react'
+import { useSefinCockpit, SefinTask } from '../../../hooks/useSefinCockpit'
+
+interface SefinInboxViewProps {
+  searchQuery?: string
+}
+
+// Document Type Badge
+function DocumentTypeBadge({ tipo }: { tipo: string }) {
+  const typeConfig: Record<string, { label: string; color: string }> = {
+    'PORTARIA': { label: 'Portaria', color: 'bg-purple-100 text-purple-700' },
+    'CERTIDAO_REGULARIDADE': { label: 'Certidão', color: 'bg-blue-100 text-blue-700' },
+    'NOTA_EMPENHO': { label: 'Nota Empenho', color: 'bg-emerald-100 text-emerald-700' },
+    'NOTA_LIQUIDACAO': { label: 'Liquidação', color: 'bg-amber-100 text-amber-700' },
+    'ORDEM_BANCARIA': { label: 'Ord. Bancária', color: 'bg-indigo-100 text-indigo-700' }
+  }
+
+  const config = typeConfig[tipo] || { label: tipo, color: 'bg-slate-100 text-slate-700' }
+
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-medium ${config.color}`}>
+      {config.label}
+    </span>
+  )
+}
+
+// Priority Tag
+function PriorityTag({ isUrgent, isHighValue }: { isUrgent: boolean; isHighValue: boolean }) {
+  if (isUrgent) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-medium">
+        <AlertTriangle size={12} />
+        Urgente
+      </span>
+    )
+  }
+  if (isHighValue) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">
+        Alto Valor
+      </span>
+    )
+  }
+  return null
+}
+
+// Task Card Component
+interface TaskCardProps {
+  task: SefinTask
+  isSelected: boolean
+  onSelect: () => void
+  onClick: () => void
+}
+
+function TaskCard({ task, isSelected, onSelect, onClick }: TaskCardProps) {
+  const created = new Date(task.created_at)
+  const hoursSinceCreated = (Date.now() - created.getTime()) / (1000 * 60 * 60)
+  const isUrgent = hoursSinceCreated > 24
+  const isHighValue = (task.processo?.valor_total || 0) >= 10000
+
+  return (
+    <div 
+      className={`
+        flex items-center gap-4 p-4 bg-white rounded-lg border
+        transition-all cursor-pointer
+        ${isSelected 
+          ? 'border-amber-400 bg-amber-50/50 shadow-sm' 
+          : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+        }
+      `}
+    >
+      {/* Checkbox */}
+      <button 
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        className="flex-shrink-0 text-slate-400 hover:text-amber-500 transition-colors"
+      >
+        {isSelected ? (
+          <CheckSquare size={20} className="text-amber-500" />
+        ) : (
+          <Square size={20} />
+        )}
+      </button>
+
+      {/* Main Content */}
+      <div className="flex-1 min-w-0" onClick={onClick}>
+        <div className="flex items-center gap-2 mb-1">
+          <DocumentTypeBadge tipo={task.tipo} />
+          <PriorityTag isUrgent={isUrgent} isHighValue={isHighValue} />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-slate-800">
+            {task.processo?.nup || 'NUP não disponível'}
+          </span>
+          <span className="text-slate-400">•</span>
+          <span className="text-sm text-slate-600 truncate">
+            {task.processo?.suprido_nome || 'N/A'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+          <span>{task.processo?.lotacao_nome}</span>
+          {task.processo?.valor_total && (
+            <>
+              <span>•</span>
+              <span className="font-medium">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(task.processo.valor_total)}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Time Indicator */}
+      <div className="flex-shrink-0 text-right">
+        <div className={`text-sm font-medium ${isUrgent ? 'text-red-600' : 'text-slate-600'}`}>
+          {hoursSinceCreated < 1 
+            ? `${Math.round(hoursSinceCreated * 60)}min`
+            : `${Math.round(hoursSinceCreated)}h`
+          }
+        </div>
+        <div className="text-xs text-slate-400">atrás</div>
+      </div>
+
+      {/* Arrow */}
+      <ChevronRight size={18} className="flex-shrink-0 text-slate-300" />
+    </div>
+  )
+}
+
+// Batch Actions Bar
+interface BatchActionsProps {
+  selectedCount: number
+  onSign: () => void
+  onClear: () => void
+}
+
+function BatchActionsBar({ selectedCount, onSign, onClear }: BatchActionsProps) {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl shadow-2xl px-6 py-3 flex items-center gap-6 z-50">
+      <div className="flex items-center gap-2">
+        <CheckSquare size={18} className="text-amber-400" />
+        <span className="text-sm font-medium">
+          {selectedCount} {selectedCount === 1 ? 'selecionado' : 'selecionados'}
+        </span>
+      </div>
+
+      <div className="w-px h-6 bg-slate-700" />
+
+      <button
+        onClick={onSign}
+        className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 rounded-lg text-sm font-medium transition-colors"
+      >
+        <Signature size={16} />
+        Assinar em Lote
+      </button>
+
+      <button
+        onClick={onClear}
+        className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+      >
+        <X size={18} />
+      </button>
+    </div>
+  )
+}
+
+// Filter Pills
+interface FilterPillsProps {
+  activeType: string
+  onTypeChange: (type: string) => void
+}
+
+function FilterPills({ activeType, onTypeChange }: FilterPillsProps) {
+  const types = [
+    { id: 'all', label: 'Todos' },
+    { id: 'PORTARIA', label: 'Portarias' },
+    { id: 'CERTIDAO_REGULARIDADE', label: 'Certidões' },
+    { id: 'NOTA_EMPENHO', label: 'Notas Empenho' }
+  ]
+
+  return (
+    <div className="flex items-center gap-2">
+      {types.map(type => (
+        <button
+          key={type.id}
+          onClick={() => onTypeChange(type.id)}
+          className={`
+            px-3 py-1.5 rounded-full text-sm font-medium transition-all
+            ${activeType === type.id
+              ? 'bg-amber-500 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }
+          `}
+        >
+          {type.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
+  const { filteredTasks, isLoading, filters, updateFilter, signMultipleTasks } = useSefinCockpit()
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showBatchModal, setShowBatchModal] = useState(false)
+
+  // Apply search query from header
+  React.useEffect(() => {
+    if (searchQuery !== undefined) {
+      updateFilter('searchQuery', searchQuery)
+    }
+  }, [searchQuery, updateFilter])
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const handleBatchSign = async () => {
+    // TODO: Open PIN confirmation modal
+    const pin = prompt('Digite seu PIN para assinar:')
+    if (!pin) return
+
+    const result = await signMultipleTasks(Array.from(selectedIds), pin)
+    if (result.success) {
+      setSelectedIds(new Set())
+      alert(`${result.count} documentos assinados com sucesso!`)
+    } else {
+      alert(`Erro: ${result.error}`)
+    }
+  }
+
+  const pendingTasks = filteredTasks.filter(t => t.status === 'PENDENTE')
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">
+            Mesa de Decisão
+          </h2>
+          <p className="text-sm text-slate-500">
+            {pendingTasks.length} {pendingTasks.length === 1 ? 'documento pendente' : 'documentos pendentes'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <FilterPills 
+            activeType={filters.type}
+            onTypeChange={(type) => updateFilter('type', type as any)}
+          />
+          
+          <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+            <Filter size={16} />
+            Mais Filtros
+          </button>
+        </div>
+      </div>
+
+      {/* Task List */}
+      <div className="space-y-2">
+        {pendingTasks.length > 0 ? (
+          pendingTasks.map(task => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              isSelected={selectedIds.has(task.id)}
+              onSelect={() => toggleSelection(task.id)}
+              onClick={() => {
+                // TODO: Open Context Drawer
+                console.log('Open drawer for task:', task.id)
+              }}
+            />
+          ))
+        ) : (
+          <div className="text-center py-16 text-slate-400">
+            <CheckCircle2 size={48} className="mx-auto mb-3 text-emerald-300" />
+            <p className="text-lg font-medium text-slate-600">Parabéns!</p>
+            <p className="text-sm">Não há documentos pendentes de assinatura</p>
+          </div>
+        )}
+      </div>
+
+      {/* Batch Actions */}
+      {selectedIds.size > 0 && (
+        <BatchActionsBar
+          selectedCount={selectedIds.size}
+          onSign={handleBatchSign}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      )}
+    </div>
+  )
+}
+
+export default SefinInboxView

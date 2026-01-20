@@ -15,6 +15,7 @@ const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').th
 const SupridoDashboard = React.lazy(() => import('./components/Suprido/SupridoDashboard').then(m => ({ default: m.SupridoDashboard })));
 const GestorDashboard = React.lazy(() => import('./components/Gestor/GestorDashboard').then(m => ({ default: m.GestorDashboard })));
 const SefinDashboard = React.lazy(() => import('./components/SefinDashboard').then(m => ({ default: m.SefinDashboard })));
+const SefinCockpit = React.lazy(() => import('./components/SEFIN/SefinCockpit').then(m => ({ default: m.SefinCockpit })));
 const AjsefinDashboard = React.lazy(() => import('./components/AjsefinDashboard').then(m => ({ default: m.AjsefinDashboard })));
 const SgpDashboard = React.lazy(() => import('./components/SgpDashboard').then(m => ({ default: m.SgpDashboard })));
 
@@ -298,7 +299,11 @@ const AppContent: React.FC = () => {
           />
         )}
         {activeRole === AppRole.SEFIN && (
-          <SefinDashboard processes={sharedProcesses} />
+          <SefinCockpit user={{
+            id: userProfile?.id || '',
+            nome: userProfile?.nome || 'Ordenador de Despesas',
+            cargo: userProfile?.cargo || 'SEFIN'
+          }} />
         )}
         {activeRole === AppRole.AJSEFIN && (
           <AjsefinDashboard />
