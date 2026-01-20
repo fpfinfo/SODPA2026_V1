@@ -536,9 +536,49 @@ export function GestorExecutionView({ searchQuery }: GestorExecutionViewProps) {
             </button>
           </div>
         </div>
+
+        {/* AI Modal - Must be inside this return block to render when form is visible */}
+        {showAiModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowAiModal(false)}></div>
+            <div className="relative bg-white w-full max-w-xl rounded-[32px] p-8 shadow-2xl space-y-6 text-center animate-in zoom-in-95">
+              <button 
+                onClick={() => setShowAiModal(false)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+              <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl w-fit mx-auto shadow-inner">
+                <Sparkles size={32} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Gerador de Justificativa</h3>
+                <p className="text-slate-500 text-sm font-medium">
+                  A IA irá gerar um texto profissional baseado nos elementos de despesa selecionados.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={handleAiJustification} 
+                  disabled={isGeneratingAi}
+                  className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold uppercase text-xs tracking-wider hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 transition-all disabled:opacity-50"
+                >
+                  {isGeneratingAi ? <RefreshCw size={18} className="animate-spin" /> : <><Sparkles size={18}/> Gerar Texto</>}
+                </button>
+                <button 
+                  onClick={() => setShowAiModal(false)} 
+                  className="w-full py-3 text-slate-400 font-bold text-xs hover:bg-slate-50 rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
+
 
   // Main view - list of requests
   return (
