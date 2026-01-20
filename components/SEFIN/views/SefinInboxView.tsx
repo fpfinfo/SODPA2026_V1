@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react'
 import { useSefinCockpit, SefinTask } from '../../../hooks/useSefinCockpit'
+import { ContextDrawer } from '../ContextDrawer'
 
 interface SefinInboxViewProps {
   searchQuery?: string
@@ -146,11 +147,12 @@ function TaskCard({ task, isSelected, onSelect, onClick }: TaskCardProps) {
 // Batch Actions Bar
 interface BatchActionsProps {
   selectedCount: number
+  totalValue?: number
   onSign: () => void
   onClear: () => void
 }
 
-function BatchActionsBar({ selectedCount, onSign, onClear }: BatchActionsProps) {
+function BatchActionsBar({ selectedCount, totalValue, onSign, onClear }: BatchActionsProps) {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl shadow-2xl px-6 py-3 flex items-center gap-6 z-50">
       <div className="flex items-center gap-2">
@@ -158,6 +160,11 @@ function BatchActionsBar({ selectedCount, onSign, onClear }: BatchActionsProps) 
         <span className="text-sm font-medium">
           {selectedCount} {selectedCount === 1 ? 'selecionado' : 'selecionados'}
         </span>
+        {totalValue !== undefined && totalValue > 0 && (
+          <span className="text-xs text-slate-400">
+            ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)})
+          </span>
+        )}
       </div>
 
       <div className="w-px h-6 bg-slate-700" />
@@ -216,9 +223,10 @@ function FilterPills({ activeType, onTypeChange }: FilterPillsProps) {
 }
 
 export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
-  const { filteredTasks, isLoading, filters, updateFilter, signMultipleTasks } = useSefinCockpit()
+  const { tasks, filteredTasks, isLoading, filters, updateFilter, signTask, signMultipleTasks, returnTask } = useSefinCockpit()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [showBatchModal, setShowBatchModal] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<SefinTask | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   // Apply search query from header
   React.useEffect(() => {
@@ -239,9 +247,44 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
     })
   }
 
-  const handleBatchSign = async () => {
-    // TODO: Open PIN confirmation modal
+  const handleOpenDrawer = (task: SefinTask) => {
+    setSelectedTask(task)
+    setDrawerOpen(true)
+  }
+
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false)
+    setSelectedTask(null)
+  }
+
+  const handleSign = async (taskId: string) => {
     const pin = prompt('Digite seu PIN para assinar:')
+    if (!pin) return
+
+    const result = await signTask(taskId, pin)
+    if (result.success) {
+      handleCloseDrawer()
+      alert('Documento assinado com sucesso!')
+    } else {
+      alert(`Erro: ${result.error}`)
+    }
+  }
+
+  const handleReturn = async (taskId: string, reason: string) => {
+    const motivo = prompt('Informe o motivo da devolução:')
+    if (!motivo) return
+
+    const result = await returnTask(taskId, motivo)
+    if (result.success) {
+      handleCloseDrawer()
+      alert('Documento devolvido com sucesso!')
+    } else {
+      alert(`Erro: ${result.error}`)
+    }
+  }
+
+  const handleBatchSign = async () => {
+    const pin = prompt('Digite seu PIN para assinar os documentos selecionados:')
     if (!pin) return
 
     const result = await signMultipleTasks(Array.from(selectedIds), pin)
@@ -253,7 +296,14 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
     }
   }
 
-  const pendingTasks = filteredTasks.filter(t => t.status === 'PENDENTE')
+  // Filter for pending tasks
+  const pendingTasks = filteredTasks.filter(t => t.status === 'PENDING')
+
+  // Calculate total value of selected tasks
+  const selectedTotalValue = Array.from(selectedIds).reduce((sum, id) => {
+    const task = tasks.find(t => t.id === id)
+    return sum + (task?.processo?.valor_total || 0)
+  }, 0)
 
   if (isLoading) {
     return (
@@ -298,10 +348,7 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
               task={task}
               isSelected={selectedIds.has(task.id)}
               onSelect={() => toggleSelection(task.id)}
-              onClick={() => {
-                // TODO: Open Context Drawer
-                console.log('Open drawer for task:', task.id)
-              }}
+              onClick={() => handleOpenDrawer(task)}
             />
           ))
         ) : (
@@ -317,10 +364,20 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
       {selectedIds.size > 0 && (
         <BatchActionsBar
           selectedCount={selectedIds.size}
+          totalValue={selectedTotalValue}
           onSign={handleBatchSign}
           onClear={() => setSelectedIds(new Set())}
         />
       )}
+
+      {/* Context Drawer */}
+      <ContextDrawer
+        task={selectedTask}
+        isOpen={drawerOpen}
+        onClose={handleCloseDrawer}
+        onSign={handleSign}
+        onReturn={handleReturn}
+      />
     </div>
   )
 }
