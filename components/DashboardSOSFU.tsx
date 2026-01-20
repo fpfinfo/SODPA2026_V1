@@ -138,13 +138,21 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   useEffect(() => {
     const fetchUserCapacity = async () => {
       if (!currentUserId) return;
-      const { data } = await supabase
-        .from('profiles')
-        .select('capacidade_diaria')
-        .eq('id', currentUserId)
-        .single();
-      if (data?.capacidade_diaria) {
-        setUserCapacity(data.capacidade_diaria);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('capacidade_diaria')
+          .eq('id', currentUserId)
+          .single();
+        if (error) {
+          console.warn('[DashboardSOSFU] capacidade_diaria not found, using default:', error.code);
+          return; // Use default capacity
+        }
+        if (data?.capacidade_diaria) {
+          setUserCapacity(data.capacidade_diaria);
+        }
+      } catch (err) {
+        console.warn('[DashboardSOSFU] Error fetching capacity, using default:', err);
       }
     };
     fetchUserCapacity();
@@ -153,12 +161,18 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   // Handler to update user capacity
   const handleCapacityChange = async (newCapacity: number) => {
     if (!currentUserId) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ capacidade_diaria: newCapacity })
-      .eq('id', currentUserId);
-    if (!error) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ capacidade_diaria: newCapacity })
+        .eq('id', currentUserId);
+      if (error) {
+        console.warn('[DashboardSOSFU] Error updating capacity:', error.message);
+        return;
+      }
       setUserCapacity(newCapacity);
+    } catch (err) {
+      console.warn('[DashboardSOSFU] Error updating capacity:', err);
     }
   };
   

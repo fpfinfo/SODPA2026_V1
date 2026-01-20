@@ -517,17 +517,22 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
           if (servidorData) {
             // SYNC: Update profiles table to match servidores_tj data
             // This ensures Gestor/Seplan views (which join profiles) see the correct name
-            await supabase.from('profiles').upsert({
-              id: user.id, // Ensure we use the auth user id
-              nome: servidorData.nome,
-              role: 'SUPRIDO', // Enforce correct role
-              email: servidorData.email,
-              cpf: servidorData.cpf,
-              matricula: servidorData.matricula,
-              cargo: servidorData.cargo,
-              lotacao: servidorData.lotacao,
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'id' });
+            try {
+              await supabase.from('profiles').upsert({
+                id: user.id, // Ensure we use the auth user id
+                nome: servidorData.nome,
+                role: 'SUPRIDO', // Enforce correct role
+                email: servidorData.email,
+                cpf: servidorData.cpf,
+                matricula: servidorData.matricula,
+                cargo: servidorData.cargo,
+                lotacao: servidorData.lotacao,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'id' });
+            } catch (profileErr) {
+              // Silently log - profile sync is optional, don't block UI
+              console.warn('[SupridoDashboard] Profile sync skipped:', profileErr);
+            }
 
             setProfileData({
               id: user.id, // Use auth user ID for consistency
