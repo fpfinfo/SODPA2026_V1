@@ -24,6 +24,13 @@ import {
 import { SefinTask } from '../../../hooks/useSefinCockpit'
 import { supabase } from '../../../lib/supabaseClient'
 
+// Import Static Document Components for unified rendering
+import { StaticPortaria } from '../../ProcessDetails/StaticDocuments/StaticPortaria'
+import { StaticCertidao } from '../../ProcessDetails/StaticDocuments/StaticCertidao'
+import { StaticNE } from '../../ProcessDetails/StaticDocuments/StaticNE'
+
+const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
+
 export type SimilarSearchType = 'comarca' | 'suprido'
 
 interface ContextDrawerProps {
@@ -88,14 +95,14 @@ function InfoRow({ icon: Icon, label, value }: {
 
 export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewSimilar }: ContextDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
-  const [realDocumentContent, setRealDocumentContent] = useState<string | null>(null)
+  const [realDocumentData, setRealDocumentData] = useState<any>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
 
-  // Fetch real document content from database
+  // Fetch real document data from database for Static components
   useEffect(() => {
-    const fetchDocumentContent = async () => {
+    const fetchDocumentData = async () => {
       if (!task?.documento_id) {
-        setRealDocumentContent(null)
+        setRealDocumentData(null)
         return
       }
 
@@ -103,28 +110,37 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
       try {
         const { data: documento, error } = await supabase
           .from('documentos')
-          .select('conteudo, titulo, tipo')
+          .select('*')
           .eq('id', task.documento_id)
           .single()
 
         if (error) {
-          console.error('Error fetching document content:', error)
-          setRealDocumentContent(null)
-        } else if (documento?.conteudo) {
-          setRealDocumentContent(documento.conteudo)
+          console.error('Error fetching document data:', error)
+          setRealDocumentData(null)
+        } else if (documento) {
+          // Parse metadata if it's a JSON string
+          if (typeof documento.metadata === 'string') {
+            try {
+              documento.metadata = JSON.parse(documento.metadata)
+            } catch {
+              documento.metadata = {}
+            }
+          }
+          console.log('✅ Document data loaded for preview:', documento.tipo)
+          setRealDocumentData(documento)
         } else {
-          setRealDocumentContent(null)
+          setRealDocumentData(null)
         }
       } catch (err) {
         console.error('Error fetching document:', err)
-        setRealDocumentContent(null)
+        setRealDocumentData(null)
       } finally {
         setIsLoadingDocument(false)
       }
     }
 
     if (isOpen && task) {
-      fetchDocumentContent()
+      fetchDocumentData()
     }
   }, [task?.documento_id, isOpen])
 
@@ -426,31 +442,89 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
             </div>
           </div>
 
-          {/* Document Preview */}
-          <div className="bg-slate-100 rounded-xl p-4 mb-6 border border-slate-200">
-            <div className="aspect-[210/297] bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-4 h-full overflow-y-auto">
-                {isLoadingDocument ? (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                    <Loader2 size={24} className="animate-spin mb-2" />
-                    <span className="text-xs">Carregando documento...</span>
+          {/* Document Preview - Using Static Components for visual parity with Dossiê Digital */}
+          <div className="bg-slate-100 rounded-xl p-2 mb-6 border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-y-auto max-h-[500px]" style={{ minHeight: '400px' }}>
+              {isLoadingDocument ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 py-20">
+                  <Loader2 size={24} className="animate-spin mb-2" />
+                  <span className="text-xs">Carregando documento...</span>
+                </div>
+              ) : (
+                /* Render using SAME Static components as Dossiê Digital */
+                <div 
+                  className="origin-top-left"
+                  style={{ transform: 'scale(0.5)', transformOrigin: 'top left', width: '200%' }}
+                >
+                  <div className="w-[820px] bg-white p-12 min-h-[500px] text-[#000] font-sans">
+                    {/* Unified Header with Brasão - like Dossiê Digital */}
+                    <div className="flex flex-col items-center justify-center mb-8 space-y-2">
+                      <img src={BRASAO_TJPA_URL} alt="Brasão" className="w-16 opacity-90" />
+                      <h1 className="text-sm font-bold text-slate-900 uppercase tracking-widest text-center">
+                        TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ
+                      </h1>
+                      <p className="text-xs text-slate-500">Secretaria de Finanças - SEFIN</p>
+                    </div>
+
+                    {/* Render Content Based on Document Type */}
+                    {task.tipo === 'PORTARIA' ? (
+                      <StaticPortaria 
+                        processData={{
+                          nup: task.processo?.nup,
+                          valor_total: task.processo?.valor_total,
+                          suprido_nome: task.processo?.suprido_nome,
+                          lotacao: task.processo?.lotacao_nome,
+                          created_at: task.processo?.created_at
+                        }} 
+                        documentData={realDocumentData || {
+                          tipo: 'PORTARIA',
+                          created_at: task.created_at
+                        }} 
+                      />
+                    ) : task.tipo === 'CERTIDAO_REGULARIDADE' ? (
+                      <StaticCertidao 
+                        processData={{
+                          nup: task.processo?.nup,
+                          valor_total: task.processo?.valor_total,
+                          suprido_nome: task.processo?.suprido_nome,
+                          lotacao: task.processo?.lotacao_nome,
+                          created_at: task.processo?.created_at
+                        }} 
+                        documentData={realDocumentData || {
+                          tipo: 'CERTIDAO_REGULARIDADE',
+                          created_at: task.created_at
+                        }} 
+                      />
+                    ) : task.tipo === 'NOTA_EMPENHO' ? (
+                      <StaticNE 
+                        processData={{
+                          nup: task.processo?.nup,
+                          valor_total: task.processo?.valor_total,
+                          suprido_nome: task.processo?.suprido_nome,
+                          lotacao: task.processo?.lotacao_nome,
+                          created_at: task.processo?.created_at
+                        }} 
+                        documentData={realDocumentData || {
+                          tipo: 'NOTA_EMPENHO',
+                          created_at: task.created_at
+                        }} 
+                      />
+                    ) : (
+                      /* Fallback for other document types */
+                      <div className="text-center py-8">
+                        <h2 className="text-xl font-bold uppercase tracking-widest mb-4">
+                          {getTypeLabel(task.tipo)}
+                        </h2>
+                        <p className="text-sm text-slate-600">
+                          Processo: {task.processo?.nup || 'N/A'}<br/>
+                          Suprido: {task.processo?.suprido_nome || 'N/A'}<br/>
+                          Valor: {formatCurrency(task.processo?.valor_total || 0)}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                ) : realDocumentContent ? (
-                  /* Render REAL document content from database */
-                  <div 
-                    className="text-slate-700 leading-relaxed whitespace-pre-wrap text-xs"
-                    style={{ fontFamily: 'serif' }}
-                  >
-                    {realDocumentContent}
-                  </div>
-                ) : (
-                  /* Fallback: Render generated preview if no real content */
-                  <div 
-                    className="text-slate-700 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: generateDocumentPreview() }}
-                  />
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
