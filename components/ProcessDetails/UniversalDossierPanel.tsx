@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Eye, FileDown, BookOpen, Loader2 } from 'lucide-react';
 import { useDossierData } from './hooks/useDossierData';
 import { DocumentInventory } from './DocumentInventory';
-import { StaticCover, StaticRequest } from './StaticDocuments';
+import { StaticCover, StaticRequest, StaticCertidao } from './StaticDocuments';
 import { StaticDL } from './StaticDocuments/StaticDL';
 import { StaticOB } from './StaticDocuments/StaticOB';
 import { StaticNE } from './StaticDocuments/StaticNE';
@@ -276,6 +276,8 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                       <StaticOB processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'PORTARIA' ? (
                       <StaticPortaria processData={processData} documentData={docItem.originalDoc} />
+                    ) : docItem.originalDoc?.tipo === 'CERTIDAO_REGULARIDADE' ? (
+                      <StaticCertidao processData={processData} documentData={docItem.originalDoc} />
                     ) : (
                       <>
                         {/* Dynamic Document */}
