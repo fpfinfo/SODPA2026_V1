@@ -159,6 +159,7 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
             descricao,
             profiles!solicitacoes_user_id_fkey (
               nome,
+              email,
               lotacao
             )
           )
@@ -173,12 +174,39 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       // Debug: log count of tasks
       console.log('sefin_tasks loaded:', tasksData?.length || 0)
 
+      // Get unique emails to fetch lotacao from servidores_tj
+      const emails = [...new Set((tasksData || [])
+        .map((t: any) => t.solicitacoes?.profiles?.email)
+        .filter(Boolean)
+      )]
+
+      // Fetch lotacao data from servidores_tj for all emails at once
+      let lotacaoMap: Record<string, string> = {}
+      if (emails.length > 0) {
+        const { data: servidores } = await supabase
+          .from('servidores_tj')
+          .select('email, lotacao')
+          .in('email', emails)
+
+        if (servidores) {
+          lotacaoMap = servidores.reduce((acc: Record<string, string>, s: any) => {
+            if (s.email && s.lotacao) {
+              acc[s.email] = s.lotacao
+            }
+            return acc
+          }, {})
+        }
+      }
+
       // Calculate average value for risk calculation
       const allValues = (tasksData || []).map((t: any) => t.solicitacoes?.valor_solicitado || t.valor || 0).filter((v: number) => v > 0)
       const avgValue = allValues.length > 0 ? allValues.reduce((a: number, b: number) => a + b, 0) / allValues.length : 5000
 
       // Transform data with risk calculation
       const transformedTasks: SefinTask[] = (tasksData || []).map((task: any) => {
+        const email = task.solicitacoes?.profiles?.email
+        const lotacaoFromServidor = email ? lotacaoMap[email] : null
+        
         const baseTask = {
           id: task.id,
           documento_id: task.documento_id,
@@ -191,7 +219,7 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           processo: task.solicitacoes ? {
             nup: task.solicitacoes.nup,
             suprido_nome: task.solicitacoes.profiles?.nome || task.titulo?.split(' - ')[1] || 'N/A',
-            lotacao_nome: task.solicitacoes.profiles?.lotacao || 'N/A',
+            lotacao_nome: lotacaoFromServidor || task.solicitacoes.profiles?.lotacao || 'N/A',
             valor_total: task.solicitacoes.valor_solicitado || task.valor || 0,
             status: task.solicitacoes.status,
             created_at: task.solicitacoes.created_at

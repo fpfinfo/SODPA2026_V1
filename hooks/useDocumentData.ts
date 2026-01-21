@@ -112,6 +112,9 @@ export function useDocumentData(
           let lotacao = null;
           let servidor_cpf = null;
           let servidor_cargo = null;
+          let servidor_banco = null;
+          let servidor_agencia = null;
+          let servidor_conta = null;
 
           if (profile?.email) {
             const { data: servidor } = await supabase
@@ -124,6 +127,9 @@ export function useDocumentData(
               lotacao = servidor.lotacao;
               servidor_cpf = servidor.cpf;
               servidor_cargo = servidor.cargo;
+              servidor_banco = servidor.banco;
+              servidor_agencia = servidor.agencia;
+              servidor_conta = servidor.conta_corrente;
             }
           }
 
@@ -144,10 +150,10 @@ export function useDocumentData(
             gestor_nome: profile?.gestor_nome,
             gestor_email: profile?.gestor_email,
             itens_despesa: sol.itens_despesa,
-            dados_bancarios: profile?.banco ? {
-              banco: profile.banco,
-              agencia: profile.agencia,
-              conta: profile.conta_corrente,
+            dados_bancarios: (profile?.banco || servidor_banco) ? {
+              banco: profile?.banco || servidor_banco,
+              agencia: profile?.agencia || servidor_agencia,
+              conta: profile?.conta_corrente || servidor_conta,
             } : sol.dados_bancarios,
           };
         }

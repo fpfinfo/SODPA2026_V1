@@ -368,19 +368,24 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                 currentUserId={currentUserId}
                 processData={{
                   id: process.id,
-                  nup: process.protocolNumber,
+                  nup: enrichedProcessData?.nup || process.protocolNumber,
                   type: process.type,
-                  valor_total: process.value,
-                  descricao: process.purpose,
-                  suprido_nome: process.interestedParty,
-                  created_at: process.createdAt,
-                  lotacao: (enrichedProcessData as any)?.lotacao,
-                  itens_despesa: process.items?.map((item: any) => ({
-                    codigo: item.element || 'N/A',
-                    descricao: item.desc || item.description || 'Despesa',
-                    quantidade: item.qty || item.quantity || 1,
-                    valor_unitario: item.val || item.value || 0,
-                    valor_total: item.val || item.value || 0
+                  valor_total: enrichedProcessData?.valor_total || process.value,
+                  descricao: enrichedProcessData?.descricao || process.purpose,
+                  suprido_nome: enrichedProcessData?.suprido_nome || process.interestedParty,
+                  suprido_cpf: enrichedProcessData?.suprido_cpf,
+                  suprido_cargo: enrichedProcessData?.suprido_cargo,
+                  banco: enrichedProcessData?.banco,
+                  agencia: enrichedProcessData?.agencia,
+                  conta_corrente: enrichedProcessData?.conta_corrente,
+                  created_at: enrichedProcessData?.created_at || process.createdAt,
+                  lotacao: enrichedProcessData?.lotacao,
+                  servidor_dados: enrichedProcessData?.servidor_dados,
+                  itens_despesa: enrichedProcessData?.itens_despesa || process.items?.map((item: any) => ({
+                    element: item.element || 'N/A',
+                    desc: item.desc || item.description || 'Despesa',
+                    qty: item.qty || item.quantity || 1,
+                    val: item.val || item.value || 0
                   })) || []
                 }}
               />

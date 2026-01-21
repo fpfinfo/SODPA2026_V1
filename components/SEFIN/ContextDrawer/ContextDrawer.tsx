@@ -96,53 +96,110 @@ function InfoRow({ icon: Icon, label, value }: {
 export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewSimilar }: ContextDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
   const [realDocumentData, setRealDocumentData] = useState<any>(null)
+  const [enrichedProcessData, setEnrichedProcessData] = useState<any>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
 
-  // Fetch real document data from database for Static components
+  // Fetch real document data AND enriched process data from database
   useEffect(() => {
-    const fetchDocumentData = async () => {
-      if (!task?.documento_id) {
+    const fetchData = async () => {
+      if (!task?.documento_id && !task?.solicitacao_id) {
         setRealDocumentData(null)
+        setEnrichedProcessData(null)
         return
       }
 
       setIsLoadingDocument(true)
       try {
-        const { data: documento, error } = await supabase
-          .from('documentos')
-          .select('*')
-          .eq('id', task.documento_id)
-          .single()
+        // Fetch document data
+        if (task?.documento_id) {
+          const { data: documento, error } = await supabase
+            .from('documentos')
+            .select('*')
+            .eq('id', task.documento_id)
+            .single()
 
-        if (error) {
-          console.error('Error fetching document data:', error)
-          setRealDocumentData(null)
-        } else if (documento) {
-          // Parse metadata if it's a JSON string
-          if (typeof documento.metadata === 'string') {
-            try {
-              documento.metadata = JSON.parse(documento.metadata)
-            } catch {
-              documento.metadata = {}
+          if (!error && documento) {
+            if (typeof documento.metadata === 'string') {
+              try {
+                documento.metadata = JSON.parse(documento.metadata)
+              } catch {
+                documento.metadata = {}
+              }
             }
+            console.log('✅ Document data loaded for preview:', documento.tipo)
+            setRealDocumentData(documento)
+          } else {
+            setRealDocumentData(null)
           }
-          console.log('✅ Document data loaded for preview:', documento.tipo)
-          setRealDocumentData(documento)
-        } else {
-          setRealDocumentData(null)
+        }
+
+        // Fetch enriched process data from solicitacoes + servidores_tj
+        if (task?.solicitacao_id) {
+          const { data: sol } = await supabase
+            .from('solicitacoes')
+            .select(`
+              *,
+              profiles:user_id (nome, cargo, email, cpf, banco, agencia, conta_corrente)
+            `)
+            .eq('id', task.solicitacao_id)
+            .single()
+
+          if (sol) {
+            const profile = sol.profiles as any
+            let lotacao = null
+            let servidor_cpf = null
+            let servidor_cargo = null
+            let servidor_banco = null
+            let servidor_agencia = null
+            let servidor_conta = null
+
+            // Get enriched data from servidores_tj
+            if (profile?.email) {
+              const { data: servidor } = await supabase
+                .from('servidores_tj')
+                .select('lotacao, cargo, banco, agencia, conta_corrente, cpf')
+                .eq('email', profile.email)
+                .maybeSingle()
+
+              if (servidor) {
+                lotacao = servidor.lotacao
+                servidor_cpf = servidor.cpf
+                servidor_cargo = servidor.cargo
+                servidor_banco = servidor.banco
+                servidor_agencia = servidor.agencia
+                servidor_conta = servidor.conta_corrente
+              }
+            }
+
+            setEnrichedProcessData({
+              nup: sol.nup,
+              valor_total: sol.valor_solicitado || sol.valor_total,
+              suprido_nome: profile?.nome,
+              suprido_cpf: profile?.cpf || servidor_cpf,
+              suprido_cargo: profile?.cargo || servidor_cargo,
+              lotacao: lotacao,
+              banco: profile?.banco || servidor_banco,
+              agencia: profile?.agencia || servidor_agencia,
+              conta_corrente: profile?.conta_corrente || servidor_conta,
+              itens_despesa: sol.itens_despesa,
+              created_at: sol.created_at,
+            })
+            console.log('✅ Enriched process data loaded')
+          }
         }
       } catch (err) {
-        console.error('Error fetching document:', err)
+        console.error('Error fetching data:', err)
         setRealDocumentData(null)
+        setEnrichedProcessData(null)
       } finally {
         setIsLoadingDocument(false)
       }
     }
 
     if (isOpen && task) {
-      fetchDocumentData()
+      fetchData()
     }
-  }, [task?.documento_id, isOpen])
+  }, [task?.documento_id, task?.solicitacao_id, isOpen])
 
   // Close on Escape key
   useEffect(() => {
@@ -469,7 +526,7 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
                     {/* Render Content Based on Document Type */}
                     {task.tipo === 'PORTARIA' ? (
                       <StaticPortaria 
-                        processData={{
+                        processData={enrichedProcessData || {
                           nup: task.processo?.nup,
                           valor_total: task.processo?.valor_total,
                           suprido_nome: task.processo?.suprido_nome,
@@ -483,7 +540,7 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
                       />
                     ) : task.tipo === 'CERTIDAO_REGULARIDADE' ? (
                       <StaticCertidao 
-                        processData={{
+                        processData={enrichedProcessData || {
                           nup: task.processo?.nup,
                           valor_total: task.processo?.valor_total,
                           suprido_nome: task.processo?.suprido_nome,
@@ -497,7 +554,7 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
                       />
                     ) : task.tipo === 'NOTA_EMPENHO' ? (
                       <StaticNE 
-                        processData={{
+                        processData={enrichedProcessData || {
                           nup: task.processo?.nup,
                           valor_total: task.processo?.valor_total,
                           suprido_nome: task.processo?.suprido_nome,
@@ -532,9 +589,9 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
           <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
             <h3 className="font-semibold text-slate-800 text-sm mb-3">Informações</h3>
             <div className="divide-y divide-slate-200">
-              <InfoRow icon={User} label="Suprido" value={task.processo?.suprido_nome || 'N/A'} />
-              <InfoRow icon={Building2} label="Lotação" value={task.processo?.lotacao_nome || 'N/A'} />
-              <InfoRow icon={DollarSign} label="Valor" value={formatCurrency(task.processo?.valor_total || 0)} />
+              <InfoRow icon={User} label="Suprido" value={enrichedProcessData?.suprido_nome || task.processo?.suprido_nome || 'N/A'} />
+              <InfoRow icon={Building2} label="Lotação" value={enrichedProcessData?.lotacao || task.processo?.lotacao_nome || 'N/A'} />
+              <InfoRow icon={DollarSign} label="Valor" value={formatCurrency(enrichedProcessData?.valor_total || task.processo?.valor_total || 0)} />
               <InfoRow icon={Calendar} label="Criado em" value={formatDate(task.created_at)} />
               <InfoRow icon={Clock} label="Horário" value={formatTime(task.created_at)} />
             </div>

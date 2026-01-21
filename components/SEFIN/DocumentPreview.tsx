@@ -59,6 +59,10 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     lotacao: document.solicitacao.lotacao,
     descricao: document.solicitacao.descricao,
     itens_despesa: document.solicitacao.itens_despesa,
+    // Extract bank data for StaticPortaria
+    banco: document.solicitacao.dados_bancarios?.banco,
+    agencia: document.solicitacao.dados_bancarios?.agencia,
+    conta_corrente: document.solicitacao.dados_bancarios?.conta,
     dados_bancarios: document.solicitacao.dados_bancarios,
     gestor: document.solicitacao.gestor_nome ? {
       nome: document.solicitacao.gestor_nome,

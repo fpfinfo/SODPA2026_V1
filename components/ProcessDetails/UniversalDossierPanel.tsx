@@ -18,10 +18,19 @@ interface ProcessData {
   descricao?: string;
   description?: string;
   suprido_nome?: string;
+  suprido_cpf?: string | null;
+  suprido_cargo?: string;
   interested?: string;
   unidade?: string;
   unit?: string;
   lotacao?: string;
+  banco?: string | null;
+  agencia?: string | null;
+  conta_corrente?: string | null;
+  servidor_dados?: {
+    cpf?: string;
+    email?: string;
+  };
   date?: string;
   created_at?: string;
   data_inicio?: string;

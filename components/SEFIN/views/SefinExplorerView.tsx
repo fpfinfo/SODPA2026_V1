@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useState, useMemo } from 'react'
 import { 
   Search, 
@@ -12,7 +10,10 @@ import {
   User,
   DollarSign,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 import { useSefinCockpit, SefinTask } from '../../../hooks/useSefinCockpit'
 import { ExportButtons } from '../Explorer'
@@ -55,9 +56,43 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Apply filters (search + date range)
+  // Sorting state
+  type SortField = 'nup' | 'tipo' | 'suprido' | 'unidade' | 'valor' | 'status' | 'data'
+  type SortDirection = 'asc' | 'desc'
+  const [sortField, setSortField] = useState<SortField>('data')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  // Handle column header click for sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+    setCurrentPage(1)
+  }
+
+  // Render sortable column header
+  const SortableHeader = ({ field, label }: { field: SortField; label: string }) => (
+    <th 
+      className="text-left text-xs font-semibold text-slate-600 px-4 py-3 cursor-pointer hover:bg-slate-100 select-none transition-colors"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {sortField === field ? (
+          sortDirection === 'asc' ? <ArrowUp size={14} className="text-amber-500" /> : <ArrowDown size={14} className="text-amber-500" />
+        ) : (
+          <ArrowUpDown size={14} className="text-slate-300" />
+        )}
+      </div>
+    </th>
+  )
+
+  // Apply filters (search + date range) and sorting
   const filteredTasks = useMemo(() => {
-    return tasks.filter(task => {
+    let result = tasks.filter(task => {
       // Text search filter
       if (localSearch) {
         const query = localSearch.toLowerCase()
@@ -81,7 +116,52 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
       
       return true
     })
-  }, [tasks, localSearch, dateRange])
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortField) {
+        case 'nup':
+          aValue = a.processo?.nup || ''
+          bValue = b.processo?.nup || ''
+          break
+        case 'tipo':
+          aValue = a.tipo || ''
+          bValue = b.tipo || ''
+          break
+        case 'suprido':
+          aValue = a.processo?.suprido_nome || ''
+          bValue = b.processo?.suprido_nome || ''
+          break
+        case 'unidade':
+          aValue = a.processo?.lotacao_nome || ''
+          bValue = b.processo?.lotacao_nome || ''
+          break
+        case 'valor':
+          aValue = a.processo?.valor_total || 0
+          bValue = b.processo?.valor_total || 0
+          break
+        case 'status':
+          aValue = a.status || ''
+          bValue = b.status || ''
+          break
+        case 'data':
+          aValue = new Date(a.created_at).getTime()
+          bValue = new Date(b.created_at).getTime()
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return result
+  }, [tasks, localSearch, dateRange, sortField, sortDirection])
 
   // Pagination logic
   const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE)
@@ -209,13 +289,13 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left text-xs font-semibold text-slate-600 px-4 py-3">NUP</th>
-                <th className="text-left text-xs font-semibold text-slate-600 px-4 py-3">Tipo</th>
-                <th className="text-left text-xs font-semibold text-slate-600 px-4 py-3">Suprido</th>
-                <th className="text-left text-xs font-semibold text-slate-600 px-4 py-3">Unidade</th>
-                <th className="text-left text-xs font-semibold text-slate-600 px-4 py-3">Valor</th>
-                <th className="text-left text-xs font-semibold text-slate-600 px-4 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-slate-600 px-4 py-3">Data</th>
+                <SortableHeader field="nup" label="NUP" />
+                <SortableHeader field="tipo" label="Tipo" />
+                <SortableHeader field="suprido" label="Suprido" />
+                <SortableHeader field="unidade" label="Unidade" />
+                <SortableHeader field="valor" label="Valor" />
+                <SortableHeader field="status" label="Status" />
+                <SortableHeader field="data" label="Data" />
                 <th className="text-center text-xs font-semibold text-slate-600 px-4 py-3">Ações</th>
               </tr>
             </thead>

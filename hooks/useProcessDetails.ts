@@ -64,6 +64,11 @@ export interface ProcessData {
   juri_dias?: number;
   juri_frequencia_refeicoes?: string;
   juri_projecao_custos?: any[];
+  
+  // Budget
+  ptres?: string;
+  ptres_code?: string;
+  itens_despesa?: any[];
 }
 
 interface UseProcessDetailsReturn {
