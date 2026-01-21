@@ -196,7 +196,22 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
   const handleConfirmReceipt = async (processId: string) => {
     setIsConfirmingReceipt(true);
     try {
-      const prazoDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      // Buscar data_fim do evento para calcular prazo conforme Art. 4° da Portaria
+      const { data: solicitacao } = await supabase
+        .from('solicitacoes')
+        .select('data_fim, nup')
+        .eq('id', processId)
+        .single();
+
+      // Prazo = data_fim do evento + 7 dias (Art. 4° da Portaria)
+      let prazoDate: Date;
+      if (solicitacao?.data_fim) {
+        prazoDate = new Date(new Date(solicitacao.data_fim).getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else {
+        // Fallback: 30 dias a partir de hoje se não houver data_fim
+        prazoDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        console.warn('[SupridoDashboard] Sem data_fim, usando fallback de 30 dias');
+      }
       
       await supabase.from('solicitacoes').update({
         status_workflow: 'AWAITING_ACCOUNTABILITY',
@@ -205,16 +220,18 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
         updated_at: new Date().toISOString()
       }).eq('id', processId);
 
-      // Registrar no histórico
+      // Registrar no histórico com prazo correto
+      const prazoFormatado = prazoDate.toLocaleDateString('pt-BR');
       await supabase.from('historico_tramitacao').insert({
         solicitacao_id: processId,
         origem: 'SUPRIDO',
         destino: 'PRESTAÇÃO DE CONTAS',
         status_anterior: 'AWAITING_SUPRIDO_CONFIRMATION',
         status_novo: 'AWAITING_ACCOUNTABILITY',
-        observacao: 'Suprido confirmou recebimento. Prazo de 30 dias para prestação de contas.',
+        observacao: `Suprido confirmou recebimento. Prazo para prestação de contas: ${prazoFormatado} (data fim evento + 7 dias, Art. 4°).`,
         created_at: new Date().toISOString()
       });
+
 
       // Remover da lista de pendentes
       setPendingConfirmations(prev => prev.filter(p => p.id !== processId));
