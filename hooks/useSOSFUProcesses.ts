@@ -135,6 +135,7 @@ export const useSOSFUProcesses = () => {
           account: p.profiles.conta_corrente 
         } : undefined),
         items: p.itens_despesa || p.items || [],
+        status_workflow: p.status_workflow,
       }));
 
       setProcesses(mappedProcesses);
@@ -212,13 +213,17 @@ export const useSOSFUProcesses = () => {
   const getPrestacoes = () => processes.filter(p => getCategory(p) === 'PRESTACAO');
   const getInbox = () => processes.filter(p => !p.assignedToId);
 
-  // Archive filters - for completed processes
+  // Archive filters - for completed processes (with execution finished, awaiting accountability)
   const getSolicitacoesConcluidas = () => processes.filter(p => {
     const status = (p.status as string)?.toUpperCase() || '';
-    return status.includes('SOLICITAÇÃO CONCLUÍDA') || 
+    const workflow = ((p as any).status_workflow as string)?.toUpperCase() || '';
+    
+    return status.includes('PRESTANDO CONTAS') ||
+           status.includes('SOLICITAÇÃO CONCLUÍDA') || 
            status.includes('SOLICITACAO CONCLUIDA') ||
            status === 'CONCLUIDA' ||
-           status === 'SOLICITAÇÃO_CONCLUÍDA';
+           workflow === 'AWAITING_ACCOUNTABILITY' ||
+           workflow === 'ACCOUNTABILITY_OPEN';
   });
 
   const getPCConcluidas = () => processes.filter(p => {
