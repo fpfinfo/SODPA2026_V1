@@ -253,6 +253,90 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   const [editingProcessId, setEditingProcessId] = useState<string | null>(null);
   const [isRequestingRole, setIsRequestingRole] = useState(false);
   
+  // =============================
+  // CONFIRMAÇÃO DE RECEBIMENTO
+  // =============================
+  const [pendingConfirmations, setPendingConfirmations] = useState<any[]>([]);
+  const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
+
+  // Buscar processos pendentes de confirmação
+  useEffect(() => {
+    const fetchPendingConfirmations = async () => {
+      if (!currentUserId) return;
+      
+      console.log('🔍 [Suprido/Dashboard] Fetching pending confirmations for user:', currentUserId);
+      
+      const { data, error } = await supabase
+        .from('solicitacoes')
+        .select('id, nup, valor_total, data_credito, user_id, status_workflow')
+        .eq('status_workflow', 'AWAITING_SUPRIDO_CONFIRMATION');
+      
+      console.log('📋 [Suprido/Dashboard] Pending confirmations:', data);
+      if (error) console.error('❌ [Suprido/Dashboard] Query error:', error);
+      
+      if (!error && data) {
+        // Mostrar todos os pendentes (pode ajustar para filtrar por user_id se necessário)
+        setPendingConfirmations(data);
+      }
+    };
+    fetchPendingConfirmations();
+  }, [currentUserId]);
+
+  // Handler para confirmar recebimento
+  const handleConfirmReceipt = async (processId: string) => {
+    setIsConfirmingReceipt(true);
+    try {
+      // Buscar data_fim do evento para calcular prazo (Art. 4° Portaria)
+      const { data: solicitacao } = await supabase
+        .from('solicitacoes')
+        .select('data_fim, nup')
+        .eq('id', processId)
+        .single();
+
+      let prazoDate: Date;
+      if (solicitacao?.data_fim) {
+        prazoDate = new Date(new Date(solicitacao.data_fim).getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else {
+        prazoDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      }
+      
+      await supabase.from('solicitacoes').update({
+        status_workflow: 'AWAITING_ACCOUNTABILITY',
+        data_confirmacao_recebimento: new Date().toISOString(),
+        prazo_prestacao: prazoDate.toISOString(),
+        updated_at: new Date().toISOString()
+      }).eq('id', processId);
+
+      const prazoFormatado = prazoDate.toLocaleDateString('pt-BR');
+      await supabase.from('historico_tramitacao').insert({
+        solicitacao_id: processId,
+        origem: 'SUPRIDO',
+        destino: 'PRESTAÇÃO DE CONTAS',
+        status_anterior: 'AWAITING_SUPRIDO_CONFIRMATION',
+        status_novo: 'AWAITING_ACCOUNTABILITY',
+        observacao: `Suprido confirmou recebimento. Prazo: ${prazoFormatado} (Art. 4°).`,
+        created_at: new Date().toISOString()
+      });
+
+      setPendingConfirmations(prev => prev.filter(p => p.id !== processId));
+
+      showToast({
+        title: 'Recebimento Confirmado!',
+        message: `Prazo para prestação de contas: ${prazoFormatado}`,
+        type: 'success'
+      });
+    } catch (error: any) {
+      console.error('Error confirming receipt:', error);
+      showToast({
+        title: 'Erro ao confirmar',
+        message: error.message || 'Tente novamente',
+        type: 'error'
+      });
+    } finally {
+      setIsConfirmingReceipt(false);
+    }
+  };
+
   // Fetch tramitacao history for process
   const fetchTramitacaoHistory = async (processId: string) => {
     if (!processId) return;
@@ -1248,6 +1332,44 @@ const INITIAL_FORM_STATE: FormState = {
           </div>
         ))}
       </div>
+
+      {/* === CONFIRMATION PENDING BANNER === */}
+      {pendingConfirmations.length > 0 && pendingConfirmations.map(process => (
+        <div key={process.id} className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-[32px] p-6 shadow-xl animate-in slide-in-from-top-2 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse">
+                <Bell size={28} className="text-white" />
+              </div>
+              <div className="text-white">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-100">🔔 Confirmação Pendente</p>
+                <h3 className="text-xl font-black">{process.nup}</h3>
+                <p className="text-sm text-amber-100">
+                  Valor creditado: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(process.valor_total || 0)}</strong>
+                  {process.data_credito && ` • Data: ${new Date(process.data_credito).toLocaleDateString('pt-BR')}`}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleConfirmReceipt(process.id)}
+              disabled={isConfirmingReceipt}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-amber-700 rounded-xl font-black text-sm hover:bg-amber-50 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isConfirmingReceipt ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" />
+                  Confirmando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={18} />
+                  Confirmar Recebimento
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Histórico de Solicitações - Premium Card Layout */}
       {(() => {
