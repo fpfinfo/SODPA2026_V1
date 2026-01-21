@@ -301,6 +301,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       }
       
       await supabase.from('solicitacoes').update({
+        status: 'PRESTANDO CONTAS',
         status_workflow: 'AWAITING_ACCOUNTABILITY',
         data_confirmacao_recebimento: new Date().toISOString(),
         prazo_prestacao: prazoDate.toISOString(),
