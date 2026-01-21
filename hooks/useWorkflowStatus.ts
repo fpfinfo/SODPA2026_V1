@@ -62,7 +62,37 @@ export function useWorkflowStatus(solicitacaoId: string, options: UseWorkflowSta
 
       if (fetchError) throw fetchError
 
-      const workflowStatus = (data?.status_workflow as WorkflowStatus) || 'EXECUTION_DRAFT'
+      let workflowStatus = (data?.status_workflow as WorkflowStatus) || 'EXECUTION_DRAFT'
+      
+      // ========================================
+      // FALLBACK: Check if Block A documents are signed
+      // If status_workflow wasn't updated but docs are signed, fix it
+      // ========================================
+      if (workflowStatus === 'WAITING_SEFIN' || workflowStatus === 'EXECUTION_DRAFT') {
+        const { data: docs } = await supabase
+          .from('execution_documents')
+          .select('tipo, status')
+          .eq('solicitacao_id', solicitacaoId)
+          .in('tipo', ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'])
+        
+        if (docs && docs.length >= 3) {
+          const allSigned = docs.every(d => d.status === 'ASSINADO')
+          if (allSigned) {
+            console.log('✅ [Workflow] Block A docs all signed, upgrading status to SIGNED_BY_SEFIN')
+            workflowStatus = 'SIGNED_BY_SEFIN'
+            
+            // Also update the database to keep it in sync
+            await supabase
+              .from('solicitacoes')
+              .update({ 
+                status_workflow: 'SIGNED_BY_SEFIN',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', solicitacaoId)
+          }
+        }
+      }
+
       setStatus(workflowStatus)
       setLastUpdate(data?.updated_at ? new Date(data.updated_at) : null)
       
@@ -74,6 +104,7 @@ export function useWorkflowStatus(solicitacaoId: string, options: UseWorkflowSta
       setIsLoading(false)
     }
   }, [solicitacaoId])
+
 
   // Initial fetch
   useEffect(() => {
