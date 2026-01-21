@@ -268,7 +268,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       
       const { data, error } = await supabase
         .from('solicitacoes')
-        .select('id, nup, valor_total, data_credito, user_id, status_workflow')
+        .select('id, nup, valor_solicitado, data_credito, user_id, status_workflow')
         .eq('status_workflow', 'AWAITING_SUPRIDO_CONFIRMATION');
       
       console.log('📋 [Suprido/Dashboard] Pending confirmations:', data);
@@ -1345,7 +1345,7 @@ const INITIAL_FORM_STATE: FormState = {
                 <p className="text-[10px] font-black uppercase tracking-widest text-amber-100">🔔 Confirmação Pendente</p>
                 <h3 className="text-xl font-black">{process.nup}</h3>
                 <p className="text-sm text-amber-100">
-                  Valor creditado: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(process.valor_total || 0)}</strong>
+                  Valor creditado: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(process.valor_solicitado || 0)}</strong>
                   {process.data_credito && ` • Data: ${new Date(process.data_credito).toLocaleDateString('pt-BR')}`}
                 </p>
               </div>
