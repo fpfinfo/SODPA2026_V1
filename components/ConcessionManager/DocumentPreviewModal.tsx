@@ -102,7 +102,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 <div className="space-y-6 text-justify text-sm leading-7">
                   <p>
                     <span className="font-bold text-[#1e40af]">Art. 1º</span> &nbsp;&nbsp;&nbsp;
-                    Conceder suprimento de fundos do tipo <span className="font-bold uppercase bg-yellow-100 px-1">{tipoSuprimento}</span> ao servidor(a):
+                    AUTORIZAR a concessão de suprimento de fundos do tipo <span className="font-bold uppercase bg-yellow-100 px-1">{tipoSuprimento}</span> ao servidor(a) <span className="font-bold uppercase">{process.interestedParty}</span>, portador do CPF <span className="font-bold">{process.providerCpf || '000.000.000-00'}</span>, lotado na <span className="font-bold uppercase">{lotacao}</span>, a ser executado conforme especificações desta Portaria.
                   </p>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 my-4 space-y-2">

@@ -32,6 +32,7 @@ interface SupridoChangeRequest {
   unitName: string;
   currentHolder: string;
   newHolder: string;
+  newHolderCpf?: string;
   requestDate: string;
   reason: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -223,7 +224,7 @@ export const SupridoManager: React.FC = () => {
                             </p>
 
                             <p>
-                                <strong>Art. 1º</strong> DESIGNAR o(a) servidor(a) <strong>{viewingDoc.newHolder.toUpperCase()}</strong>, matrícula funcional nº 55.XXX-X, ocupante do cargo de Técnico Judiciário, para atuar como <strong>Suprido(a)</strong> responsável pela gestão do Suprimento de Fundos Ordinário desta unidade.
+                                <strong>Art. 1º</strong> DESIGNAR o(a) servidor(a) <strong>{viewingDoc.newHolder.toUpperCase()}</strong>, portador(a) do CPF nº {viewingDoc.newHolderCpf || '000.000.XXX-XX'}, matrícula funcional nº 55.XXX-X, ocupante do cargo de Técnico Judiciário, para atuar como <strong>Suprido(a)</strong> responsável pela gestão do Suprimento de Fundos Ordinário desta unidade.
                             </p>
 
                             <p>

@@ -17,7 +17,7 @@ export const usePortariaNumber = () => {
       throw new Error(`Erro ao gerar número: ${error.message}`);
     }
     
-    return data as string; // Retorna formato: 00001/2026-SEFIN
+    return data as string; // Retorna sequencial: 001
   };
 
   const mutation = useMutation({

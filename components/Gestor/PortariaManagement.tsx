@@ -33,6 +33,8 @@ interface ServidorOption {
   nome: string;
   email: string;
   cargo: string;
+  cpf?: string;
+  lotacao_text?: string;
 }
 
 interface PortariaManagementProps {
@@ -119,7 +121,7 @@ export const PortariaManagement: React.FC<PortariaManagementProps> = ({
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, nome, email, cargo')
+        .select('id, nome, email, cargo, cpf, lotacao_text')
         .eq('lotacao_id', comarcaId)
         .order('nome', { ascending: true });
 
@@ -207,7 +209,7 @@ export const PortariaManagement: React.FC<PortariaManagementProps> = ({
         tipo: 'PORTARIA',
         nome: portariaNumero,
         titulo: `Portaria de Nomeação - ${selectedFundo.tipo}`,
-        conteudo: `PORTARIA DE NOMEAÇÃO DE SUPRIDO\n\nO Gestor da Comarca de ${comarcaNome}, no uso de suas atribuições legais,\n\nRESOLVE:\n\nArt. 1º - Nomear o(a) servidor(a) ${servidorSelecionado?.nome} como Suprido Titular para o Fundo de Suprimento ${selectedFundo.tipo} desta Comarca.\n\nArt. 2º - Esta Portaria entra em vigor na data de sua publicação.\n\n${comarcaNome}, ${new Date().toLocaleDateString('pt-BR')}.`,
+        conteudo: `PORTARIA DE NOMEAÇÃO DE SUPRIDO\n\nO Gestor da Comarca de ${comarcaNome}, no uso de suas atribuições legais,\n\nRESOLVE:\n\nArt. 1º - Nomear o(a) servidor(a) ${servidorSelecionado?.nome}, portador(a) do CPF nº ${servidorSelecionado?.cpf || '000.000.XXX-XX'}, lotado(a) na ${servidorSelecionado?.lotacao_text || comarcaNome}, como Suprido Titular para o Fundo de Suprimento ${selectedFundo.tipo} desta Comarca.\n\nArt. 2º - Esta Portaria entra em vigor na data de sua publicação.\n\n${comarcaNome}, ${new Date().toLocaleDateString('pt-BR')}.`,
         status: 'MINUTA',
         created_by: currentUserId
       });

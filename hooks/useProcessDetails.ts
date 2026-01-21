@@ -25,6 +25,10 @@ export interface ProcessData {
   unidade?: string;
   comarca?: string;
   lotacao?: string | null;
+  suprido_cpf?: string | null;
+  banco?: string | null;
+  agencia?: string | null;
+  conta_corrente?: string | null;
   perfil_email?: string;
   servidor_dados?: {
     cpf?: string;
@@ -162,8 +166,13 @@ export const useProcessDetails = (processId: string): UseProcessDetailsReturn =>
 
         const flattenedData: ProcessData = {
           ...data,
+          valor_total: data.valor_solicitado || data.valor_total || 0,
           suprido_nome: profileData?.nome,
           suprido_cargo: cargo,
+          suprido_cpf: servidorExtras?.cpf || null,
+          banco: bankName || null,
+          agencia: agency || null,
+          conta_corrente: account || null,
           unidade: profileData?.unidade_id,
           comarca: profileData?.comarca_id,
           lotacao: lotacao,

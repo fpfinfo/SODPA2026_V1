@@ -33,6 +33,8 @@ interface ProcessData {
   ob_numero?: string;
   portaria_sf_numero?: string;
   suprido_nome?: string;
+  suprido_lotacao?: string;
+  providerCpf?: string;
   valor_total?: number;
 }
 
@@ -433,7 +435,7 @@ Secretário de Planejamento, Coordenação e Finanças do Tribunal de Justiça d
 
 RESOLVE:
 
-Art. 1º AUTORIZAR a concessão de Suprimento de Fundos ao servidor ${interessado}, a ser executado através do PTRES ${ptres} e ${dotacaoText}, conforme especificações constantes no NUP ${nup}.
+Art. 1º AUTORIZAR a concessão de Suprimento de Fundos ao servidor ${interessado}, portador do CPF nº ${process.providerCpf || '000.000.XXX-XX'}, a ser executado através do PTRES ${ptres} e ${dotacaoText}, conforme especificações constantes no NUP ${nup}.
 
 Art. 2º O valor total do presente Suprimento de Fundos é de ${valorFormatado}, obedecendo aos limites estabelecidos pela Resolução CNJ nº 169/2013.
 
@@ -598,6 +600,7 @@ Seção de Suprimento de Fundos`;
                     <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Prévia do Art. 1º</p>
                     <p className="text-sm text-slate-700">
                       <strong>Art. 1º</strong> AUTORIZAR a concessão de Suprimento de Fundos ao servidor {process.interestedParty}, 
+                      portador do CPF nº {process.providerCpf || '000.000.XXX-XX'}, 
                       a ser executado através do <strong className="text-blue-600">PTRES {selectedPtres}</strong> e 
                       {selectedDotacoes.length === 1 ? (
                         <strong className="text-blue-600"> Dotação Orçamentária {selectedDotacoes[0]}</strong>

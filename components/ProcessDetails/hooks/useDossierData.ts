@@ -12,6 +12,7 @@ export interface DossierDocument {
   created_at: string;
   updated_at?: string;
   solicitacao_id: string;
+  metadata?: any;
   profiles?: {
     nome: string;
     cargo: string;

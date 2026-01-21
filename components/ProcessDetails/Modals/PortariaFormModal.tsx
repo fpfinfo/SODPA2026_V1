@@ -180,7 +180,7 @@ export const PortariaFormModal: React.FC<PortariaFormModalProps> = ({
               <p className="text-xs text-slate-500">
                 {hasMultipleGroups 
                   ? `Selecione PTRES e ${elementGroups.length} dotações por natureza`
-                  : 'Selecione PTRES e dotação orçamentária'}
+                  : 'O número sequencial será gerado automaticamente'}
               </p>
             </div>
           </div>

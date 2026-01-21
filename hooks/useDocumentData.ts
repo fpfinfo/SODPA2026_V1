@@ -108,8 +108,11 @@ export function useDocumentData(
         if (!solError && sol) {
           const profile = sol.profiles as any;
           
-          // Try to get lotacao from servidores_tj
+          // Try to get enriched data from servidores_tj
           let lotacao = null;
+          let servidor_cpf = null;
+          let servidor_cargo = null;
+
           if (profile?.email) {
             const { data: servidor } = await supabase
               .from('servidores_tj')
@@ -119,6 +122,8 @@ export function useDocumentData(
             
             if (servidor) {
               lotacao = servidor.lotacao;
+              servidor_cpf = servidor.cpf;
+              servidor_cargo = servidor.cargo;
             }
           }
 
@@ -132,8 +137,8 @@ export function useDocumentData(
             status: sol.status,
             created_at: sol.created_at,
             suprido_nome: profile?.nome,
-            suprido_cargo: profile?.cargo,
-            suprido_cpf: profile?.cpf,
+            suprido_cargo: profile?.cargo || servidor_cargo,
+            suprido_cpf: profile?.cpf || servidor_cpf,
             suprido_email: profile?.email,
             lotacao: lotacao,
             gestor_nome: profile?.gestor_nome,

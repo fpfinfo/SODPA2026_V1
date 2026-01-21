@@ -205,7 +205,12 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
       <div className="text-left mb-8">
         <p className="text-base">
           <span className="font-bold">PORTARIA SF Nº</span>{' '}
-          <span className="font-black text-2xl mx-2">{numeroPortaria}</span>{' '}
+          <span className="font-black text-2xl mx-2">
+            {(() => {
+              const baseNum = (numeroPortaria.includes('/') ? numeroPortaria.split('/')[0] : numeroPortaria).trim();
+              return /^\d+$/.test(baseNum) ? baseNum.replace(/^0+/, '').padStart(3, '0') : baseNum;
+            })()}
+          </span>{' '}
           <span className="font-bold">/{anoPortaria}-SEPLAN/TJE</span>
         </p>
       </div>
@@ -227,10 +232,9 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
         <div className="leading-loose">
           <span className="font-bold">Art. 1º</span>{' '}
           AUTORIZAR a concessão de Suprimento de Fundos ao servidor{' '}
-          <strong>{processData.suprido_nome || 'N/A'}</strong>, a ser executado através do PTRES{' '}
-          <strong>{metadata.ptres_code || '8727'}</strong> e {allDotacoes.length > 1 ? 'Dotações Orçamentárias' : 'Dotação Orçamentária'}{' '}
-          {formatDotacoes()}, conforme especificações constantes no NUP{' '}
-          <strong>{processData.nup || 'TJPA-EXT-2026-7128'}</strong>.
+          <strong>{processData.suprido_nome || processData.nome || 'N/A'}</strong>, portador do CPF{' '}
+          <strong>{processData.servidor_dados?.cpf || processData.suprido_cpf || processData.cpf || '---'}</strong>, lotado na{' '}
+          <strong>{processData.lotacao || processData.suprido_lotacao || '---'}</strong>.
         </div>
 
         {/* Art. 2º - Valor por extenso + Dotações + Dados bancários + Incisos */}
@@ -238,21 +242,25 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
           <span className="font-bold">Art. 2º</span>{' '}
           O valor total do presente Suprimento de Fundos é de{' '}
           <strong>{formatCurrency(valorTotal)}</strong>{' '}
-          <strong>({valorPorExtenso(valorTotal)})</strong>, nas{' '}
-          {allDotacoes.length > 1 ? 'Dotações Orçamentárias' : 'Dotação Orçamentária'}{' '}
-          {formatDotacoes()}, e deverá atender às despesas miúdas de pronto pagamento 
+          <strong>({valorPorExtenso(valorTotal)})</strong>, e deverá atender às despesas miúdas de pronto pagamento 
           e ser creditado na conta corrente, abaixo:
         </div>
         
         {/* Parágrafo único - Dados bancários */}
-        <div className="pl-8 leading-loose">
-          <strong>Parágrafo único.</strong>{' '}
+        <div className="pl-8 leading-loose"> {' '}
           Dados bancários para crédito{usarDadosComarca ? ' (Comarca)' : ''}: 
           Banco <strong>{bancoDados.banco}</strong>, 
           Agência <strong>{bancoDados.agencia}</strong>, 
           Conta Corrente <strong>{bancoDados.conta}</strong>.
         </div>
         
+        
+
+        {/* Art. 3º - Classificação orçamentária */}
+        <div className="leading-loose">
+          <span className="font-bold">Art. 3º</span>{' '}
+          A despesa a que se refere o item anterior ocorrerá por conta de recursos próprios do Tribunal de Justiça do Estado - TJE/PA e terá a classificação PTRES <strong>{ptresCode || '---'}</strong> e {allDotacoes.length > 1 ? 'Dotações' : 'Dotação'} <strong>{allDotacoes.join(', ')}</strong>, nos seguintes elementos:
+        </div> 
         {/* Incisos com elementos de despesa - Ordenados por código */}
         {itens.length > 0 && (
           <div className="pl-8 space-y-2">
@@ -269,13 +277,14 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
             })}
           </div>
         )}
-
-        {/* Art. 3º - Prazos com incisos */}
-        <div className="leading-loose">
-          <span className="font-bold">Art. 3º</span>{' '}
-          Os prazos para execução e prestação de contas são os seguintes:
-        </div>
         
+
+        {/* Art. 4º */}
+        <div className="leading-loose">
+          <span className="font-bold">Art. 4º</span>{' '}
+          A aplicação e a prestação de contas do valor referido no Artigo 2º desta Portaria deverão observar os prazos a seguir:
+        </div>
+
         <div className="pl-8 space-y-2">
           <div className="leading-relaxed">
             <strong>I</strong> – Prazo de Aplicação: de <strong>{formatDateShort(documentData.created_at)}</strong> a{' '}
@@ -283,14 +292,11 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
           </div>
           <div className="leading-relaxed">
             <strong>II</strong> – Prazo para Prestação de Contas: até <strong>{formatDateShort(dataLimitePrestacao.toISOString())}</strong>{' '}
-            (7 dias após o término do prazo de aplicação).
+            (+7 dias após o término do prazo de aplicação).
           </div>
-        </div>
 
-        {/* Art. 4º */}
-        <div className="leading-loose">
-          <span className="font-bold">Art. 4º</span>{' '}
-          Esta Portaria entra em vigor na data de sua publicação.
+          <div className="leading-relaxed">
+            <strong>Registre-se e Cumpra-se.</strong> </div>
         </div>
 
         {/* Location and date */}
@@ -302,10 +308,10 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
         <div className="mt-16 text-center space-y-4">
           <div className="pt-4 border-t border-slate-400 max-w-md mx-auto">
             <p className="font-bold text-base uppercase">
-              {metadata.signed_by_name || 'SECRETÁRIO EXECUTIVO DE FINANÇAS'}
+              {metadata.signed_by_name || 'ANAILTON PAULO DE ALENCAR'}
             </p>
             <p className="text-sm font-semibold">Ordenador de Despesa</p>
-            <p className="text-xs text-slate-600">{metadata.signer_role || 'Secretário de Planejamento, Coordenação e Finanças'}</p>
+            <p className="text-xs text-slate-600">{metadata.signer_role || 'Secretário Adjunto de Planejamento, Coordenação e Finanças'}</p>
           </div>
         </div>
 

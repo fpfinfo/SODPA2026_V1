@@ -153,7 +153,8 @@ export function useProcessExecution(solicitacaoId: string) {
           metadata: formData ? { form_data: formData } : {},
           fonte_recurso: formData?.fonte_recurso || null,
           ptres_code: formData?.ptres_code || null,
-          dotacao_code: formData?.dotacao_code || null
+          dotacao_code: formData?.dotacao_code || null,
+          numero_formatado: formData?.numero_portaria || null
         })
         .select()
         .single();
@@ -333,6 +334,7 @@ export function useProcessExecution(solicitacaoId: string) {
       titulo: doc.titulo,
       url_storage: doc.arquivo_url,
       status: 'MINUTA',
+      metadata: doc.metadata || {},
       created_by: userId  // <- Habilita CRUD no dossiê!
     }).select();
 
