@@ -381,6 +381,21 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           .from('documentos')
           .update({ status: 'ASSINADO' })
           .eq('id', task.documento_id)
+        
+        // Also sync execution_documents to show correct status in SOSFU
+        const { data: docData } = await supabase
+          .from('documentos')
+          .select('tipo, solicitacao_id')
+          .eq('id', task.documento_id)
+          .single()
+        
+        if (docData?.solicitacao_id) {
+          await supabase
+            .from('execution_documents')
+            .update({ status: 'ASSINADO' })
+            .eq('solicitacao_id', docData.solicitacao_id)
+            .eq('tipo', docData.tipo)
+        }
       }
 
       // Check if all documents for this solicitacao are signed
@@ -397,6 +412,7 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
             .from('solicitacoes')
             .update({ 
               status: 'APROVADO',
+              status_workflow: 'SIGNED_BY_SEFIN', // SCS 4.0: Unlock DL/OB generation
               destino_atual: 'SOSFU',
               updated_at: new Date().toISOString()
             })
@@ -449,6 +465,23 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           .from('documentos')
           .update({ status: 'ASSINADO' })
           .in('id', documentoIds)
+        
+        // Also sync execution_documents to show correct status in SOSFU
+        const { data: signedDocs } = await supabase
+          .from('documentos')
+          .select('tipo, solicitacao_id')
+          .in('id', documentoIds)
+        
+        // Update each matching execution_document
+        for (const doc of signedDocs || []) {
+          if (doc.solicitacao_id) {
+            await supabase
+              .from('execution_documents')
+              .update({ status: 'ASSINADO' })
+              .eq('solicitacao_id', doc.solicitacao_id)
+              .eq('tipo', doc.tipo)
+          }
+        }
       }
 
       // Get unique solicitacao_ids and check if all tasks are signed
@@ -466,6 +499,7 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
             .from('solicitacoes')
             .update({ 
               status: 'APROVADO',
+              status_workflow: 'SIGNED_BY_SEFIN', // SCS 4.0: Unlock DL/OB generation
               destino_atual: 'SOSFU',
               updated_at: new Date().toISOString()
             })

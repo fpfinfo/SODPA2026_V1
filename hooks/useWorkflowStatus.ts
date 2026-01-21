@@ -1,0 +1,198 @@
+'use client'
+
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { supabase } from '../lib/supabaseClient'
+
+// ========================================
+// TYPES
+// ========================================
+export type WorkflowStatus = 
+  | 'EXECUTION_DRAFT'      // SOSFU gera docs iniciais
+  | 'WAITING_SEFIN'        // SOSFU enviou, SEFIN vê na mesa
+  | 'SIGNED_BY_SEFIN'      // SEFIN assinou, SOSFU vê botões liberados
+  | 'PAYMENT_PROCESSING'   // SOSFU gerou OB, na Análise Técnica
+  | 'FUNDS_RELEASED'       // Técnico confirmou crédito
+  | 'ACCOUNTABILITY_OPEN'  // Suprido pode gastar
+
+export interface WorkflowPhase {
+  id: WorkflowStatus
+  label: string
+  description: string
+  icon: string
+}
+
+export const WORKFLOW_PHASES: WorkflowPhase[] = [
+  { id: 'EXECUTION_DRAFT', label: 'Instrução', description: 'Geração de documentos iniciais', icon: '📝' },
+  { id: 'WAITING_SEFIN', label: 'Aguardando SEFIN', description: 'Documentos enviados para assinatura', icon: '⏳' },
+  { id: 'SIGNED_BY_SEFIN', label: 'Assinado', description: 'Pronto para liquidação e pagamento', icon: '✅' },
+  { id: 'PAYMENT_PROCESSING', label: 'Análise Técnica', description: 'Verificação final antes da liberação', icon: '🔍' },
+  { id: 'FUNDS_RELEASED', label: 'Liberado', description: 'Recurso creditado na conta', icon: '💰' },
+  { id: 'ACCOUNTABILITY_OPEN', label: 'Prestação de Contas', description: 'Período de utilização do recurso', icon: '📊' }
+]
+
+interface UseWorkflowStatusOptions {
+  enableRealtime?: boolean
+}
+
+// ========================================
+// HOOK
+// ========================================
+export function useWorkflowStatus(solicitacaoId: string, options: UseWorkflowStatusOptions = {}) {
+  const { enableRealtime = true } = options
+  
+  // State
+  const [status, setStatus] = useState<WorkflowStatus>('EXECUTION_DRAFT')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+
+  // Fetch current status
+  const fetchStatus = useCallback(async () => {
+    if (!solicitacaoId) return
+
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const { data, error: fetchError } = await supabase
+        .from('solicitacoes')
+        .select('status_workflow, updated_at')
+        .eq('id', solicitacaoId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const workflowStatus = (data?.status_workflow as WorkflowStatus) || 'EXECUTION_DRAFT'
+      setStatus(workflowStatus)
+      setLastUpdate(data?.updated_at ? new Date(data.updated_at) : null)
+      
+      console.log(`📊 [Workflow] Status: ${workflowStatus}`)
+    } catch (err: any) {
+      console.error('❌ [Workflow] Error:', err)
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [solicitacaoId])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchStatus()
+  }, [fetchStatus])
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!solicitacaoId || !enableRealtime) return
+
+    console.log('🔄 [Workflow] Starting realtime subscription')
+
+    const channel = supabase
+      .channel(`workflow-${solicitacaoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'solicitacoes',
+          filter: `id=eq.${solicitacaoId}`
+        },
+        (payload) => {
+          console.log('⚡ [Workflow] Realtime update:', payload.new)
+          const newStatus = payload.new.status_workflow as WorkflowStatus
+          if (newStatus && newStatus !== status) {
+            setStatus(newStatus)
+            setLastUpdate(new Date())
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('🔌 [Workflow] Unsubscribing')
+      supabase.removeChannel(channel)
+    }
+  }, [solicitacaoId, enableRealtime, status])
+
+  // Update status
+  const updateStatus = useCallback(async (newStatus: WorkflowStatus) => {
+    try {
+      const { error: updateError } = await supabase
+        .from('solicitacoes')
+        .update({ 
+          status_workflow: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', solicitacaoId)
+
+      if (updateError) throw updateError
+
+      setStatus(newStatus)
+      setLastUpdate(new Date())
+      console.log(`✅ [Workflow] Status updated to: ${newStatus}`)
+      
+      return { success: true }
+    } catch (err: any) {
+      console.error('❌ [Workflow] Update error:', err)
+      return { success: false, error: err.message }
+    }
+  }, [solicitacaoId])
+
+  // Computed flags baseados no status atual
+  const flags = useMemo(() => {
+    const currentPhaseIndex = WORKFLOW_PHASES.findIndex(p => p.id === status)
+    
+    return {
+      // Fase atual
+      currentPhase: WORKFLOW_PHASES.find(p => p.id === status),
+      currentPhaseIndex,
+      
+      // Flags de estado
+      isInDraft: status === 'EXECUTION_DRAFT',
+      isWaitingSefin: status === 'WAITING_SEFIN',
+      isSignedBySefin: status === 'SIGNED_BY_SEFIN',
+      isInPaymentProcessing: status === 'PAYMENT_PROCESSING',
+      isFundsReleased: status === 'FUNDS_RELEASED',
+      isAccountabilityOpen: status === 'ACCOUNTABILITY_OPEN',
+      
+      // Flags de permissão - Bloco A (Pré-SEFIN)
+      canEditBlockA: status === 'EXECUTION_DRAFT',
+      canSendToSefin: status === 'EXECUTION_DRAFT',
+      
+      // Flags de permissão - Bloco B (Pós-SEFIN)
+      canGenerateDL: status === 'SIGNED_BY_SEFIN',
+      canGenerateOB: status === 'SIGNED_BY_SEFIN',
+      canSendToTechnicalAnalysis: status === 'SIGNED_BY_SEFIN',
+      
+      // Flags de permissão - Análise Técnica
+      canReleaseFunds: status === 'PAYMENT_PROCESSING',
+      
+      // Flags de bloqueio
+      isBlockALocked: status !== 'EXECUTION_DRAFT',
+      isBlockBLocked: status !== 'SIGNED_BY_SEFIN',
+      isBlockBVisible: ['SIGNED_BY_SEFIN', 'PAYMENT_PROCESSING', 'FUNDS_RELEASED', 'ACCOUNTABILITY_OPEN'].includes(status),
+      
+      // Progress
+      progressPercentage: ((currentPhaseIndex + 1) / WORKFLOW_PHASES.length) * 100
+    }
+  }, [status])
+
+  return {
+    // State
+    status,
+    isLoading,
+    error,
+    lastUpdate,
+    
+    // Phases
+    phases: WORKFLOW_PHASES,
+    
+    // Flags
+    ...flags,
+    
+    // Actions
+    updateStatus,
+    refresh: fetchStatus
+  }
+}
+
+export default useWorkflowStatus

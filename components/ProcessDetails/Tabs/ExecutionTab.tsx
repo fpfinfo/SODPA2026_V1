@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Receipt, Calculator, Calendar, Banknote, FileText, CheckCircle, Clock, Send, AlertCircle, Loader2, Lock } from 'lucide-react';
+import { 
+  Receipt, FileText, CheckCircle, Clock, Send, AlertCircle, 
+  Loader2, Lock, CreditCard, Banknote, ArrowRight, Sparkles 
+} from 'lucide-react';
 import { useProcessExecution } from '../../../hooks/useProcessExecution';
+import { useWorkflowStatus, WorkflowStatus } from '../../../hooks/useWorkflowStatus';
 import { useServidorRegularidade } from '../../../hooks/useServidorRegularidade';
 import { PortariaFormModal } from '../Modals/PortariaFormModal';
 import { NotaEmpenhoFormModal } from '../Modals/NotaEmpenhoFormModal';
@@ -12,15 +16,20 @@ interface ExecutionTabProps {
   enrichedProcessData?: any;
 }
 
-const EXECUTION_DOCUMENTS = [
-  { tipo: 'PORTARIA', titulo: 'Portaria de Concessão', requiredForSEFIN: true },
-  { tipo: 'CERTIDAO_REGULARIDADE', titulo: 'Certidão de Regularidade', requiredForSEFIN: true },
-  { tipo: 'NOTA_EMPENHO', titulo: 'Nota de Empenho', requiredForSEFIN: true },
-  { tipo: 'NOTA_LIQUIDACAO', titulo: 'Nota de Liquidação', requiredForSEFIN: false },
-  { tipo: 'ORDEM_BANCARIA', titulo: 'Ordem Bancária', requiredForSEFIN: false }
+// Documentos do Bloco A (Pré-SEFIN)
+const BLOCK_A_DOCUMENTS = [
+  { tipo: 'PORTARIA', titulo: 'Portaria de Concessão', icon: FileText },
+  { tipo: 'CERTIDAO_REGULARIDADE', titulo: 'Certidão de Regularidade', icon: CheckCircle },
+  { tipo: 'NOTA_EMPENHO', titulo: 'Nota de Empenho', icon: Receipt },
 ];
 
-// Mapeamento de códigos de elemento de despesa para descrições
+// Documentos do Bloco B (Pós-SEFIN)
+const BLOCK_B_DOCUMENTS = [
+  { tipo: 'NOTA_LIQUIDACAO', titulo: 'Nota de Liquidação (DL)', icon: CreditCard },
+  { tipo: 'ORDEM_BANCARIA', titulo: 'Ordem Bancária (OB)', icon: Banknote },
+];
+
+// Mapeamento de códigos de elemento de despesa
 const EXPENSE_ELEMENT_LABELS: Record<string, string> = {
   '3.3.90.30.01': 'Material de Consumo',
   '3.3.90.30.02': 'Combustíveis e Lubrificantes',
@@ -40,7 +49,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const {
     state,
     documents,
-    isLoading,
+    isLoading: isLoadingDocs,
     canGeneratePortaria,
     canGenerateCertidao,
     canGenerateNE,
@@ -53,6 +62,16 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
     isSending
   } = useProcessExecution(processData.id);
   
+  const {
+    status: workflowStatus,
+    isLoading: isLoadingStatus,
+    isWaitingSefin,
+    isSignedBySefin,
+    canEditBlockA,
+    isBlockBLocked,
+    updateStatus
+  } = useWorkflowStatus(processData.id);
+  
   const { checkPendencias } = useServidorRegularidade(processData.suprido_id);
   
   // ========================================
@@ -63,7 +82,7 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const [showDLModal, setShowDLModal] = useState(false);
   const [showOBModal, setShowOBModal] = useState(false);
 
-  // Safe parse function for itens_despesa (may be JSON string from database)
+  // Safe parse function
   const parseItens = (data: any): any[] => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
@@ -82,24 +101,27 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const itens = parseItens(rawItens);
   const totalGeral = enrichedProcessData?.valor_total || processData.value || processData.valor_total || 0;
 
-  // Debug log removed - was causing console spam
-
   // ========================================
   // HELPERS
   // ========================================
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { 
-      style: 'currency', 
-      currency: 'BRL' 
-    }).format(value);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
+  const getDocumentStatus = (tipo: string): 'PENDENTE' | 'GERADO' | 'ASSINADO' => {
+    const doc = documents.find(d => d.tipo === tipo);
+    return doc?.status || 'PENDENTE';
+  };
+
+  const canGenerateDoc = (tipo: string): boolean => {
+    switch (tipo) {
+      case 'PORTARIA': return canGeneratePortaria;
+      case 'CERTIDAO_REGULARIDADE': return canGenerateCertidao;
+      case 'NOTA_EMPENHO': return canGenerateNE;
+      case 'NOTA_LIQUIDACAO': return canGenerateDL && isSignedBySefin;
+      case 'ORDEM_BANCARIA': return canGenerateOB && isSignedBySefin;
+      default: return false;
+    }
   };
 
   // ========================================
@@ -111,15 +133,11 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   };
 
   const handleGenerateCertidao = async () => {
-    // Validar pendências do servidor
     const { data: pendenciasCheck } = await checkPendencias();
-    
     if (pendenciasCheck?.has_pendencias) {
       alert(`❌ Servidor possui pendências:\n\n${(pendenciasCheck.detalhes || []).join('\n')}\n\nRegularize antes de gerar a certidão.`);
       return;
     }
-    
-    // Gerar certidão se regularizado
     generateDocument({ tipo: 'CERTIDAO_REGULARIDADE' });
   };
 
@@ -138,53 +156,95 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
     setShowOBModal(false);
   };
 
-  const handleSendToSEFIN = () => {
+  const handleSendToSEFIN = async () => {
     sendToSEFIN();
+    await updateStatus('WAITING_SEFIN');
+  };
+
+  const handleSendToTechnicalAnalysis = async () => {
+    await updateStatus('PAYMENT_PROCESSING');
+    // TODO: Navigate to Technical Analysis tab
   };
 
   // ========================================
-  // RENDER HELPERS
+  // RENDER: Document Row
   // ========================================
-  const getDocumentStatus = (tipo: string): 'PENDENTE' | 'GERADO' | 'ASSINADO' => {
-    const doc = documents.find(d => d.tipo === tipo);
-    return doc?.status || 'PENDENTE';
-  };
-
-  const canGenerateDoc = (tipo: string): boolean => {
-    switch (tipo) {
-      case 'PORTARIA': return canGeneratePortaria;
-      case 'CERTIDAO_REGULARIDADE': return canGenerateCertidao;
-      case 'NOTA_EMPENHO': return canGenerateNE;
-      case 'NOTA_LIQUIDACAO': return canGenerateDL;
-      case 'ORDEM_BANCARIA': return canGenerateOB;
-      default: return false;
-    }
-  };
-
-  const getStatusText = (status: string): string => {
-    switch (status) {
-      case 'ASSINADO': return 'Assinado';
-      case 'GERADO': return 'Gerado';
-      default: return 'Pendente';
-    }
-  };
-
-  const getLockReason = (tipo: string): string | null => {
-    if (canGenerateDoc(tipo)) return null;
+  const renderDocumentRow = (docConfig: typeof BLOCK_A_DOCUMENTS[0], isBlockA: boolean) => {
+    const status = getDocumentStatus(docConfig.tipo);
+    const canGenerate = canGenerateDoc(docConfig.tipo);
+    const isLocked = !canGenerate && status === 'PENDENTE';
+    const Icon = docConfig.icon;
     
-    switch (tipo) {
-      case 'CERTIDAO_REGULARIDADE': return 'Gere a Portaria primeiro';
-      case 'NOTA_EMPENHO': return 'Gere a Certidão primeiro';
-      case 'NOTA_LIQUIDACAO': return 'Aguarde retorno da SEFIN';
-      case 'ORDEM_BANCARIA': return 'Gere a Nota de Liquidação primeiro';
-      default: return null;
-    }
+    return (
+      <div key={docConfig.tipo} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+        <div className="flex items-center gap-4 flex-1">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            status === 'ASSINADO' ? 'bg-emerald-100' :
+            status === 'GERADO' ? 'bg-blue-100' :
+            isLocked ? 'bg-slate-100' : 'bg-blue-50'
+          }`}>
+            {status === 'ASSINADO' ? (
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
+            ) : status === 'GERADO' ? (
+              <Icon className="w-5 h-5 text-blue-600" />
+            ) : isLocked ? (
+              <Lock className="w-5 h-5 text-slate-400" />
+            ) : (
+              <Icon className="w-5 h-5 text-blue-500" />
+            )}
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-sm text-slate-800">{docConfig.titulo}</p>
+            {isBlockA && (
+              <p className={`text-xs mt-1 flex items-center gap-1 ${
+                status === 'ASSINADO' ? 'text-emerald-600' : 'text-orange-600'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  status === 'ASSINADO' ? 'bg-emerald-600' : 'bg-orange-600'
+                }`}></span>
+                {status === 'ASSINADO' ? '✓ Assinado pela SEFIN' : 'Requerido para SEFIN'}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+            status === 'ASSINADO' ? 'bg-emerald-100 text-emerald-700' :
+            status === 'GERADO' ? 'bg-blue-100 text-blue-700' :
+            'bg-slate-100 text-slate-500'
+          }`}>
+            {status === 'ASSINADO' ? 'Assinado' : status === 'GERADO' ? 'Gerado' : 'Pendente'}
+          </span>
+          
+          {status === 'PENDENTE' && canGenerate && (
+            <button
+              onClick={() => {
+                if (docConfig.tipo === 'PORTARIA') setShowPortariaModal(true);
+                else if (docConfig.tipo === 'CERTIDAO_REGULARIDADE') handleGenerateCertidao();
+                else if (docConfig.tipo === 'NOTA_EMPENHO') setShowNEModal(true);
+                else if (docConfig.tipo === 'NOTA_LIQUIDACAO') setShowDLModal(true);
+                else if (docConfig.tipo === 'ORDEM_BANCARIA') setShowOBModal(true);
+              }}
+              disabled={isGenerating}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-bold transition-all"
+            >
+              {isGenerating ? (
+                <><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Gerando...</>
+              ) : (
+                'Gerar'
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // ========================================
-  // RENDER
+  // RENDER: Loading
   // ========================================
-  if (isLoading) {
+  if (isLoadingDocs || isLoadingStatus) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -193,116 +253,137 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
     );
   }
 
+  // ========================================
+  // RENDER: Main
+  // ========================================
   return (
     <div className="space-y-6">
-      {/* Fase de Execução Header */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
-        <h3 className="text-lg font-black uppercase tracking-wide mb-2">Fase de Execução</h3>
-        <p className="text-sm text-blue-100">Gere os documentos na sequência indicada</p>
+        <h3 className="text-lg font-black uppercase tracking-wide mb-2">Esteira de Execução</h3>
+        <p className="text-sm text-blue-100">
+          {isWaitingSefin ? 'Aguardando retorno da SEFIN...' :
+           isSignedBySefin ? 'SEFIN assinou! Prossiga com a liquidação.' :
+           'Gere os documentos na sequência indicada'}
+        </p>
       </div>
 
-      {/* Documentos de Execução */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-          <h4 className="text-sm font-black text-slate-700 uppercase">
-            Documentos de Execução
-          </h4>
+      {/* ======================================== */}
+      {/* BLOCO A: Instrução e Empenho (Pré-SEFIN) */}
+      {/* ======================================== */}
+      <div className={`bg-white rounded-2xl border overflow-hidden shadow-sm transition-all ${
+        !canEditBlockA && !isSignedBySefin ? 'border-slate-200' : 'border-slate-200'
+      }`}>
+        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-black text-slate-700 uppercase flex items-center gap-2">
+              <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">A</span>
+              Instrução e Empenho
+            </h4>
+            <p className="text-xs text-slate-500 mt-1">Documentos para assinatura da SEFIN</p>
+          </div>
+          {isSignedBySefin && (
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold flex items-center gap-1">
+              <CheckCircle className="w-3 h-3" /> Concluído
+            </span>
+          )}
         </div>
 
         <div className="divide-y divide-slate-100">
-          {EXECUTION_DOCUMENTS.map((docConfig, idx) => {
-            const status = getDocumentStatus(docConfig.tipo);
-            const canGenerate = canGenerateDoc(docConfig.tipo);
-            const isLocked = !canGenerate && status === 'PENDENTE';
-            const lockReason = getLockReason(docConfig.tipo);
-            
-            return (
-              <div key={idx} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    status === 'GERADO' || status === 'ASSINADO'
-                      ? 'bg-emerald-100'
-                      : isLocked
-                      ? 'bg-slate-100'
-                      : 'bg-blue-50'
-                  }`}>
-                    {status === 'GERADO' || status === 'ASSINADO' ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-600" />
-                    ) : isLocked ? (
-                      <Lock className="w-5 h-5 text-slate-400" />
-                    ) : (
-                      <FileText className="w-5 h-5 text-blue-500" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm text-slate-800">{docConfig.titulo}</p>
-                    {docConfig.requiredForSEFIN && (
-                      <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
-                        Requerido para SEFIN
-                      </p>
-                    )}
-                    {isLocked && lockReason && (
-                      <p className="text-xs text-slate-500 mt-1 italic">
-                        {lockReason}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    status === 'ASSINADO' 
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : status === 'GERADO'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {getStatusText(status)}
-                  </span>
-                  
-                  {status === 'PENDENTE' && canGenerate && (
-                    <button
-                      onClick={() => {
-                        if (docConfig.tipo === 'PORTARIA') setShowPortariaModal(true);
-                        else if (docConfig.tipo === 'CERTIDAO_REGULARIDADE') handleGenerateCertidao();
-                        else if (docConfig.tipo === 'NOTA_EMPENHO') setShowNEModal(true);
-                        else if (docConfig.tipo === 'NOTA_LIQUIDACAO') setShowDLModal(true);
-                        else if (docConfig.tipo === 'ORDEM_BANCARIA') setShowOBModal(true);
-                      }}
-                      disabled={isGenerating}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-bold transition-all"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                          Gerando...
-                        </>
-                      ) : (
-                        'Gerar'
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {BLOCK_A_DOCUMENTS.map(doc => renderDocumentRow(doc, true))}
         </div>
+
+        {/* Ação: Tramitar para SEFIN */}
+        {canSendToSEFIN && !isWaitingSefin && !isSignedBySefin && (
+          <div className="px-6 py-4 bg-gradient-to-r from-emerald-50 to-blue-50 border-t border-slate-200">
+            <button
+              onClick={handleSendToSEFIN}
+              disabled={isSending}
+              className="w-full px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+            >
+              {isSending ? (
+                <><Loader2 className="w-5 h-5 animate-spin" />Enviando...</>
+              ) : (
+                <><Send className="w-5 h-5" />Tramitar para Assinatura (SEFIN)</>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* ======================================== */}
+      {/* BANNER: Aguardando SEFIN */}
+      {/* ======================================== */}
+      {isWaitingSefin && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml,...')] opacity-10"></div>
+          <div className="relative flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-black text-lg">Aguardando Ordenador de Despesas</h4>
+              <p className="text-sm text-amber-100">
+                Os documentos foram enviados para a SEFIN. O processo retornará automaticamente após as assinaturas.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================== */}
+      {/* BLOCO B: Liquidação e Pagamento (Pós-SEFIN) */}
+      {/* ======================================== */}
+      <div className={`bg-white rounded-2xl border overflow-hidden shadow-sm transition-all ${
+        isBlockBLocked ? 'opacity-50 border-slate-200' : 'border-emerald-200 ring-2 ring-emerald-100'
+      }`}>
+        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-black text-slate-700 uppercase flex items-center gap-2">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                isBlockBLocked ? 'bg-slate-400 text-white' : 'bg-emerald-600 text-white'
+              }`}>B</span>
+              Liquidação e Pagamento
+            </h4>
+            <p className="text-xs text-slate-500 mt-1">
+              {isBlockBLocked ? 'Aguardando retorno da SEFIN para liberar' : 'Documentos de pagamento liberados!'}
+            </p>
+          </div>
+          {isSignedBySefin && !isBlockBLocked && (
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> Liberado
+            </span>
+          )}
+        </div>
+
+        <div className="divide-y divide-slate-100">
+          {BLOCK_B_DOCUMENTS.map(doc => renderDocumentRow(doc, false))}
+        </div>
+
+        {/* Ação: Enviar para Análise Técnica */}
+        {isSignedBySefin && getDocumentStatus('ORDEM_BANCARIA') === 'GERADO' && (
+          <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-slate-200">
+            <button
+              onClick={handleSendToTechnicalAnalysis}
+              className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+            >
+              <ArrowRight className="w-5 h-5" />
+              Concluir e Enviar para Análise Técnica
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ======================================== */}
       {/* Detalhamento Financeiro */}
+      {/* ======================================== */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-          <h4 className="text-sm font-black text-slate-700 uppercase">
-            Detalhamento Financeiro
-          </h4>
-          <p className="text-xs text-slate-500 mt-1">
-            Elementos de despesa e cronograma de execução
-          </p>
+          <h4 className="text-sm font-black text-slate-700 uppercase">Detalhamento Financeiro</h4>
+          <p className="text-xs text-slate-500 mt-1">Elementos de despesa e cronograma de execução</p>
         </div>
 
         <div className="p-6">
-          {/* Itens de Despesa Table */}
           {itens && itens.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -342,36 +423,6 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
             <p className="text-center text-slate-500 py-8">Nenhum item de despesa cadastrado</p>
           )}
         </div>
-      </div>
-
-      {/* Ações Finais */}
-      <div className="flex items-center justify-between gap-4 pt-4">
-        <button
-          onClick={() => window.history.back()}
-          className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all"
-        >
-          Voltar
-        </button>
-
-        {canSendToSEFIN && (
-          <button
-            onClick={handleSendToSEFIN}
-            disabled={isSending}
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg font-bold flex items-center gap-2 transition-all"
-          >
-            {isSending ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              <>
-                <Send className="w-5 h-5" />
-                Aprovar e Encaminhar (SEFIN)
-              </>
-            )}
-          </button>
-        )}
       </div>
 
       {/* ========================================

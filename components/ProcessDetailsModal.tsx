@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { UniversalDossierPanel } from './ProcessDetails/UniversalDossierPanel';
 import { DetailsTab } from './ProcessDetails/Tabs/DetailsTab';
 import { ExecutionTab } from './ProcessDetails/Tabs/ExecutionTab';
+import { TechnicalAnalysisTab } from './ProcessDetails/Tabs/TechnicalAnalysisTab';
 import { useExecutionDocuments } from '../hooks/useExecutionDocuments';
 import { ConformityChecklist } from './ConformityChecklist';
 import { useProcessDetails } from '../hooks/useProcessDetails';
@@ -54,7 +55,7 @@ import {
 interface ProcessDetailsModalProps {
   process: Process;
   onClose: () => void;
-  initialTab?: 'DETAILS' | 'ANALYSIS' | 'DOSSIER';
+  initialTab?: 'OVERVIEW' | 'DOSSIER' | 'EXECUTION' | 'ANALYSIS';
   teamMembers?: { id: string; nome: string; avatar_url: string | null }[];
 }
 
@@ -353,29 +354,11 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
             </div>
           )}
           {activeTab === 'ANALYSIS' && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 p-8 animate-in slide-in-from-right-4">
-              <div>
-                <ConformityChecklist 
-                  processData={{
-                    // Use the same mapping as the OVERVIEW tab (see lines 288-303)
-                    nome: enrichedProcessData?.suprido_nome || process.interestedParty || process.providerName || '',
-                    cpf: enrichedProcessData?.servidor_dados?.cpf || process.providerCpf || '',
-                    // Map bank details - enrichedProcessData uses dados_bancarios, process uses bankData
-                    banco: enrichedProcessData?.dados_bancarios?.bankName || process.bankData?.bankName || '',
-                    agencia: enrichedProcessData?.dados_bancarios?.agency || process.bankData?.agency || '',
-                    conta_corrente: enrichedProcessData?.dados_bancarios?.account || process.bankData?.account || '',
-                    // Map value - both use valor_total/value
-                    valor_solicitado: enrichedProcessData?.valor_total || process.value || 0,
-                    // Map description - enrichedProcessData has descricao, process has purpose
-                    descricao: enrichedProcessData?.descricao || process.purpose || '',
-                    status: process.status,
-                    has_certidao_regularidade: hasCertidaoAtesto
-                  }}
-                  executionDocuments={executionDocuments}
-                  ptresCode={enrichedProcessData?.ptres}
-                />
-              </div>
-              <div className="space-y-8">{renderFinancialImpact()}<div className="bg-slate-50 p-6 rounded-3xl border border-slate-200"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Parecer do Analista</h4><textarea className="w-full h-32 bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Insira observações técnicas ou ressalvas aqui..."></textarea></div></div>
+            <div className="animate-in fade-in">
+              <TechnicalAnalysisTab
+                processData={process}
+                enrichedProcessData={enrichedProcessData}
+              />
             </div>
           )}
           {activeTab === 'DOSSIER' && (
