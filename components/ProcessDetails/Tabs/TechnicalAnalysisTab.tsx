@@ -137,14 +137,24 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         .eq('id', processData.id)
         .single();
 
+      console.log('📧 [TechnicalAnalysis] Creating notification for user_id:', processInfo?.user_id);
+
       if (processInfo?.user_id) {
-        await supabase.from('system_notifications').insert({
+        const { data: notificationData, error: notificationError } = await supabase.from('system_notifications').insert({
           user_id: processInfo.user_id,
           tipo: 'CRITICAL',
           titulo: '💰 Recurso Creditado - Confirme o Recebimento',
-          mensagem: `Seu suprimento de fundos (${processInfo.nup}) foi creditado em sua conta. Acesse o sistema para confirmar o recebimento e iniciar o prazo de prestação de contas.`,
+          mensagem: `Seu suprimento de fundos (${processInfo.nup}) foi creditado em sua conta. Acesse o sistema para confirmar o recebimento.`,
           link: `/suprido?action=confirm&id=${processData.id}`
-        });
+        }).select();
+
+        if (notificationError) {
+          console.error('❌ [TechnicalAnalysis] Notification insert error:', notificationError);
+        } else {
+          console.log('✅ [TechnicalAnalysis] Notification created:', notificationData);
+        }
+      } else {
+        console.warn('⚠️ [TechnicalAnalysis] No user_id found for process:', processData.id);
       }
 
       // 4. Record in history
