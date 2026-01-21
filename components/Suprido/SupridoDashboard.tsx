@@ -602,16 +602,13 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
           if (servidorData) {
             // SYNC: Update profiles table to match servidores_tj data
             // This ensures Gestor/Seplan views (which join profiles) see the correct name
+            // Only update essential fields that exist in profiles table
             try {
               await supabase.from('profiles').upsert({
-                id: user.id, // Ensure we use the auth user id
+                id: user.id,
                 nome: servidorData.nome,
-                role: 'SUPRIDO', // Enforce correct role
+                role: 'SUPRIDO',
                 email: servidorData.email,
-                cpf: servidorData.cpf,
-                matricula: servidorData.matricula,
-                cargo: servidorData.cargo,
-                lotacao: servidorData.lotacao,
                 updated_at: new Date().toISOString()
               }, { onConflict: 'id' });
             } catch (profileErr) {
