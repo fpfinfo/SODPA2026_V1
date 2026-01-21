@@ -209,7 +209,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
           <Sparkles className="w-16 h-16 mx-auto mb-4 animate-pulse" />
           <h3 className="text-2xl font-black mb-2">Recurso Liberado com Sucesso!</h3>
           <p className="text-emerald-100">
-            O suprido foi notificado e tem 30 dias para iniciar a prestação de contas.
+            O suprido foi notificado. Prazo para prestação de contas: até 7 dias após o término do evento (Art. 4°).
           </p>
         </div>
 
@@ -361,7 +361,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
           <div className="flex items-center gap-4 mb-4">
             <AlertTriangle className="w-6 h-6 text-amber-500" />
             <p className="text-sm text-slate-700">
-              <strong>Atenção:</strong> Ao liberar o recurso, o suprido será notificado e terá 30 dias para iniciar a prestação de contas.
+              <strong>Atenção:</strong> Ao liberar o recurso, o suprido será notificado. O prazo para prestação de contas é de até 7 dias após o término do evento (Art. 4° da Portaria).
             </p>
           </div>
           
