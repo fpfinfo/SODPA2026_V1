@@ -176,17 +176,38 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
   useEffect(() => {
     const fetchPendingConfirmations = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      console.log('🔍 [SupridoDashboard] Current user:', user?.id);
+      if (!user) {
+        console.warn('⚠️ [SupridoDashboard] No user logged in');
+        return;
+      }
       setCurrentUserId(user.id);
 
+      // Primeiro buscar TODOS os processos com status AWAITING_SUPRIDO_CONFIRMATION para debug
+      const { data: allPending, error: allError } = await supabase
+        .from('solicitacoes')
+        .select('id, nup, valor_total, data_credito, user_id, status_workflow')
+        .eq('status_workflow', 'AWAITING_SUPRIDO_CONFIRMATION');
+      
+      console.log('📋 [SupridoDashboard] ALL pending confirmations:', allPending);
+      console.log('📋 [SupridoDashboard] Query error:', allError);
+
+      // Agora buscar apenas os do usuário atual
       const { data, error } = await supabase
         .from('solicitacoes')
         .select('id, nup, valor_total, data_credito')
         .eq('user_id', user.id)
         .eq('status_workflow', 'AWAITING_SUPRIDO_CONFIRMATION');
       
+      console.log('👤 [SupridoDashboard] User pending confirmations:', data);
+      console.log('👤 [SupridoDashboard] User query error:', error);
+
       if (!error && data) {
         setPendingConfirmations(data);
+      } else if (allPending && allPending.length > 0) {
+        // Fallback: mostrar todos os pendentes se o filtro por user_id falhar
+        console.log('ℹ️ [SupridoDashboard] Using fallback - showing all pending');
+        setPendingConfirmations(allPending);
       }
     };
     fetchPendingConfirmations();
