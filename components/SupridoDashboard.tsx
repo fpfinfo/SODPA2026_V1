@@ -3,6 +3,9 @@ import { ServiceProviderData, TaxCalculation } from '../types/taxIntegration';
 import { isPFElement, calculateTaxes, validateCPF, formatCPF } from '../lib/taxCalculations';
 import TaxCalculatorWidget from './TaxCalculatorWidget';
 import ServiceProviderForm from './ServiceProviderForm';
+import { supabase } from '../lib/supabaseClient';
+import { useToast } from './ui/ToastProvider';
+
 import { 
   PlusCircle, 
   FileText, 
@@ -150,6 +153,7 @@ const DEFAULT_JURI_ITEMS: ProjectionItem[] = [
 ];
 
 export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalViewChange?: () => void }> = ({ forceView, onInternalViewChange }) => {
+  const { showToast } = useToast();
   const [currentView, setCurrentView] = useState<SupridoView>('DASHBOARD');
   const [subView, setSubView] = useState<SubViewMode>('DETAILS');
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
@@ -162,6 +166,76 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
   const [historyFilter, setHistoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
   const itemsPerPage = 5;
+
+  // Estados para Confirmação de Recebimento
+  const [pendingConfirmations, setPendingConfirmations] = useState<any[]>([]);
+  const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Buscar usuário atual e processos pendentes de confirmação
+  useEffect(() => {
+    const fetchPendingConfirmations = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setCurrentUserId(user.id);
+
+      const { data, error } = await supabase
+        .from('solicitacoes')
+        .select('id, nup, valor_total, data_credito')
+        .eq('user_id', user.id)
+        .eq('status_workflow', 'AWAITING_SUPRIDO_CONFIRMATION');
+      
+      if (!error && data) {
+        setPendingConfirmations(data);
+      }
+    };
+    fetchPendingConfirmations();
+  }, []);
+
+  // Handler para confirmar recebimento
+  const handleConfirmReceipt = async (processId: string) => {
+    setIsConfirmingReceipt(true);
+    try {
+      const prazoDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      
+      await supabase.from('solicitacoes').update({
+        status_workflow: 'AWAITING_ACCOUNTABILITY',
+        data_confirmacao_recebimento: new Date().toISOString(),
+        prazo_prestacao: prazoDate.toISOString(),
+        updated_at: new Date().toISOString()
+      }).eq('id', processId);
+
+      // Registrar no histórico
+      await supabase.from('historico_tramitacao').insert({
+        solicitacao_id: processId,
+        origem: 'SUPRIDO',
+        destino: 'PRESTAÇÃO DE CONTAS',
+        status_anterior: 'AWAITING_SUPRIDO_CONFIRMATION',
+        status_novo: 'AWAITING_ACCOUNTABILITY',
+        observacao: 'Suprido confirmou recebimento. Prazo de 30 dias para prestação de contas.',
+        created_at: new Date().toISOString()
+      });
+
+      // Remover da lista de pendentes
+      setPendingConfirmations(prev => prev.filter(p => p.id !== processId));
+
+      showToast({
+        title: 'Recebimento Confirmado!',
+        message: 'Prazo de 30 dias para prestação de contas iniciado.',
+        type: 'success'
+      });
+    } catch (error: any) {
+      console.error('Error confirming receipt:', error);
+      showToast({
+        title: 'Erro ao confirmar',
+        message: error.message || 'Tente novamente',
+        type: 'error'
+      });
+    } finally {
+      setIsConfirmingReceipt(false);
+    }
+  };
+
 
   const [profileData] = useState({
     nome: 'Ademário Silva De Jesus',
@@ -405,7 +479,46 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
         ))}
       </div>
 
+      {/* === CONFIRMATION PENDING BANNER === */}
+      {pendingConfirmations.length > 0 && pendingConfirmations.map(process => (
+        <div key={process.id} className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-[32px] p-6 shadow-xl animate-in slide-in-from-top-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse">
+                <BadgeCheck size={28} className="text-white" />
+              </div>
+              <div className="text-white">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-100">🔔 Confirmação Pendente</p>
+                <h3 className="text-xl font-black">{process.nup}</h3>
+                <p className="text-sm text-amber-100">
+                  Valor creditado: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(process.valor_total || 0)}</strong>
+                  {process.data_credito && ` • Data: ${new Date(process.data_credito).toLocaleDateString('pt-BR')}`}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleConfirmReceipt(process.id)}
+              disabled={isConfirmingReceipt}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-amber-700 rounded-xl font-black text-sm hover:bg-amber-50 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isConfirmingReceipt ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" />
+                  Confirmando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={18} />
+                  Confirmar Recebimento
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      ))}
+
       {/* === BATCH NOTIFICATION BANNER === */}
+
       <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[32px] p-6 shadow-xl animate-in slide-in-from-top-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

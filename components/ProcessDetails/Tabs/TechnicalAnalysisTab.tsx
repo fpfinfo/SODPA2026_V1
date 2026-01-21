@@ -113,23 +113,24 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
     }, 1500);
   };
 
+
   const handleReleaseFunds = async () => {
     setIsReleasing(true);
     try {
-      // 1. Update workflow status
-      await updateStatus('FUNDS_RELEASED');
+      // 1. Update workflow status to awaiting Suprido confirmation
+      await updateStatus('AWAITING_SUPRIDO_CONFIRMATION');
       
-      // 2. Set release date
+      // 2. Set credit date and mark analysis as complete
       await supabase
         .from('solicitacoes')
         .update({
-          status_workflow: 'ACCOUNTABILITY_OPEN',
-          data_liberacao: new Date().toISOString(),
+          status_workflow: 'AWAITING_SUPRIDO_CONFIRMATION',
+          data_credito: new Date().toISOString(),
           analise_tecnica_concluida: true
         })
         .eq('id', processData.id);
 
-      // 3. Create notification for Suprido
+      // 3. Create notification for Suprido with action to confirm receipt
       const { data: processInfo } = await supabase
         .from('solicitacoes')
         .select('user_id, nup')
@@ -140,9 +141,9 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         await supabase.from('system_notifications').insert({
           user_id: processInfo.user_id,
           tipo: 'CRITICAL',
-          titulo: '💰 Recurso Liberado',
-          mensagem: `Seu suprimento de fundos (${processInfo.nup}) foi creditado. Inicie a prestação de contas em até 30 dias.`,
-          link: `/prestacao-contas/${processData.id}`
+          titulo: '💰 Recurso Creditado - Confirme o Recebimento',
+          mensagem: `Seu suprimento de fundos (${processInfo.nup}) foi creditado em sua conta. Acesse o sistema para confirmar o recebimento e iniciar o prazo de prestação de contas.`,
+          link: `/suprido?action=confirm&id=${processData.id}`
         });
       }
 
@@ -151,15 +152,15 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         solicitacao_id: processData.id,
         origem: 'SOSFU',
         destino: 'SUPRIDO',
-        status_anterior: 'FUNDS_RELEASED',
-        status_novo: 'ACCOUNTABILITY_OPEN',
-        observacao: 'Recurso liberado. Prazo de 30 dias para prestação de contas iniciado.',
+        status_anterior: 'PAYMENT_PROCESSING',
+        status_novo: 'AWAITING_SUPRIDO_CONFIRMATION',
+        observacao: 'Crédito liberado. Aguardando confirmação de recebimento pelo Suprido.',
         created_at: new Date().toISOString()
       });
 
       showToast({
-        title: 'Recurso Liberado',
-        message: 'Suprido notificado para iniciar prestação de contas',
+        title: 'Crédito Confirmado',
+        message: 'Suprido notificado para confirmar o recebimento',
         type: 'success'
       });
     } catch (error: any) {
@@ -174,6 +175,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
     }
   };
 
+
   // ========================================
   // RENDER
   // ========================================
@@ -187,7 +189,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
   }
 
   // Show message if not in the right status
-  if (status !== 'PAYMENT_PROCESSING' && status !== 'FUNDS_RELEASED' && status !== 'ACCOUNTABILITY_OPEN') {
+  if (status !== 'PAYMENT_PROCESSING' && status !== 'FUNDS_RELEASED' && status !== 'AWAITING_SUPRIDO_CONFIRMATION' && status !== 'AWAITING_ACCOUNTABILITY' && status !== 'ACCOUNTABILITY_OPEN') {
     return (
       <div className="bg-slate-50 rounded-2xl p-8 text-center">
         <Clock className="w-12 h-12 mx-auto text-slate-400 mb-4" />
@@ -199,8 +201,8 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
     );
   }
 
-  // Already released
-  if (status === 'FUNDS_RELEASED' || status === 'ACCOUNTABILITY_OPEN') {
+  // Already released or awaiting confirmation
+  if (status === 'FUNDS_RELEASED' || status === 'AWAITING_SUPRIDO_CONFIRMATION' || status === 'AWAITING_ACCOUNTABILITY' || status === 'ACCOUNTABILITY_OPEN') {
     return (
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-8 text-white text-center">

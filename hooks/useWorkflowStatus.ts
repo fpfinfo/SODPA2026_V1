@@ -12,7 +12,9 @@ export type WorkflowStatus =
   | 'SIGNED_BY_SEFIN'      // SEFIN assinou, SOSFU vê botões liberados
   | 'PAYMENT_PROCESSING'   // SOSFU gerou OB, na Análise Técnica
   | 'FUNDS_RELEASED'       // Técnico confirmou crédito
-  | 'ACCOUNTABILITY_OPEN'  // Suprido pode gastar
+  | 'AWAITING_SUPRIDO_CONFIRMATION' // Crédito liberado, aguardando Suprido confirmar recebimento
+  | 'AWAITING_ACCOUNTABILITY'       // Suprido confirmou, prazo de 30 dias iniciado
+  | 'ACCOUNTABILITY_OPEN'  // Suprido pode gastar (legado)
 
 export interface WorkflowPhase {
   id: WorkflowStatus
@@ -27,8 +29,11 @@ export const WORKFLOW_PHASES: WorkflowPhase[] = [
   { id: 'SIGNED_BY_SEFIN', label: 'Assinado', description: 'Pronto para liquidação e pagamento', icon: '✅' },
   { id: 'PAYMENT_PROCESSING', label: 'Análise Técnica', description: 'Verificação final antes da liberação', icon: '🔍' },
   { id: 'FUNDS_RELEASED', label: 'Liberado', description: 'Recurso creditado na conta', icon: '💰' },
+  { id: 'AWAITING_SUPRIDO_CONFIRMATION', label: 'Confirmação Pendente', description: 'Aguardando Suprido confirmar recebimento', icon: '🔔' },
+  { id: 'AWAITING_ACCOUNTABILITY', label: 'Aguardando Prestação', description: 'Prazo de 30 dias para prestação de contas', icon: '⏰' },
   { id: 'ACCOUNTABILITY_OPEN', label: 'Prestação de Contas', description: 'Período de utilização do recurso', icon: '📊' }
 ]
+
 
 interface UseWorkflowStatusOptions {
   enableRealtime?: boolean
@@ -183,6 +188,8 @@ export function useWorkflowStatus(solicitacaoId: string, options: UseWorkflowSta
       isSignedBySefin: status === 'SIGNED_BY_SEFIN',
       isInPaymentProcessing: status === 'PAYMENT_PROCESSING',
       isFundsReleased: status === 'FUNDS_RELEASED',
+      isAwaitingSupridoConfirmation: status === 'AWAITING_SUPRIDO_CONFIRMATION',
+      isAwaitingAccountability: status === 'AWAITING_ACCOUNTABILITY',
       isAccountabilityOpen: status === 'ACCOUNTABILITY_OPEN',
       
       // Flags de permissão - Bloco A (Pré-SEFIN)
@@ -197,15 +204,19 @@ export function useWorkflowStatus(solicitacaoId: string, options: UseWorkflowSta
       // Flags de permissão - Análise Técnica
       canReleaseFunds: status === 'PAYMENT_PROCESSING',
       
+      // Flags de permissão - Suprido
+      canConfirmReceipt: status === 'AWAITING_SUPRIDO_CONFIRMATION',
+      
       // Flags de bloqueio
       isBlockALocked: status !== 'EXECUTION_DRAFT',
       isBlockBLocked: status !== 'SIGNED_BY_SEFIN',
-      isBlockBVisible: ['SIGNED_BY_SEFIN', 'PAYMENT_PROCESSING', 'FUNDS_RELEASED', 'ACCOUNTABILITY_OPEN'].includes(status),
+      isBlockBVisible: ['SIGNED_BY_SEFIN', 'PAYMENT_PROCESSING', 'FUNDS_RELEASED', 'AWAITING_SUPRIDO_CONFIRMATION', 'AWAITING_ACCOUNTABILITY', 'ACCOUNTABILITY_OPEN'].includes(status),
       
       // Progress
       progressPercentage: ((currentPhaseIndex + 1) / WORKFLOW_PHASES.length) * 100
     }
   }, [status])
+
 
   return {
     // State
