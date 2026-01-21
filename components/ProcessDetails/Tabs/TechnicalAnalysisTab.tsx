@@ -142,10 +142,12 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
       if (processInfo?.user_id) {
         const { data: notificationData, error: notificationError } = await supabase.from('system_notifications').insert({
           user_id: processInfo.user_id,
-          tipo: 'CRITICAL',
-          titulo: '💰 Recurso Creditado - Confirme o Recebimento',
-          mensagem: `Seu suprimento de fundos (${processInfo.nup}) foi creditado em sua conta. Acesse o sistema para confirmar o recebimento.`,
-          link: `/suprido?action=confirm&id=${processData.id}`
+          type: 'CRITICAL',
+          category: 'PROCESS',
+          title: '💰 Recurso Creditado - Confirme o Recebimento',
+          message: `Seu suprimento de fundos (${processInfo.nup}) foi creditado em sua conta. Acesse o sistema para confirmar o recebimento.`,
+          link_action: `/suprido?action=confirm&id=${processData.id}`,
+          is_read: false
         }).select();
 
         if (notificationError) {
