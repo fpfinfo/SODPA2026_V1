@@ -223,13 +223,23 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
     if (!pc) throw new Error('PC não encontrada')
 
     try {
-      // Validar: precisa ter pelo menos 1 comprovante
-      if (comprovantes.length === 0) {
+      // Validar: buscar comprovantes do banco (estado local pode estar desatualizado)
+      const { data: comprovantesBD, error: compError } = await supabase
+        .from('comprovantes_pc')
+        .select('id, valor')
+        .eq('prestacao_id', pc.id)
+      
+      if (compError) throw compError
+      
+      if (!comprovantesBD || comprovantesBD.length === 0) {
         throw new Error('Adicione pelo menos um comprovante antes de submeter')
       }
 
+      // Calcular valor gasto dos comprovantes
+      const valorGastoCalculado = comprovantesBD.reduce((sum, c) => sum + (c.valor || 0), 0)
+
       // Validar: valor gasto não pode exceder valor concedido
-      if (pc.valor_gasto > pc.valor_concedido) {
+      if (valorGastoCalculado > pc.valor_concedido) {
         throw new Error('Valor gasto excede o valor concedido')
       }
 
