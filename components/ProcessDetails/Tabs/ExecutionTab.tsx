@@ -142,7 +142,21 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   };
 
   const handleNESubmit = async (formData: any) => {
-    generateDocument({ tipo: 'NOTA_EMPENHO', formData });
+    // Novo fluxo: formData contém file, file_path, file_url (upload externo)
+    if (formData.file_path && formData.file_url) {
+      generateDocument({ 
+        tipo: 'NOTA_EMPENHO', 
+        formData: {
+          ...formData,
+          source_type: 'EXTERNAL_ERP',
+          original_filename: formData.file?.name || 'nota_empenho.pdf',
+          file_size_bytes: formData.file?.size || 0
+        }
+      });
+    } else {
+      // Fallback para fluxo antigo (se ainda existir)
+      generateDocument({ tipo: 'NOTA_EMPENHO', formData });
+    }
     setShowNEModal(false);
   };
 

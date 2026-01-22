@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   Loader2,
   Send,
-  AlertTriangle
+  AlertTriangle,
+  Upload,
+  File
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useBudgetAllocations } from '../../hooks/useBudgetAllocations';
@@ -87,6 +89,15 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
     DL: !!process.dl_numero,
     OB: !!process.ob_numero
   });
+
+  // Upload file states (NEW: External ERP PDFs)
+  const [neFile, setNeFile] = useState<File | null>(null);
+  const [neFilePath, setNeFilePath] = useState<string | null>(null);
+  const [dlFile, setDlFile] = useState<File | null>(null);
+  const [dlFilePath, setDlFilePath] = useState<string | null>(null);
+  const [obFile, setObFile] = useState<File | null>(null);
+  const [obFilePath, setObFilePath] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Budget allocations hook
   const { 
@@ -216,37 +227,101 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
     }
   };
 
+  // ==========================================================================
+  // UPLOAD HANDLERS (NEW: External ERP PDFs)
+  // ==========================================================================
+
+  const handleUploadFile = async (
+    file: File | undefined, 
+    tipo: 'NE' | 'DL' | 'OB',
+    setFile: (f: File | null) => void,
+    setFilePath: (p: string | null) => void
+  ) => {
+    if (!file) return;
+    
+    if (file.type !== 'application/pdf') {
+      showToast({ type: 'warning', title: 'Arquivo inválido', message: 'Selecione um arquivo PDF.' });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const timestamp = Date.now();
+      const filePath = `execution/${process.id}/${tipo.toLowerCase()}_${timestamp}.pdf`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      setFile(file);
+      setFilePath(filePath);
+      
+      showToast({ 
+        type: 'success', 
+        title: 'PDF carregado!', 
+        message: `${file.name} pronto para registro.` 
+      });
+    } catch (error: any) {
+      console.error(`Error uploading ${tipo}:`, error);
+      showToast({ type: 'error', title: 'Erro no upload', message: error.message || 'Falha ao carregar arquivo.' });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleUploadNE = (file: File | undefined) => 
+    handleUploadFile(file, 'NE', setNeFile, setNeFilePath);
+  
+  const handleUploadDL = (file: File | undefined) => 
+    handleUploadFile(file, 'DL', setDlFile, setDlFilePath);
+  
+  const handleUploadOB = (file: File | undefined) => 
+    handleUploadFile(file, 'OB', setObFile, setObFilePath);
+
+  // ==========================================================================
+  // SAVE HANDLERS (Refactored for External ERP Upload)
+  // ==========================================================================
+
   const handleSaveNE = async () => {
-    if (!neNumero) {
-      showToast({ type: 'warning', title: 'Número obrigatório', message: 'Informe o número da Nota de Empenho.' });
+    if (!neFilePath || !neFile) {
+      showToast({ type: 'warning', title: 'Upload obrigatório', message: 'Faça upload do PDF da Nota de Empenho (SIAFE).' });
       return;
     }
 
     setIsProcessing(true);
     try {
+      // Get public URL
+      const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(neFilePath);
+
+      // Update solicitacao
       await supabase
         .from('solicitacoes')
         .update({
-          ne_numero: neNumero,
-          ne_data: neData || null,
+          ne_numero: neFile.name.replace('.pdf', ''),
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);
 
-      // Create document record
+      // Create document record with external source
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('documentos').insert({
         solicitacao_id: process.id,
         tipo: 'NOTA_EMPENHO',
-        nome: `Nota de Empenho ${neNumero}`,
-        titulo: 'Nota de Empenho',
-        status: 'ASSINADO', // External document already signed
-        conteudo: `Nota de Empenho nº ${neNumero}\nData: ${neData || 'N/I'}\nDocumento gerado no sistema SIAFE.`,
+        nome: `Nota de Empenho - ${neFile.name}`,
+        titulo: 'Nota de Empenho (SIAFE)',
+        status: 'PENDENTE_ASSINATURA',
+        source_type: 'EXTERNAL_ERP',
+        file_path: neFilePath,
+        file_url: urlData.publicUrl,
+        original_filename: neFile.name,
+        file_size_bytes: neFile.size,
         created_by: user?.id
       });
 
       setGeneratedDocs(prev => ({ ...prev, NE: true }));
-      showToast({ type: 'success', title: 'NE registrada!', message: `Número: ${neNumero}` });
+      showToast({ type: 'success', title: 'NE anexada!', message: 'PDF do SIAFE registrado com sucesso.' });
       goNext();
     } catch (error) {
       console.error('Error saving NE:', error);
@@ -257,36 +332,41 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
   };
 
   const handleSaveDL = async () => {
-    if (!dlNumero) {
-      showToast({ type: 'warning', title: 'Número obrigatório', message: 'Informe o número do Documento de Liquidação.' });
+    if (!dlFilePath || !dlFile) {
+      showToast({ type: 'warning', title: 'Upload obrigatório', message: 'Faça upload do PDF do Documento de Liquidação (SIAFE).' });
       return;
     }
 
     setIsProcessing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(dlFilePath);
 
       await supabase
         .from('solicitacoes')
         .update({
-          dl_numero: dlNumero,
-          dl_data: dlData || null,
+          dl_numero: dlFile.name.replace('.pdf', ''),
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);
 
-      // Insert DL document into dossier
+      // Insert DL document with external source
       await supabase.from('documentos').insert({
         solicitacao_id: process.id,
-        nome: `DOCUMENTO DE LIQUIDAÇÃO Nº ${dlNumero}`,
+        nome: `Documento de Liquidação - ${dlFile.name}`,
         tipo: 'LIQUIDACAO',
-        status: 'MINUTA',
-        conteudo: `DOCUMENTO DE LIQUIDAÇÃO Nº ${dlNumero}\n\nProcesso: ${process.nup}\nInteressado: ${process.interestedParty || process.suprido_nome}\nValor: R$ ${Number(process.value || process.valor_total || 0).toFixed(2).replace('.', ',')}\nData de Emissão: ${dlData || new Date().toLocaleDateString('pt-BR')}\n\nA liquidação da despesa refere-se ao suprimento de fundos concedido conforme portaria em anexo.`,
+        titulo: 'Documento de Liquidação (SIAFE)',
+        status: 'PENDENTE_ASSINATURA',
+        source_type: 'EXTERNAL_ERP',
+        file_path: dlFilePath,
+        file_url: urlData.publicUrl,
+        original_filename: dlFile.name,
+        file_size_bytes: dlFile.size,
         created_by: user?.id,
       });
 
       setGeneratedDocs(prev => ({ ...prev, DL: true }));
-      showToast({ type: 'success', title: 'DL registrado!', message: `Número: ${dlNumero}` });
+      showToast({ type: 'success', title: 'DL anexado!', message: 'PDF do SIAFE registrado com sucesso.' });
       goNext();
     } catch (error) {
       console.error('Error saving DL:', error);
@@ -297,36 +377,41 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
   };
 
   const handleSaveOB = async () => {
-    if (!obNumero) {
-      showToast({ type: 'warning', title: 'Número obrigatório', message: 'Informe o número da Ordem Bancária.' });
+    if (!obFilePath || !obFile) {
+      showToast({ type: 'warning', title: 'Upload obrigatório', message: 'Faça upload do PDF da Ordem Bancária (SIAFE).' });
       return;
     }
 
     setIsProcessing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(obFilePath);
 
       await supabase
         .from('solicitacoes')
         .update({
-          ob_numero: obNumero,
-          ob_data: obData || null,
+          ob_numero: obFile.name.replace('.pdf', ''),
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);
 
-      // Insert OB document into dossier
+      // Insert OB document with external source
       await supabase.from('documentos').insert({
         solicitacao_id: process.id,
-        nome: `ORDEM BANCÁRIA Nº ${obNumero}`,
+        nome: `Ordem Bancária - ${obFile.name}`,
         tipo: 'ORDEM_BANCARIA',
-        status: 'MINUTA',
-        conteudo: `ORDEM BANCÁRIA Nº ${obNumero}\n\nProcesso: ${process.nup}\nInteressado: ${process.interestedParty || process.suprido_nome}\nValor: R$ ${Number(process.value || process.valor_total || 0).toFixed(2).replace('.', ',')}\nData de Emissão: ${obData || new Date().toLocaleDateString('pt-BR')}\n\nOrdem de pagamento ao servidor suprido conforme liquidação e documentação em anexo.`,
+        titulo: 'Ordem Bancária (SIAFE)',
+        status: 'PENDENTE_ASSINATURA',
+        source_type: 'EXTERNAL_ERP',
+        file_path: obFilePath,
+        file_url: urlData.publicUrl,
+        original_filename: obFile.name,
+        file_size_bytes: obFile.size,
         created_by: user?.id,
       });
 
       setGeneratedDocs(prev => ({ ...prev, OB: true }));
-      showToast({ type: 'success', title: 'OB registrada!', message: `Número: ${obNumero}` });
+      showToast({ type: 'success', title: 'OB anexada!', message: 'PDF do SIAFE registrado com sucesso.' });
       goNext();
     } catch (error) {
       console.error('Error saving OB:', error);
@@ -658,43 +743,68 @@ Seção de Suprimento de Fundos`;
               <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
                 <h3 className="text-lg font-black text-slate-800 mb-4">3. Nota de Empenho (NE)</h3>
                 <p className="text-sm text-slate-600 mb-6">
-                  Informe o número da Nota de Empenho gerada no sistema SIAFE.
+                  Faça upload do PDF da Nota de Empenho exportada do <strong>SIAFE</strong>.
                 </p>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                      Número da NE *
-                    </label>
-                    <input
-                      type="text"
-                      value={neNumero}
-                      onChange={(e) => setNeNumero(e.target.value)}
-                      placeholder="Ex: 2026NE00123"
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                      Data de Emissão
-                    </label>
-                    <input
-                      type="date"
-                      value={neData}
-                      onChange={(e) => setNeData(e.target.value)}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-medium"
-                    />
-                  </div>
+                {/* Upload Area */}
+                <div 
+                  className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                    neFile 
+                      ? 'border-emerald-300 bg-emerald-50' 
+                      : 'border-amber-300 bg-white hover:border-amber-400'
+                  }`}
+                >
+                  {neFile ? (
+                    <div className="space-y-3">
+                      <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center">
+                        <CheckCircle2 size={32} className="text-emerald-600" />
+                      </div>
+                      <p className="font-bold text-emerald-800">{neFile.name}</p>
+                      <p className="text-xs text-emerald-600">
+                        {(neFile.size / 1024).toFixed(1)} KB • PDF pronto para registro
+                      </p>
+                      <button
+                        onClick={() => { setNeFile(null); setNeFilePath(null); }}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Remover e escolher outro
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 mx-auto bg-amber-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Upload size={32} className="text-amber-600" />
+                      </div>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Arraste o PDF da Nota de Empenho ou clique para selecionar
+                      </p>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => handleUploadNE(e.target.files?.[0])}
+                        className="hidden"
+                        id="ne-upload"
+                        disabled={isUploading}
+                      />
+                      <label 
+                        htmlFor="ne-upload" 
+                        className="cursor-pointer inline-flex items-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-all"
+                      >
+                        {isUploading ? <Loader2 className="animate-spin" size={16} /> : <File size={16} />}
+                        Selecionar PDF
+                      </label>
+                    </>
+                  )}
                 </div>
               </div>
 
               <button
                 onClick={handleSaveNE}
-                disabled={!neNumero || isProcessing}
+                disabled={!neFile || isProcessing}
                 className="w-full py-4 bg-amber-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <DollarSign size={16} />}
-                {generatedDocs.NE ? 'NE Registrada' : 'Registrar NE'}
+                {generatedDocs.NE ? 'NE Anexada ✓' : 'Registrar NE'}
               </button>
             </div>
           )}
@@ -705,43 +815,68 @@ Seção de Suprimento de Fundos`;
               <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100">
                 <h3 className="text-lg font-black text-slate-800 mb-4">4. Documento de Liquidação (DL)</h3>
                 <p className="text-sm text-slate-600 mb-6">
-                  Informe o número do Documento de Liquidação gerado no sistema SIAFE.
+                  Faça upload do PDF do Documento de Liquidação exportado do <strong>SIAFE</strong>.
                 </p>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                      Número do DL *
-                    </label>
-                    <input
-                      type="text"
-                      value={dlNumero}
-                      onChange={(e) => setDlNumero(e.target.value)}
-                      placeholder="Ex: 2026DL00456"
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                      Data de Emissão
-                    </label>
-                    <input
-                      type="date"
-                      value={dlData}
-                      onChange={(e) => setDlData(e.target.value)}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-medium"
-                    />
-                  </div>
+                {/* Upload Area */}
+                <div 
+                  className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                    dlFile 
+                      ? 'border-emerald-300 bg-emerald-50' 
+                      : 'border-purple-300 bg-white hover:border-purple-400'
+                  }`}
+                >
+                  {dlFile ? (
+                    <div className="space-y-3">
+                      <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center">
+                        <CheckCircle2 size={32} className="text-emerald-600" />
+                      </div>
+                      <p className="font-bold text-emerald-800">{dlFile.name}</p>
+                      <p className="text-xs text-emerald-600">
+                        {(dlFile.size / 1024).toFixed(1)} KB • PDF pronto para registro
+                      </p>
+                      <button
+                        onClick={() => { setDlFile(null); setDlFilePath(null); }}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Remover e escolher outro
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 mx-auto bg-purple-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Upload size={32} className="text-purple-600" />
+                      </div>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Arraste o PDF do Documento de Liquidação ou clique para selecionar
+                      </p>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => handleUploadDL(e.target.files?.[0])}
+                        className="hidden"
+                        id="dl-upload"
+                        disabled={isUploading}
+                      />
+                      <label 
+                        htmlFor="dl-upload" 
+                        className="cursor-pointer inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all"
+                      >
+                        {isUploading ? <Loader2 className="animate-spin" size={16} /> : <File size={16} />}
+                        Selecionar PDF
+                      </label>
+                    </>
+                  )}
                 </div>
               </div>
 
               <button
                 onClick={handleSaveDL}
-                disabled={!dlNumero || isProcessing}
+                disabled={!dlFile || isProcessing}
                 className="w-full py-4 bg-purple-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <FileCheck size={16} />}
-                {generatedDocs.DL ? 'DL Registrado' : 'Registrar DL'}
+                {generatedDocs.DL ? 'DL Anexado ✓' : 'Registrar DL'}
               </button>
             </div>
           )}
@@ -752,43 +887,68 @@ Seção de Suprimento de Fundos`;
               <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
                 <h3 className="text-lg font-black text-slate-800 mb-4">5. Ordem Bancária (OB)</h3>
                 <p className="text-sm text-slate-600 mb-6">
-                  Informe o número da Ordem Bancária gerada no sistema SIAFE.
+                  Faça upload do PDF da Ordem Bancária exportada do <strong>SIAFE</strong>.
                 </p>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                      Número da OB *
-                    </label>
-                    <input
-                      type="text"
-                      value={obNumero}
-                      onChange={(e) => setObNumero(e.target.value)}
-                      placeholder="Ex: 2026OB00789"
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                      Data de Emissão
-                    </label>
-                    <input
-                      type="date"
-                      value={obData}
-                      onChange={(e) => setObData(e.target.value)}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-medium"
-                    />
-                  </div>
+                {/* Upload Area */}
+                <div 
+                  className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                    obFile 
+                      ? 'border-emerald-300 bg-emerald-50' 
+                      : 'border-indigo-300 bg-white hover:border-indigo-400'
+                  }`}
+                >
+                  {obFile ? (
+                    <div className="space-y-3">
+                      <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center">
+                        <CheckCircle2 size={32} className="text-emerald-600" />
+                      </div>
+                      <p className="font-bold text-emerald-800">{obFile.name}</p>
+                      <p className="text-xs text-emerald-600">
+                        {(obFile.size / 1024).toFixed(1)} KB • PDF pronto para registro
+                      </p>
+                      <button
+                        onClick={() => { setObFile(null); setObFilePath(null); }}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Remover e escolher outro
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 mx-auto bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Upload size={32} className="text-indigo-600" />
+                      </div>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Arraste o PDF da Ordem Bancária ou clique para selecionar
+                      </p>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => handleUploadOB(e.target.files?.[0])}
+                        className="hidden"
+                        id="ob-upload"
+                        disabled={isUploading}
+                      />
+                      <label 
+                        htmlFor="ob-upload" 
+                        className="cursor-pointer inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
+                      >
+                        {isUploading ? <Loader2 className="animate-spin" size={16} /> : <File size={16} />}
+                        Selecionar PDF
+                      </label>
+                    </>
+                  )}
                 </div>
               </div>
 
               <button
                 onClick={handleSaveOB}
-                disabled={!obNumero || isProcessing}
+                disabled={!obFile || isProcessing}
                 className="w-full py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
-                {generatedDocs.OB ? 'OB Registrada' : 'Registrar OB'}
+                {generatedDocs.OB ? 'OB Anexada ✓' : 'Registrar OB'}
               </button>
             </div>
           )}

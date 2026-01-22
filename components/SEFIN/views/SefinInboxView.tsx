@@ -401,7 +401,7 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">
-            Mesa de Decisão
+            Mesa de Decisão da SEFIN
           </h2>
           <p className="text-sm text-slate-500">
             {pendingTasks.length} {pendingTasks.length === 1 ? 'documento pendente' : 'documentos pendentes'}

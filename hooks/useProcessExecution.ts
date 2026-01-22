@@ -154,7 +154,11 @@ export function useProcessExecution(solicitacaoId: string) {
           fonte_recurso: formData?.fonte_recurso || null,
           ptres_code: formData?.ptres_code || null,
           dotacao_code: formData?.dotacao_code || null,
-          numero_formatado: formData?.numero_portaria || null
+          numero_formatado: formData?.numero_portaria || null,
+          // Campos de upload externo (ERP)
+          arquivo_url: formData?.file_url || null,
+          source_type: formData?.source_type || 'INTERNAL',
+          original_filename: formData?.original_filename || null
         })
         .select()
         .single();
@@ -327,15 +331,25 @@ export function useProcessExecution(solicitacaoId: string) {
     
     console.log('👤 [linkToDossier] Usuário:', userId);
     
+    // Extrair dados do form_data para campos de arquivo externo
+    const formData = doc.metadata?.form_data || {};
+    const isExternal = formData.source_type === 'EXTERNAL_ERP';
+    
     const { data, error } = await supabase.from('documentos').insert({
       solicitacao_id: solicitacaoId,
       tipo: doc.tipo,
       nome: doc.titulo,
       titulo: doc.titulo,
       url_storage: doc.arquivo_url,
-      status: 'MINUTA',
+      status: isExternal ? 'PENDENTE_ASSINATURA' : 'MINUTA',
       metadata: doc.metadata || {},
-      created_by: userId  // <- Habilita CRUD no dossiê!
+      created_by: userId,
+      // Campos de upload externo
+      file_path: formData.file_path || null,
+      file_url: formData.file_url || null,
+      source_type: formData.source_type || 'INTERNAL',
+      original_filename: formData.original_filename || null,
+      file_size_bytes: formData.file_size_bytes || null
     }).select();
 
     if (error) {

@@ -110,27 +110,52 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
 
       setIsLoadingDocument(true)
       try {
-        // Fetch document data
+        // Fetch document data - try documento_id first, then fallback to solicitacao_id + tipo
+        let documento = null;
+        
         if (task?.documento_id) {
-          const { data: documento, error } = await supabase
+          const { data, error } = await supabase
             .from('documentos')
             .select('*')
             .eq('id', task.documento_id)
             .single()
-
-          if (!error && documento) {
-            if (typeof documento.metadata === 'string') {
-              try {
-                documento.metadata = JSON.parse(documento.metadata)
-              } catch {
-                documento.metadata = {}
-              }
-            }
-            console.log('✅ Document data loaded for preview:', documento.tipo)
-            setRealDocumentData(documento)
-          } else {
-            setRealDocumentData(null)
+          
+          if (!error && data) {
+            documento = data;
           }
+        }
+        
+        // Fallback: buscar por solicitacao_id + tipo (para tasks SEFIN que podem não ter documento_id)
+        if (!documento && task?.solicitacao_id && task?.tipo) {
+          console.log('🔍 Fallback: buscando documento por solicitacao_id + tipo:', task.solicitacao_id, task.tipo);
+          const { data, error } = await supabase
+            .from('documentos')
+            .select('*')
+            .eq('solicitacao_id', task.solicitacao_id)
+            .eq('tipo', task.tipo)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          
+          if (!error && data) {
+            documento = data;
+            console.log('✅ Documento encontrado via fallback:', data.tipo, data.source_type, data.file_url);
+          }
+        }
+
+        if (documento) {
+          if (typeof documento.metadata === 'string') {
+            try {
+              documento.metadata = JSON.parse(documento.metadata)
+            } catch {
+              documento.metadata = {}
+            }
+          }
+          console.log('✅ Document data loaded for preview:', documento.tipo, 'source_type:', documento.source_type, 'file_url:', documento.file_url ? 'YES' : 'NO')
+          setRealDocumentData(documento)
+        } else {
+          console.log('⚠️ Nenhum documento encontrado')
+          setRealDocumentData(null)
         }
 
         // Fetch enriched process data from solicitacoes + servidores_tj
@@ -553,19 +578,41 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
                         }} 
                       />
                     ) : task.tipo === 'NOTA_EMPENHO' ? (
-                      <StaticNE 
-                        processData={enrichedProcessData || {
-                          nup: task.processo?.nup,
-                          valor_total: task.processo?.valor_total,
-                          suprido_nome: task.processo?.suprido_nome,
-                          lotacao: task.processo?.lotacao_nome,
-                          created_at: task.processo?.created_at
-                        }} 
-                        documentData={realDocumentData || {
-                          tipo: 'NOTA_EMPENHO',
-                          created_at: task.created_at
-                        }} 
-                      />
+                      /* Check if it's an external document (PDF from SIAFE) */
+                      realDocumentData?.file_url && realDocumentData?.source_type === 'EXTERNAL_ERP' ? (
+                        <div className="flex-1 flex flex-col items-center justify-start">
+                          <div className="text-center mb-6">
+                            <h2 className="text-xl font-black uppercase tracking-widest">
+                              NOTA DE EMPENHO
+                            </h2>
+                            <p className="text-xs text-slate-500 mt-2 flex items-center justify-center gap-2">
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-bold">
+                                PDF Externo (SIAFE)
+                              </span>
+                            </p>
+                          </div>
+                          <iframe
+                            src={realDocumentData.file_url}
+                            className="w-full flex-1 min-h-[700px] border border-slate-200 rounded-lg"
+                            title="Nota de Empenho - SIAFE"
+                          />
+                        </div>
+                      ) : (
+                        /* Fallback to internal template */
+                        <StaticNE 
+                          processData={enrichedProcessData || {
+                            nup: task.processo?.nup,
+                            valor_total: task.processo?.valor_total,
+                            suprido_nome: task.processo?.suprido_nome,
+                            lotacao: task.processo?.lotacao_nome,
+                            created_at: task.processo?.created_at
+                          }} 
+                          documentData={realDocumentData || {
+                            tipo: 'NOTA_EMPENHO',
+                            created_at: task.created_at
+                          }} 
+                        />
+                      )
                     ) : (
                       /* Fallback for other document types */
                       <div className="text-center py-8">

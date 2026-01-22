@@ -101,7 +101,7 @@ export const useSOSFUProcesses = () => {
           *,
           profiles!solicitacoes_user_id_fkey (nome, email, banco, agencia, conta_corrente)
         `)
-        .or('destino_atual.ilike.%SOSFU%,destino_atual.ilike.%ANALISE%,status.ilike.%AGUARDANDO%')
+        .or('destino_atual.ilike.%SOSFU%,destino_atual.ilike.%ANALISE%,destino_atual.eq.SUPRIDO,status.ilike.%AGUARDANDO%,status.ilike.%PRESTANDO%,status.ilike.%CONCLU%')
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;

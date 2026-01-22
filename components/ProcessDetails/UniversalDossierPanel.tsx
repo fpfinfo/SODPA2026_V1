@@ -296,13 +296,37 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                       <StaticCover processData={processData} />
                     ) : docItem.type === 'STATIC_REQ' ? (
                       <StaticRequest processData={processData} />
-                    ) : docItem.originalDoc?.tipo === 'NOTA_LIQUIDACAO' ? (
+                    ) : docItem.originalDoc?.file_url && docItem.originalDoc?.source_type === 'EXTERNAL_ERP' ? (
+                      /* External ERP Document - Render PDF from Storage */
+                      <div className="flex-1 flex flex-col items-center justify-start">
+                        <div className="text-center mb-8">
+                          <h2 className="text-xl font-black uppercase tracking-widest">
+                            {docItem.title}
+                          </h2>
+                          <p className="text-xs text-slate-500 mt-2 flex items-center justify-center gap-2">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-bold">
+                              PDF Externo (SIAFE)
+                            </span>
+                            {docItem.originalDoc?.signed_at && (
+                              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold">
+                                ✓ Assinado
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <iframe
+                          src={docItem.originalDoc.file_url}
+                          className="w-full flex-1 min-h-[900px] border border-slate-200 rounded-lg"
+                          title={docItem.title}
+                        />
+                      </div>
+                    ) : docItem.originalDoc?.tipo === 'NOTA_LIQUIDACAO' || docItem.originalDoc?.tipo === 'LIQUIDACAO' ? (
                       <StaticDL processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'NOTA_EMPENHO' ? (
                       <StaticNE processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'ORDEM_BANCARIA' ? (
                       <StaticOB processData={processData} documentData={docItem.originalDoc} />
-                    ) : docItem.originalDoc?.tipo === 'PORTARIA' ? (
+                    ) : docItem.originalDoc?.tipo === 'PORTARIA' || docItem.originalDoc?.tipo === 'PORTARIA_SF' ? (
                       <StaticPortaria processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'CERTIDAO_REGULARIDADE' ? (
                       <StaticCertidao processData={processData} documentData={docItem.originalDoc} />
