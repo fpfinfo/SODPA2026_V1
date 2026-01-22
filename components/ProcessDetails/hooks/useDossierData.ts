@@ -19,6 +19,42 @@ export interface DossierDocument {
   };
 }
 
+export interface PrestacaoContasData {
+  id: string;
+  solicitacao_id: string;
+  status: string;
+  valor_concedido: number;
+  valor_gasto: number;
+  valor_devolvido: number;
+  total_inss_retido?: number;
+  total_iss_retido?: number;
+  gdr_inss_numero?: string;
+  gdr_inss_paga?: boolean;
+  gdr_inss_valor?: number;
+  gdr_saldo_numero?: string;
+  gdr_saldo_paga?: boolean;
+  gdr_saldo_valor?: number;
+  submitted_at?: string;
+  created_at: string;
+}
+
+export interface ComprovantePC {
+  id: string;
+  prestacao_id: string;
+  tipo: string;
+  numero?: string;
+  emitente: string;
+  cnpj_cpf?: string;
+  valor: number;
+  data_emissao: string;
+  descricao?: string;
+  elemento_despesa: string;
+  file_path: string;
+  file_name: string;
+  storage_url?: string;
+  created_at: string;
+}
+
 interface UseDossierDataProps {
   processId: string;
   currentUserId: string;
@@ -26,10 +62,12 @@ interface UseDossierDataProps {
 
 export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps) => {
   const [dossierDocs, setDossierDocs] = useState<DossierDocument[]>([]);
+  const [prestacaoData, setPrestacaoData] = useState<PrestacaoContasData | null>(null);
+  const [comprovantesPC, setComprovantesPC] = useState<ComprovantePC[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch documents
+  // Fetch all dossier data
   const fetchDocs = async () => {
     if (!processId) return;
     
@@ -37,15 +75,40 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
     setError(null);
     
     try {
-      const { data, error: fetchError } = await supabase
+      // 1. Fetch documentos
+      const { data: docsData, error: fetchError } = await supabase
         .from('documentos')
         .select('*, profiles:created_by(nome, cargo)')
         .eq('solicitacao_id', processId)
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
-      
-      setDossierDocs(data || []);
+      setDossierDocs(docsData || []);
+
+      // 2. Fetch prestação de contas
+      const { data: pcData, error: pcError } = await supabase
+        .from('prestacao_contas')
+        .select('*')
+        .eq('solicitacao_id', processId)
+        .maybeSingle();
+
+      if (pcError && pcError.code !== 'PGRST116') throw pcError;
+      setPrestacaoData(pcData || null);
+
+      // 3. Fetch comprovantes if PC exists
+      if (pcData) {
+        const { data: compData, error: compError } = await supabase
+          .from('comprovantes_pc')
+          .select('*')
+          .eq('prestacao_id', pcData.id)
+          .order('created_at', { ascending: true });
+
+        if (compError) throw compError;
+        setComprovantesPC(compData || []);
+      } else {
+        setComprovantesPC([]);
+      }
+
     } catch (err) {
       console.error('Error fetching dossier docs:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch documents');
@@ -73,12 +136,17 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
           table: 'documentos',
           filter: `solicitacao_id=eq.${processId}`,
         },
-        (payload) => {
-          console.log('Real-time change detected:', payload);
-          
-          // Refresh documents on any change (INSERT, UPDATE, DELETE)
-          fetchDocs();
-        }
+        () => fetchDocs()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'prestacao_contas',
+          filter: `solicitacao_id=eq.${processId}`,
+        },
+        () => fetchDocs()
       )
       .subscribe();
 
@@ -156,6 +224,8 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
 
   return {
     dossierDocs,
+    prestacaoData,
+    comprovantesPC,
     isLoading,
     error,
     refreshDocs: fetchDocs,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Eye, FileDown, BookOpen, Loader2 } from 'lucide-react';
 import { useDossierData } from './hooks/useDossierData';
 import { DocumentInventory } from './DocumentInventory';
+import { PrestacaoContasSection } from './PrestacaoContasSection';
 import { StaticCover, StaticRequest, StaticCertidao } from './StaticDocuments';
 import { StaticDL } from './StaticDocuments/StaticDL';
 import { StaticOB } from './StaticDocuments/StaticOB';
@@ -53,7 +54,7 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
   currentUserId,
   onDocumentEdit,
 }) => {
-  const { dossierDocs, isLoading, refreshDocs, deleteDocument, updateDocument } = useDossierData({
+  const { dossierDocs, prestacaoData, comprovantesPC, isLoading, refreshDocs, deleteDocument, updateDocument } = useDossierData({
     processId,
     currentUserId,
   });
@@ -140,6 +141,7 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
           <Loader2 className="animate-spin text-blue-600" size={48} />
         </div>
       ) : (
+        <>
         <DocumentInventory
           documents={dossierDocs.filter(doc => 
             // Filter out auto-created static documents (Capa and Requerimento)
@@ -160,6 +162,23 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
           onEditDocument={onDocumentEdit || (() => {})}
           onViewStaticDocument={handleViewStaticDocument}
         />
+        
+        {/* Prestação de Contas Section */}
+        {prestacaoData && prestacaoData.status !== 'RASCUNHO' && (
+          <div className="mt-8">
+            <PrestacaoContasSection
+              prestacaoData={prestacaoData}
+              comprovantes={comprovantesPC}
+              startingFolha={dossierDocs.length + 3} // After: Capa(1), Req(2), Docs
+              onViewComprovante={(comp) => {
+                if (comp.storage_url) {
+                  window.open(comp.storage_url, '_blank');
+                }
+              }}
+            />
+          </div>
+        )}
+        </>
       )}
 
       {/* PDF Viewer Modal */}
