@@ -253,11 +253,12 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
 
       if (error) throw error
 
-      // Atualizar workflow da solicitação
+      // Atualizar workflow da solicitação - PC vai para GESTOR para atesto
       await supabase
         .from('solicitacoes')
         .update({
           status_workflow: 'PC_SUBMITTED',
+          destino_atual: 'GESTOR', // PC precisa de atesto do Gestor antes de ir para SOSFU
           updated_at: new Date().toISOString()
         })
         .eq('id', solicitacaoId)
@@ -268,10 +269,10 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
         .insert({
           solicitacao_id: solicitacaoId,
           origem: 'SUPRIDO',
-          destino: 'SOSFU',
+          destino: 'GESTOR', // Gestor precisa dar atesto na PC
           status_anterior: 'AWAITING_ACCOUNTABILITY',
           status_novo: 'PC_SUBMITTED',
-          observacao: `Prestação de Contas submetida. Valor: R$ ${pc.valor_gasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          observacao: `Prestação de Contas submetida para atesto do Gestor. Valor: R$ ${valorGastoCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         })
 
       setPC(prev => prev ? { ...prev, status: 'SUBMETIDA' } : null)
