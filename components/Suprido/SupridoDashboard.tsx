@@ -1524,7 +1524,25 @@ const INITIAL_FORM_STATE: FormState = {
                                    </div>
                                 )}
                                 
-                                <div className="text-slate-300 group-hover:text-blue-600 transition-colors p-2">
+{/* Prestar Contas button for accountability phase */}
+                                 {(p.status === 'PRESTANDO CONTAS' || 
+                                   p.status === 'A PRESTAR CONTAS' ||
+                                   p.status_workflow === 'AWAITING_ACCOUNTABILITY' ||
+                                   p.status_workflow === 'ACCOUNTABILITY_OPEN') && (
+                                    <button 
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedProcess(p);
+                                          setCurrentView('PRESTACAO_CONTAS');
+                                       }}
+                                       className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-700 shadow-md transition-all"
+                                    >
+                                       <FileText size={16} />
+                                       Prestar Contas
+                                    </button>
+                                 )}
+                                 
+                                                                 <div className="text-slate-300 group-hover:text-blue-600 transition-colors p-2">
                                    <ChevronRight size={24} />
                                 </div>
                             </div>
