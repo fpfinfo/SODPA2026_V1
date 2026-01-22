@@ -46,11 +46,12 @@ import { TimelineHistory } from '../TimelineHistory';
 import { UniversalProcessDetailsPage } from '../ProcessDetails';
 import { useGestorProcesses, useGestorKPIs } from '../../hooks/useGestorProcesses';
 import PortariaManagement from './PortariaManagement';
+import { PrestacaoAtestoTab } from './PrestacaoAtestoTab';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
 type GestorView = 'LIST' | 'DETAILS' | 'EDIT_DOC' | 'HISTORY' | 'ADMIN';
-type SubViewMode = 'DETAILS' | 'DOSSIER' | 'COVER' | 'REQUEST' | 'HISTORY';
+type SubViewMode = 'DETAILS' | 'DOSSIER' | 'COVER' | 'REQUEST' | 'HISTORY' | 'PC_ATESTO';
 
 interface DocPiece {
   id: string;
@@ -105,6 +106,7 @@ export const GestorDashboard: React.FC = () => {
   
   // Dossier documents from Supabase
   const [dossierDocs, setDossierDocs] = useState<any[]>([]);
+  const [isLoadingDossierDocs, setIsLoadingDossierDocs] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   
@@ -233,6 +235,7 @@ export const GestorDashboard: React.FC = () => {
   // Fetch dossier documents from Supabase
   const fetchDossierDocs = async (processId: string) => {
     if (!processId) return;
+    setIsLoadingDossierDocs(true);
     try {
       const { data, error } = await supabase
         .from('documentos')
@@ -244,6 +247,8 @@ export const GestorDashboard: React.FC = () => {
       if (data) setDossierDocs(data);
     } catch (error) {
       console.error('Error fetching dossier docs:', error);
+    } finally {
+      setIsLoadingDossierDocs(false);
     }
   };
 
@@ -326,9 +331,11 @@ export const GestorDashboard: React.FC = () => {
     }
   }, [subView, selectedProcess?.id]);
   
-  // Also fetch tramitacao on process selection
+  // Fetch dossier docs AND tramitacao when process is selected
+  // CRITICAL: dossierDocs must be loaded to check for Certidão de Atesto
   useEffect(() => {
     if (selectedProcess?.id) {
+      fetchDossierDocs(selectedProcess.id);
       fetchTramitacaoHistory(selectedProcess.id);
     }
   }, [selectedProcess?.id]);
@@ -387,15 +394,34 @@ export const GestorDashboard: React.FC = () => {
   const isAutoAtesto = selectedProcess?.user_id === currentUserId || 
                        selectedProcess?.suprido_id === currentUserId;
   
-  // Needs atesto only if: not auto-atesto AND no atesto document exists
-  const needsAtesto = !isAutoAtesto && !hasAtesto;
+  // Process status check - show Gerar Atesto for processes pending atesto
+  const isPendingAtesto = selectedProcess?.status?.toLowerCase()?.includes('atesto') ||
+                          selectedProcess?.status === 'PENDENTE ATESTO' ||
+                          selectedProcess?.status === 'Pendente Atesto';
+  
+  // Show "Gerar Atesto" button when:
+  // 1. NOT auto-atesto (Gestor is not the Suprido)
+  // 2. AND process is pending atesto
+  // 3. AND (still loading docs OR doesn't already have an atesto document)
+  // We show button during loading to avoid flicker, validation happens on click
+  const needsAtesto = !isAutoAtesto && isPendingAtesto && (isLoadingDossierDocs || !hasAtesto);
   
   // Can tramitar if: auto-atesto OR has atesto document
-  const canTramitarToSOSFU = isAutoAtesto || hasAtesto;
+  // During loading, only allow if auto-atesto (safe because no atesto needed)
+  const canTramitarToSOSFU = isAutoAtesto || (!isLoadingDossierDocs && hasAtesto);
   
   const isChecklistComplete = Object.values(checklist).every(Boolean);
 
   const handleGenerateAtestoClick = () => {
+    // Prevent duplicate atesto if already exists
+    if (hasAtesto) {
+      showToast({ 
+        type: 'info', 
+        title: 'Atesto já existe', 
+        message: 'Este processo já possui uma Certidão de Atesto.' 
+      });
+      return;
+    }
     setShowAtestoConfirm(true);
   };
 
@@ -924,6 +950,14 @@ export const GestorDashboard: React.FC = () => {
                <div className={`p-2 rounded-lg ${subView === 'HISTORY' ? 'bg-white shadow-sm' : 'bg-slate-100 group-hover:bg-white'}`}><Clock size={18}/></div>
                <span className="hidden lg:block text-xs font-bold">Auditoria</span>
             </button>
+
+            {/* Botão de Atesto PC - aparece quando status indica PC pendente */}
+            {(selectedProcess?.status_workflow?.includes('PC') || selectedProcess?.status?.includes('PRESTANDO')) && (
+              <button onClick={() => setSubView('PC_ATESTO')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group ${subView === 'PC_ATESTO' ? 'bg-purple-600 text-white shadow-lg' : 'text-purple-600 hover:bg-purple-50'}`}>
+                 <div className={`p-2 rounded-lg ${subView === 'PC_ATESTO' ? 'bg-white/10' : 'bg-purple-100 group-hover:bg-purple-200'}`}><BadgeCheck size={18}/></div>
+                 <span className="hidden lg:block text-xs font-bold">Atesto PC</span>
+              </button>
+            )}
          </div>
 
          <div className="p-4 mt-auto border-t border-slate-100">

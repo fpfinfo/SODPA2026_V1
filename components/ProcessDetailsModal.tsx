@@ -5,6 +5,8 @@ import { UniversalDossierPanel } from './ProcessDetails/UniversalDossierPanel';
 import { DetailsTab } from './ProcessDetails/Tabs/DetailsTab';
 import { ExecutionTab } from './ProcessDetails/Tabs/ExecutionTab';
 import { TechnicalAnalysisTab } from './ProcessDetails/Tabs/TechnicalAnalysisTab';
+import { PrestacaoContasTab } from './SOSFU/PrestacaoContasTab';
+import { BaixaSiafeModal } from './SOSFU/BaixaSiafeModal';
 import { useExecutionDocuments } from '../hooks/useExecutionDocuments';
 import { ConformityChecklist } from './ConformityChecklist';
 import { useProcessDetails } from '../hooks/useProcessDetails';
@@ -55,19 +57,27 @@ import {
 interface ProcessDetailsModalProps {
   process: Process;
   onClose: () => void;
-  initialTab?: 'OVERVIEW' | 'DOSSIER' | 'EXECUTION' | 'ANALYSIS';
+  initialTab?: 'OVERVIEW' | 'DOSSIER' | 'EXECUTION' | 'ANALYSIS' | 'PRESTACAO';
   teamMembers?: { id: string; nome: string; avatar_url: string | null }[];
 }
 
 export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ process, onClose, initialTab = 'OVERVIEW', teamMembers = [] }) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'DOSSIER' | 'EXECUTION' | 'ANALYSIS'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'DOSSIER' | 'EXECUTION' | 'ANALYSIS' | 'PRESTACAO'>(initialTab);
   const [checklist, setChecklist] = useState({ regularidade: false, atestoGestor: process.status === 'PENDENTE SOSFU', orcamento: false, identificacao: true });
   const [showRegularityModal, setShowRegularityModal] = useState(false);
+  const [showBaixaSiafeModal, setShowBaixaSiafeModal] = useState(false);
   const [checkStep, setCheckStep] = useState<'IDLE' | 'SCANNING' | 'RESULTS'>('IDLE');
   const [scanProgress, setScanProgress] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [hasCertidaoAtesto, setHasCertidaoAtesto] = useState(false);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+
+  // Check if process is in PC phase (status_workflow is an extended field)
+  const statusWorkflow = (process as any).status_workflow || '';
+  const isPCPhase = statusWorkflow.startsWith('PC_') || 
+    statusWorkflow.startsWith('TCE_') ||
+    statusWorkflow === 'AWAITING_ACCOUNTABILITY' ||
+    process.status === AccountStatus.AUDIT;
 
   // Fetch enriched process data with servidores_tj details
   const { processData: enrichedProcessData, isLoading: isLoadingDetails } = useProcessDetails(process.id);
@@ -269,7 +279,8 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
             { id: 'OVERVIEW', label: 'Visão Geral', icon: Eye }, 
             { id: 'DOSSIER', label: 'Dossiê Digital', icon: FolderOpen },
             { id: 'EXECUTION', label: 'Execução da Despesa', icon: Receipt },
-            { id: 'ANALYSIS', label: 'Análise Técnica', icon: ShieldCheck }
+            { id: 'ANALYSIS', label: 'Análise Técnica', icon: ShieldCheck },
+            ...(isPCPhase ? [{ id: 'PRESTACAO', label: 'Prestação de Contas', icon: Database }] : [])
           ].map(tab => (
             <button 
               key={tab.id} 
@@ -391,7 +402,38 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
               />
             </div>
           )}
+          {activeTab === 'PRESTACAO' && isPCPhase && (
+            <div className="animate-in fade-in">
+              <PrestacaoContasTab
+                solicitacaoId={process.id}
+                processData={{
+                  nup: process.protocolNumber,
+                  valorConcedido: process.value,
+                  supridoNome: process.interestedParty,
+                  dataFim: (enrichedProcessData as any)?.data_fim,
+                  prazoPrestacao: (enrichedProcessData as any)?.prazo_prestacao
+                }}
+                onBaixaSiafe={() => setShowBaixaSiafeModal(true)}
+                onDevolver={() => {}}
+              />
+            </div>
+          )}
         </div>
+
+        {/* Modal de Baixa SIAFE */}
+        {showBaixaSiafeModal && (
+          <BaixaSiafeModal
+            solicitacaoId={process.id}
+            processData={{
+              nup: process.protocolNumber,
+              supridoNome: process.interestedParty,
+              valorConcedido: process.value,
+              portariaNumero: (enrichedProcessData as any)?.portaria_numero
+            }}
+            onClose={() => setShowBaixaSiafeModal(false)}
+            onSuccess={onClose}
+          />
+        )}
 
         <div className="bg-white px-10 py-6 border-t border-slate-200 flex justify-between items-center z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"><div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Clock size={16}/> SLA: {slaDate.toLocaleDateString()}</div>{getFooterActions()}</div>
       </div>

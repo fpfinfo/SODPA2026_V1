@@ -51,10 +51,26 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
   const valor = enrichedProcessData?.valor_total || processData.value || processData.valor_total || 0;
   
   // Bank data (from process or enriched data)
+  // Map bank codes to names
+  const getBankName = (code: string | null | undefined): string => {
+    if (!code) return 'N/A';
+    const bankMap: Record<string, string> = {
+      '001': '001 - Banco do Brasil',
+      '033': '033 - Santander',
+      '037': '037 - Banco do Estado do Pará',
+      '104': '104 - Caixa Econômica Federal',
+      '237': '237 - Bradesco',
+      '341': '341 - Itaú',
+      '422': '422 - Safra',
+      '756': '756 - Sicoob'
+    };
+    return bankMap[code] || code;
+  };
+
   const bankData = useMemo(() => ({
-    banco: enrichedProcessData?.banco_nome || processData.banco_nome || '001 - Banco do Brasil',
+    banco: getBankName(enrichedProcessData?.banco || processData.banco),
     agencia: enrichedProcessData?.agencia || processData.agencia || '-',
-    conta: enrichedProcessData?.conta || processData.conta || '-',
+    conta: enrichedProcessData?.conta_corrente || processData.conta_corrente || '-',
     titularNome: enrichedProcessData?.suprido_nome || processData.suprido_nome || 'Suprido',
   }), [enrichedProcessData, processData]);
 

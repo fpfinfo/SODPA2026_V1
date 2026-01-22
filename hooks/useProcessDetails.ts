@@ -6,6 +6,7 @@ export interface ProcessData {
   nup: string;
   tipo: string;
   status: string;
+  status_workflow?: string;
   valor_total: number;
   valor_solicitado?: number;
   descricao: string;

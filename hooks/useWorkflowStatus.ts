@@ -13,8 +13,20 @@ export type WorkflowStatus =
   | 'PAYMENT_PROCESSING'   // SOSFU gerou OB, na Análise Técnica
   | 'FUNDS_RELEASED'       // Técnico confirmou crédito
   | 'AWAITING_SUPRIDO_CONFIRMATION' // Crédito liberado, aguardando Suprido confirmar recebimento
-  | 'AWAITING_ACCOUNTABILITY'       // Suprido confirmou, prazo de 30 dias iniciado
+  | 'AWAITING_ACCOUNTABILITY'       // Suprido confirmou, prazo de 7 dias após evento
   | 'ACCOUNTABILITY_OPEN'  // Suprido pode gastar (legado)
+  // Prestação de Contas (PC)
+  | 'PC_DRAFT'             // Suprido iniciou rascunho de PC
+  | 'PC_SUBMITTED'         // PC submetida para análise SOSFU
+  | 'PC_AUDIT'             // SOSFU analisando PC
+  | 'PC_PENDENCY'          // Devolvida ao Suprido para correção
+  | 'PC_APPROVED'          // Aprovada, aguardando baixa SIAFE
+  | 'PC_SIAFE_DONE'        // Baixa SIAFE realizada (processo finalizado)
+  // Tomada de Contas Especial (TCE)
+  | 'TCE_INSTAURADA'       // Prazo de PC expirado, TCE iniciada
+  | 'TCE_PRAZO_RECURSAL'   // Aguardando prazo de defesa (30 dias)
+  | 'TCE_DECISAO'          // Aguardando decisão do Ordenador
+  | 'TCE_AVERBACAO_SGP'    // Enviada ao SGP para averbação
 
 export interface WorkflowPhase {
   id: WorkflowStatus
@@ -24,14 +36,27 @@ export interface WorkflowPhase {
 }
 
 export const WORKFLOW_PHASES: WorkflowPhase[] = [
+  // Concessão
   { id: 'EXECUTION_DRAFT', label: 'Instrução', description: 'Geração de documentos iniciais', icon: '📝' },
   { id: 'WAITING_SEFIN', label: 'Aguardando SEFIN', description: 'Documentos enviados para assinatura', icon: '⏳' },
   { id: 'SIGNED_BY_SEFIN', label: 'Assinado', description: 'Pronto para liquidação e pagamento', icon: '✅' },
   { id: 'PAYMENT_PROCESSING', label: 'Análise Técnica', description: 'Verificação final antes da liberação', icon: '🔍' },
   { id: 'FUNDS_RELEASED', label: 'Liberado', description: 'Recurso creditado na conta', icon: '💰' },
   { id: 'AWAITING_SUPRIDO_CONFIRMATION', label: 'Confirmação Pendente', description: 'Aguardando Suprido confirmar recebimento', icon: '🔔' },
-  { id: 'AWAITING_ACCOUNTABILITY', label: 'Aguardando Prestação', description: 'Prazo de 30 dias para prestação de contas', icon: '⏰' },
-  { id: 'ACCOUNTABILITY_OPEN', label: 'Prestação de Contas', description: 'Período de utilização do recurso', icon: '📊' }
+  { id: 'AWAITING_ACCOUNTABILITY', label: 'Aguardando Prestação', description: 'Prazo de 7 dias após evento para prestação', icon: '⏰' },
+  { id: 'ACCOUNTABILITY_OPEN', label: 'Prestação de Contas', description: 'Período de utilização do recurso', icon: '📊' },
+  // Prestação de Contas (PC)
+  { id: 'PC_DRAFT', label: 'PC Rascunho', description: 'Suprido preparando prestação de contas', icon: '📋' },
+  { id: 'PC_SUBMITTED', label: 'PC Submetida', description: 'Aguardando análise SOSFU', icon: '📤' },
+  { id: 'PC_AUDIT', label: 'PC Em Análise', description: 'SOSFU verificando comprovantes', icon: '🔎' },
+  { id: 'PC_PENDENCY', label: 'PC Pendência', description: 'Devolvida para correção', icon: '⚠️' },
+  { id: 'PC_APPROVED', label: 'PC Aprovada', description: 'Aguardando baixa SIAFE', icon: '✔️' },
+  { id: 'PC_SIAFE_DONE', label: 'Concluído', description: 'Baixa SIAFE realizada', icon: '🏁' },
+  // TCE
+  { id: 'TCE_INSTAURADA', label: 'TCE Instaurada', description: 'Prazo expirado, TCE iniciada', icon: '🚨' },
+  { id: 'TCE_PRAZO_RECURSAL', label: 'Prazo Recursal', description: '30 dias para defesa', icon: '⚖️' },
+  { id: 'TCE_DECISAO', label: 'TCE Decisão', description: 'Aguardando decisão do Ordenador', icon: '🔨' },
+  { id: 'TCE_AVERBACAO_SGP', label: 'Averbação SGP', description: 'Enviada ao SGP', icon: '📍' }
 ]
 
 
@@ -209,7 +234,8 @@ export function useWorkflowStatus(solicitacaoId: string, options: UseWorkflowSta
       
       // Flags de bloqueio
       isBlockALocked: status !== 'EXECUTION_DRAFT',
-      isBlockBLocked: status !== 'SIGNED_BY_SEFIN',
+      // Block B unlocks when SEFIN signed and any subsequent phase
+      isBlockBLocked: !['SIGNED_BY_SEFIN', 'PAYMENT_PROCESSING', 'FUNDS_RELEASED', 'AWAITING_SUPRIDO_CONFIRMATION', 'AWAITING_ACCOUNTABILITY', 'ACCOUNTABILITY_OPEN'].includes(status),
       isBlockBVisible: ['SIGNED_BY_SEFIN', 'PAYMENT_PROCESSING', 'FUNDS_RELEASED', 'AWAITING_SUPRIDO_CONFIRMATION', 'AWAITING_ACCOUNTABILITY', 'ACCOUNTABILITY_OPEN'].includes(status),
       
       // Progress

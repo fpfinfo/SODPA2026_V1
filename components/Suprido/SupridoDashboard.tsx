@@ -66,10 +66,11 @@ import { TimelineHistory } from '../TimelineHistory';
 import { useRoleRequests, ROLE_LABELS, SystemRole } from '../../hooks/useRoleRequests';
 import { useToast } from '../ui/ToastProvider';
 import { useSupridoProcesses } from '../../hooks/useSupridoProcesses';
+import { PrestacaoContasWizard } from './PrestacaoContasWizard';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-type SupridoView = 'DASHBOARD' | 'SELECT_TYPE' | 'FORM' | 'VIEW_DETAILS' | 'EDIT_DRAFT' | 'PROFILE' | 'EDIT_FORM';
+type SupridoView = 'DASHBOARD' | 'SELECT_TYPE' | 'FORM' | 'VIEW_DETAILS' | 'EDIT_DRAFT' | 'PROFILE' | 'EDIT_FORM' | 'PRESTACAO_CONTAS';
 type SubViewMode = 'DETAILS' | 'COVER' | 'REQUEST' | 'HISTORY' | 'DOSSIER' | 'TIMELINE' | 'EDIT_DOC' | 'VIEW_DOC';
 
 interface FormItem {
@@ -1693,7 +1694,40 @@ const INITIAL_FORM_STATE: FormState = {
              </div>
            )}
 
-           {subView === 'DETAILS' && (
+           
+            {/* Prestação de Contas Banner - shows when process is in accountability phase */}
+            {(selectedProcess?.status === 'PRESTANDO CONTAS' || 
+              selectedProcess?.status === 'A PRESTAR CONTAS' ||
+              selectedProcess?.status_workflow === 'AWAITING_ACCOUNTABILITY' ||
+              selectedProcess?.status_workflow === 'ACCOUNTABILITY_OPEN') && (
+              <div className="rounded-[32px] p-6 flex items-center justify-between animate-in slide-in-from-top-4 duration-300 shadow-lg bg-gradient-to-r from-purple-500 to-indigo-600 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-white/20">
+                    <FileText size={28} className="text-white" />
+                  </div>
+                  <div className="text-white">
+                    <h4 className="text-lg font-black uppercase tracking-tight">
+                      📋 Prestação de Contas Pendente
+                    </h4>
+                    <p className="text-sm text-white/80">
+                      Você precisa prestar contas dos recursos utilizados.
+                      {selectedProcess?.prazo_prestacao && (
+                        <> Prazo: <strong>{new Date(selectedProcess.prazo_prestacao).toLocaleDateString('pt-BR')}</strong></>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setCurrentView('PRESTACAO_CONTAS')}
+                  className="flex items-center gap-2 px-8 py-4 bg-white text-purple-700 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-purple-50 shadow-lg transition-all"
+                >
+                  <FileText size={18} />
+                  Iniciar Prestação de Contas
+                </button>
+              </div>
+            )}
+
+{subView === 'DETAILS' && (
              <div className="space-y-10 animate-in fade-in duration-500 pb-32">
                 <div className="bg-[#0f172a] rounded-[48px] p-10 text-white shadow-2xl relative overflow-hidden group">
                    <div className="relative z-10">
@@ -4450,6 +4484,30 @@ Assinado eletronicamente pelo servidor suprido.`,
           onSuccess={() => {
             setShowDocumentWizard(false);
             fetchDossierDocs(selectedProcess.id);
+          }}
+        />
+      )}
+
+      {/* Prestação de Contas Wizard */}
+      {currentView === 'PRESTACAO_CONTAS' && selectedProcess && (
+        <PrestacaoContasWizard
+          solicitacaoId={selectedProcess.id}
+          processData={{
+            nup: selectedProcess.nup || selectedProcess.protocolNumber,
+            valorConcedido: selectedProcess.valor_aprovado || selectedProcess.valor_solicitado || selectedProcess.value || selectedProcess.val || 0,
+            supridoNome: selectedProcess.suprido_nome || profileData?.nome || 'Suprido',
+            dataFim: selectedProcess.data_fim,
+            prazoPrestacao: selectedProcess.prazo_prestacao,
+            portariaNumero: selectedProcess.portaria_sf_numero || selectedProcess.portaria_numero
+          }}
+          onClose={() => {
+            setCurrentView('DASHBOARD');
+            setSelectedProcess(null);
+          }}
+          onSuccess={() => {
+            setCurrentView('DASHBOARD');
+            setSelectedProcess(null);
+            refreshHistory();
           }}
         />
       )}

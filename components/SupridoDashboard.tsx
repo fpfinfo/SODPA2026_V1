@@ -3,6 +3,7 @@ import { ServiceProviderData, TaxCalculation } from '../types/taxIntegration';
 import { isPFElement, calculateTaxes, validateCPF, formatCPF } from '../lib/taxCalculations';
 import TaxCalculatorWidget from './TaxCalculatorWidget';
 import ServiceProviderForm from './ServiceProviderForm';
+import { PrestacaoContasWizard } from './Suprido/PrestacaoContasWizard';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from './ui/ToastProvider';
 
@@ -59,12 +60,13 @@ import {
   Save,
   Search,
   Filter,
-  Lock
+  Lock,
+  ClipboardCheck
 } from 'lucide-react';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-type SupridoView = 'DASHBOARD' | 'SELECT_TYPE' | 'FORM' | 'VIEW_DETAILS' | 'EDIT_DRAFT' | 'PROFILE' | 'PROCESS_DETAILS';
+type SupridoView = 'DASHBOARD' | 'SELECT_TYPE' | 'FORM' | 'VIEW_DETAILS' | 'EDIT_DRAFT' | 'PROFILE' | 'PROCESS_DETAILS' | 'PRESTACAO_CONTAS';
 type SubViewMode = 'DETAILS' | 'COVER' | 'REQUEST' | 'HISTORY' | 'DOSSIER' | 'TIMELINE' | 'EDIT_DOC' | 'VIEW_DOC';
 
 interface FormItem {
@@ -172,6 +174,9 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
   const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // Estados para Prestação de Contas
+  const [pendingPC, setPendingPC] = useState<any[]>([]);
+
   // Buscar usuário atual e processos pendentes de confirmação
   useEffect(() => {
     const fetchPendingConfirmations = async () => {
@@ -211,7 +216,27 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
       }
     };
     fetchPendingConfirmations();
-  }, []);
+
+    // Buscar processos aguardando prestação de contas
+    const fetchPendingPC = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('solicitacoes')
+        .select('id, nup, valor_solicitado, valor_aprovado, data_fim, prazo_prestacao, portaria_sf_numero')
+        .eq('user_id', user.id)
+        .eq('status_workflow', 'AWAITING_ACCOUNTABILITY');
+      
+      console.log('📋 [SupridoDashboard] Pending PC query error:', error);
+
+      console.log('📋 [SupridoDashboard] Pending PC:', data);
+      if (!error && data) {
+        setPendingPC(data);
+      }
+    };
+    fetchPendingPC();
+  }, [currentView]); // Refetch when view changes (e.g., returning to dashboard)
 
   // Handler para confirmar recebimento
   const handleConfirmReceipt = async (processId: string) => {
@@ -254,12 +279,22 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
       });
 
 
-      // Remover da lista de pendentes
+      // Remover da lista de pendentes de confirmação
       setPendingConfirmations(prev => prev.filter(p => p.id !== processId));
+
+      // IMPORTANTE: Adicionar à lista de pendentes de Prestação de Contas
+      // para que o banner apareça imediatamente
+      const confirmedProcess = pendingConfirmations.find(p => p.id === processId);
+      if (confirmedProcess) {
+        setPendingPC(prev => [...prev, {
+          ...confirmedProcess,
+          prazo_prestacao: prazoDate.toISOString()
+        }]);
+      }
 
       showToast({
         title: 'Recebimento Confirmado!',
-        message: 'Prazo de 30 dias para prestação de contas iniciado.',
+        message: `Prazo para prestação de contas: ${prazoDate.toLocaleDateString('pt-BR')}`,
         type: 'success'
       });
     } catch (error: any) {
@@ -292,28 +327,65 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
     gestorEmail: 'chefe@tjpa.jus.br'
   });
 
-  const [requestHistory, setRequestHistory] = useState([
-    { 
-        id: 'P-ORD-2026-01', 
-        nup: 'TJPA-ORD-2026-0001', 
-        type: 'ORDINÁRIO', 
-        desc: 'Suprimento Ordinário - 1º Quadrimestre 2026 - Concedido Automaticamente', 
-        date: '28/01/2026', 
-        val: 2000, 
-        status: 'A PRESTAR CONTAS',
-        origin: 'AUTOMATIC' 
-    },
-    { id: '1', nup: 'TJPA-SOL-00010-2026', type: 'SESSÃO DE JÚRI', desc: 'Solicitação para 3 dias de Júri Popular...', date: '25/01/2026', val: 1800, status: 'PENDENTE' },
-    { id: '2', nup: 'TJPA-SOL-00009-2026', type: 'EXTRA-EMERGENCIAL', desc: 'Diligência urgente na Comarca de Mãe do Rio...', date: '22/01/2026', val: 450, status: 'CONCEDIDO' },
-    { id: '3', nup: 'TJPA-SOL-00008-2026', type: 'SESSÃO DE JÚRI', desc: 'Apoio logístico para julgamento triplo...', date: '20/01/2026', val: 3200, status: 'PRESTANDO CONTAS' },
-    { id: '4', nup: 'TJPA-SOL-00007-2026', type: 'EXTRA-EMERGENCIAL', desc: 'Reparo hidráulico urgente na Unidade...', date: '18/01/2026', val: 280, status: 'ARQUIVADO' },
-    { id: '5', nup: 'TJPA-SOL-00006-2026', type: 'EXTRA-EMERGENCIAL', desc: 'Compra de suprimentos para diligência rural...', date: '15/01/2026', val: 900, status: 'RASCUNHO' },
-    { id: '6', nup: 'TJPA-SOL-00005-2026', type: 'SESSÃO DE JÚRI', desc: 'Júri Popular - Comarca de Castanhal...', date: '12/01/2026', val: 1500, status: 'PENDENTE' },
-    { id: '7', nup: 'TJPA-SOL-00004-2026', type: 'EXTRA-EMERGENCIAL', desc: 'Diligência urgente na Comarca de Mãe do Rio...', date: '10/01/2026', val: 600, status: 'RASCUNHO' },
-    { id: '8', nup: 'TJPA-SOL-00003-2026', type: 'SESSÃO DE JÚRI', desc: 'Solicitação para 2 dias de Júri Popular...', date: '05/01/2026', val: 1200, status: 'PENDENTE' },
-    { id: '9', nup: 'TJPA-SOL-00002-2026', type: 'EXTRA-EMERGENCIAL', desc: 'Material de expediente urgente...', date: '02/01/2026', val: 150, status: 'CONCEDIDO' },
-    { id: '10', nup: 'TJPA-SOL-00001-2026', type: 'SESSÃO DE JÚRI', desc: 'Primeira solicitação do ano...', date: '01/01/2026', val: 1100, status: 'ARQUIVADO' },
-  ]);
+  const [requestHistory, setRequestHistory] = useState<any[]>([]);
+
+  // Buscar histórico de solicitações do usuário logado
+  useEffect(() => {
+    const fetchRequestHistory = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('solicitacoes')
+        .select('id, nup, tipo, descricao, created_at, valor_solicitado, valor_aprovado, status, status_workflow, data_fim, prazo_prestacao, portaria_sf_numero')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ [SupridoDashboard] Error fetching solicitações:', error);
+        return;
+      }
+
+      console.log('📋 [SupridoDashboard] Solicitações carregadas:', data?.length);
+
+      // Map database columns to display format
+      const mappedData = (data || []).map(s => {
+        // Map status_workflow to Portuguese display status
+        const getDisplayStatus = (statusWorkflow: string | null, status: string | null): string => {
+          if (statusWorkflow === 'AWAITING_ACCOUNTABILITY') return 'PRESTANDO CONTAS';
+          if (statusWorkflow === 'ACCOUNTABILITY_OPEN') return 'PRESTANDO CONTAS';
+          if (statusWorkflow === 'PC_DRAFT' || statusWorkflow === 'PC_SUBMITTED') return 'PRESTANDO CONTAS';
+          if (statusWorkflow === 'AWAITING_SUPRIDO_CONFIRMATION') return 'AGUARDANDO CONFIRMAÇÃO';
+          if (statusWorkflow === 'SIGNED_BY_SEFIN') return 'ASSINADO SEFIN';
+          if (statusWorkflow === 'WAITING_SEFIN') return 'AGUARDANDO SEFIN';
+          if (status === 'APROVADO') return 'CONCEDIDO';
+          if (status === 'PENDENTE') return 'PENDENTE';
+          if (status === 'RASCUNHO') return 'RASCUNHO';
+          return status || 'PENDENTE';
+        };
+
+        return {
+          id: s.id,
+          nup: s.nup,
+          type: s.tipo?.toUpperCase() || 'EXTRA-EMERGENCIAL',
+          desc: s.descricao || 'Solicitação de suprimento de fundos',
+          date: new Date(s.created_at).toLocaleDateString('pt-BR'),
+          val: s.valor_aprovado || s.valor_solicitado || 0,
+          status: getDisplayStatus(s.status_workflow, s.status),
+          status_workflow: s.status_workflow,
+          data_fim: s.data_fim,
+          prazo_prestacao: s.prazo_prestacao,
+          portaria_sf_numero: s.portaria_sf_numero,
+          valor_aprovado: s.valor_aprovado,
+          valor_solicitado: s.valor_solicitado
+        };
+      });
+
+      setRequestHistory(mappedData);
+    };
+
+    fetchRequestHistory();
+  }, [currentView]); // Refetch when returning to dashboard
 
   const filteredHistory = requestHistory.filter(req => {
     const matchesSearch = req.nup.toLowerCase().includes(historyFilter.toLowerCase()) || 
@@ -557,6 +629,55 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
 
       {/* === BATCH NOTIFICATION BANNER === */}
 
+      {/* === PRESTAÇÃO DE CONTAS PENDING BANNER === */}
+      {pendingPC.length > 0 && pendingPC.map(process => {
+        const prazoDias = process.prazo_prestacao 
+          ? Math.ceil((new Date(process.prazo_prestacao).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null;
+        const isUrgent = prazoDias !== null && prazoDias <= 3;
+        
+        return (
+          <div 
+            key={process.id} 
+            className={`rounded-[32px] p-6 shadow-xl animate-in slide-in-from-top-2 ${
+              isUrgent 
+                ? 'bg-gradient-to-r from-red-500 to-rose-600' 
+                : 'bg-gradient-to-r from-purple-500 to-indigo-600'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <ClipboardCheck size={28} className="text-white" />
+                </div>
+                <div className="text-white">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/70">
+                    {isUrgent ? '🚨 Prestação Urgente' : '📋 Prestação de Contas Pendente'}
+                  </p>
+                  <h3 className="text-xl font-black">{process.nup}</h3>
+                  <p className="text-sm text-white/80">
+                    Valor: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(process.valor_aprovado || process.valor_solicitado || 0)}</strong>
+                    {prazoDias !== null && (
+                      <> • {prazoDias > 0 ? `Prazo: ${prazoDias} dia(s)` : 'Prazo vencido!'}</>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedProcess(process);
+                  setCurrentView('PRESTACAO_CONTAS');
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-white text-purple-700 rounded-xl font-black text-sm hover:bg-purple-50 transition-colors shadow-lg"
+              >
+                <ClipboardCheck size={18} />
+                Prestar Contas
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
       <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[32px] p-6 shadow-xl animate-in slide-in-from-top-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -671,6 +792,21 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
                                 }`}></div>
                                 {p.status}
                             </span>
+                            
+                            {/* Botão de Prestar Contas quando status apropriado */}
+                            {(p.status === 'PRESTANDO CONTAS' || p.status === 'A PRESTAR CONTAS') && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent card click
+                                  setSelectedProcess(p);
+                                  setCurrentView('PRESTACAO_CONTAS');
+                                }}
+                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-black rounded-xl flex items-center gap-2 transition-all shadow-md hover:shadow-lg"
+                              >
+                                <ClipboardCheck size={14} />
+                                PRESTAR CONTAS
+                              </button>
+                            )}
                         </div>
                         
                         <div className="text-slate-300 group-hover:text-blue-600 transition-colors">
@@ -911,6 +1047,10 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
   const renderProcessDetails = () => {
     const isTimeline = subView === 'TIMELINE';
     const isAutomatic = selectedProcess?.origin === 'AUTOMATIC';
+    const isPrestacaoContas = selectedProcess?.status === 'PRESTANDO CONTAS' || 
+                              selectedProcess?.status === 'A PRESTAR CONTAS' ||
+                              selectedProcess?.status_workflow === 'AWAITING_ACCOUNTABILITY' ||
+                              selectedProcess?.status_workflow === 'ACCOUNTABILITY_OPEN';
 
     return (
     <div className="p-10 max-w-[1200px] mx-auto animate-in fade-in pb-32 space-y-8">
@@ -998,13 +1138,13 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
                      </div>
                   </div>
                   
-                  {isAutomatic && (
+                  {(isAutomatic || isPrestacaoContas) && (
                       <div className="mt-8 pt-8 border-t border-slate-100 flex justify-end">
                           <button 
-                            className="px-8 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-3"
-                            onClick={() => alert("Módulo de Prestação de Contas iniciado!")}
+                            className="px-8 py-4 bg-purple-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all flex items-center gap-3"
+                            onClick={() => setCurrentView('PRESTACAO_CONTAS')}
                           >
-                              <FileText size={18}/> Iniciar Prestação de Contas
+                              <ClipboardCheck size={18}/> Iniciar Prestação de Contas
                           </button>
                       </div>
                   )}
@@ -1022,6 +1162,27 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
       {currentView === 'FORM' && renderForm()}
       {currentView === 'PROFILE' && renderProfile()}
       {currentView === 'VIEW_DETAILS' && renderProcessDetails()}
+      {currentView === 'PRESTACAO_CONTAS' && selectedProcess && (
+        <PrestacaoContasWizard
+          solicitacaoId={selectedProcess.id}
+          processData={{
+            nup: selectedProcess.nup || selectedProcess.protocolNumber,
+            valorConcedido: selectedProcess.valor_aprovado || selectedProcess.valor_solicitado || selectedProcess.value,
+            supridoNome: selectedProcess.suprido_nome || selectedProcess.interestedParty || 'Suprido',
+            dataFim: selectedProcess.data_fim,
+            prazoPrestacao: selectedProcess.prazo_prestacao,
+            portariaNumero: selectedProcess.portaria_sf_numero || selectedProcess.portaria_numero
+          }}
+          onClose={() => {
+            setCurrentView('DASHBOARD');
+            setSelectedProcess(null);
+          }}
+          onSuccess={() => {
+            setCurrentView('DASHBOARD');
+            setSelectedProcess(null);
+          }}
+        />
+      )}
     </div>
   );
 };

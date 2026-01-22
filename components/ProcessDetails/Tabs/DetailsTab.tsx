@@ -24,7 +24,30 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
   };
 
   const getStatusBadge = (status: string) => {
-    const normalizedStatus = status?.toLowerCase().replace(/ /g, '_') || 'pendente_atesto';
+    // First check for status_workflow which takes precedence
+    const workflowStatus = (process as any)?.status_workflow;
+    let normalizedStatus: string;
+    let displayLabel: string | undefined;
+
+    // Map workflow status to display
+    if (workflowStatus === 'AWAITING_ACCOUNTABILITY' || workflowStatus === 'ACCOUNTABILITY_OPEN') {
+      normalizedStatus = 'prestando_contas';
+      displayLabel = 'Prestando Contas';
+    } else if (workflowStatus === 'PC_SUBMITTED') {
+      normalizedStatus = 'prestando_contas';
+      displayLabel = 'PC Submetida';
+    } else if (workflowStatus === 'PC_APPROVED') {
+      normalizedStatus = 'aprovado';
+      displayLabel = 'PC Aprovada';
+    } else if (workflowStatus === 'SIGNED_BY_SEFIN') {
+      normalizedStatus = 'assinado_sefin';
+      displayLabel = 'Assinado SEFIN';
+    } else if (workflowStatus === 'AWAITING_SUPRIDO_CONFIRMATION') {
+      normalizedStatus = 'aguardando_confirmacao';
+      displayLabel = 'Aguardando Confirmação';
+    } else {
+      normalizedStatus = status?.toLowerCase().replace(/ /g, '_') || 'pendente_atesto';
+    }
     
     // Status mapping override for visuals
     let visualKey = normalizedStatus;
@@ -38,8 +61,10 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
       'em_analise_sosfu': { icon: AlertCircle, color: 'bg-purple-50 text-purple-700 border-purple-200', label: 'Em Análise SOSFU' },
       'aprovado': { icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Aprovado' },
       'devolvido': { icon: AlertCircle, color: 'bg-red-50 text-red-700 border-red-200', label: 'Devolvido' },
-      // Fallback keys match normalized DB values just in case
       'pendente': { icon: Clock, color: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Pendente' },
+      'prestando_contas': { icon: AlertCircle, color: 'bg-purple-50 text-purple-700 border-purple-200', label: 'Prestando Contas' },
+      'assinado_sefin': { icon: CheckCircle2, color: 'bg-green-50 text-green-700 border-green-200', label: 'Assinado SEFIN' },
+      'aguardando_confirmacao': { icon: Clock, color: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Aguardando Confirmação' },
     };
 
     const config = statusConfig[visualKey] || statusConfig[normalizedStatus] || statusConfig['pendente_atesto'];
@@ -48,7 +73,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
     return (
       <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${config.color} font-bold text-sm`}>
         <Icon size={16} />
-        {config.label}
+        {displayLabel || config.label}
       </div>
     );
   };

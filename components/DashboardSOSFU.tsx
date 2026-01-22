@@ -19,6 +19,8 @@ import { BudgetMatrixConfig } from './BudgetMatrixConfig';
 import { SupridoManager } from './SupridoManager';
 import { SupridoMasterTable } from './SOSFU/SupridoMasterTable';
 import { OrdinaryProcessFactory } from './SOSFU/OrdinaryProcessFactory';
+import { GestaoINSSTab } from './SOSFU/GestaoINSSTab';
+import { GestaoDevolucoesTab } from './SOSFU/GestaoDevolucoesTab';
 import { SiafeManager } from './SiafeManager';
 import { ExpenseExecutionWizard } from './Execution/ExpenseExecutionWizard';
 import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
@@ -504,10 +506,24 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
           <div className="h-full overflow-y-auto custom-scrollbar pb-10">
             {/* Sub-navigation for Financeiro */}
             <div className="flex gap-2 mb-6">
-              <button onClick={() => setFinanceSubTab('TAX_INSS')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${financeSubTab === 'TAX_INSS' ? 'bg-emerald-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-emerald-50'}`}><Landmark size={14}/> Gestão de INSS</button>
-              <button onClick={() => setFinanceSubTab('GDR_CONTROL')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${financeSubTab === 'GDR_CONTROL' ? 'bg-teal-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-teal-50'}`}><Undo2 size={14}/> Gestão de Devoluções</button>
+              <button onClick={() => setFinanceSubTab('TAX_INSS')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${financeSubTab === 'TAX_INSS' ? 'bg-purple-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-purple-50'}`}><Landmark size={14}/> Gestão de INSS</button>
+              <button onClick={() => setFinanceSubTab('GDR_CONTROL')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${financeSubTab === 'GDR_CONTROL' ? 'bg-emerald-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-emerald-50'}`}><Undo2 size={14}/> Gestão de Devoluções</button>
             </div>
-            <FinancialRegistry processes={getFilteredList()} type={financeSubTab} isLoading={isLoading} onManageTables={() => setActiveTab('INSS_TABLES')}/>
+            {financeSubTab === 'TAX_INSS' ? (
+              <GestaoINSSTab 
+                onSelectProcess={(id) => {
+                  const p = processes.find(pr => pr.id === id);
+                  if (p) { setSelectedProcess(p); setDetailsModalTab('OVERVIEW'); }
+                }}
+              />
+            ) : (
+              <GestaoDevolucoesTab 
+                onSelectProcess={(id) => {
+                  const p = processes.find(pr => pr.id === id);
+                  if (p) { setSelectedProcess(p); setDetailsModalTab('OVERVIEW'); }
+                }}
+              />
+            )}
           </div>
                 ) : isConcessionTab ? (
           /* Aba Concessão - Arquivo de Solicitações Concluídas */

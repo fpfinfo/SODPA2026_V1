@@ -197,12 +197,16 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
             <p className="font-bold text-sm text-slate-800">{docConfig.titulo}</p>
             {isBlockA && (
               <p className={`text-xs mt-1 flex items-center gap-1 ${
-                status === 'ASSINADO' ? 'text-emerald-600' : 'text-orange-600'
+                status === 'ASSINADO' ? 'text-emerald-600' : 
+                status === 'GERADO' ? 'text-blue-600' : 'text-orange-600'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${
-                  status === 'ASSINADO' ? 'bg-emerald-600' : 'bg-orange-600'
+                  status === 'ASSINADO' ? 'bg-emerald-600' : 
+                  status === 'GERADO' ? 'bg-blue-600' : 'bg-orange-600'
                 }`}></span>
-                {status === 'ASSINADO' ? '✓ Assinado pela SEFIN' : 'Requerido para SEFIN'}
+                {status === 'ASSINADO' ? '✓ Assinado pela SEFIN' : 
+                 status === 'GERADO' ? '⏳ Aguardando assinatura SEFIN' : 
+                 'Pendente de geração'}
               </p>
             )}
           </div>
@@ -326,6 +330,36 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
               <p className="text-sm text-amber-100">
                 Os documentos foram enviados para a SEFIN. O processo retornará automaticamente após as assinaturas.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================== */}
+      {/* BANNER: SEFIN Assinou - Sucesso */}
+      {/* ======================================== */}
+      {isSignedBySefin && (
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-6 text-white relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-2xl"></div>
+            <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/20 rounded-full blur-xl"></div>
+          </div>
+          <div className="relative flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/25 rounded-full flex items-center justify-center shadow-lg">
+              <CheckCircle className="w-7 h-7" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-black text-lg flex items-center gap-2">
+                ✅ SEFIN Assinou os Documentos!
+              </h4>
+              <p className="text-sm text-emerald-100 mt-1">
+                O processo retornou da SEFIN com todos os documentos assinados pelo Ordenador. 
+                Agora você pode gerar a <strong>Nota de Liquidação (DL)</strong> e a <strong>Ordem Bancária (OB)</strong>.
+              </p>
+            </div>
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/20 rounded-xl text-sm font-bold">
+              <Sparkles className="w-4 h-4" />
+              Pronto para Liquidar
             </div>
           </div>
         </div>
