@@ -605,13 +605,25 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
             // This ensures Gestor/Seplan views (which join profiles) see the correct name
             // Only update essential fields that exist in profiles table
             try {
-              await supabase.from('profiles').upsert({
-                id: user.id,
-                nome: servidorData.nome,
-                role: 'SUPRIDO',
-                email: servidorData.email,
-                updated_at: new Date().toISOString()
-              }, { onConflict: 'id' });
+              const { error: updateErr } = await supabase.from('profiles')
+                .update({
+                  nome: servidorData.nome,
+                  email: servidorData.email,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', user.id);
+              
+              // If profile doesn't exist (no rows updated), create it
+              if (updateErr?.code === 'PGRST116') {
+                await supabase.from('profiles').insert({
+                  id: user.id,
+                  nome: servidorData.nome,
+                  role: 'SUPRIDO',
+                  email: servidorData.email,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                });
+              }
             } catch (profileErr) {
               // Silently log - profile sync is optional, don't block UI
               console.warn('[SupridoDashboard] Profile sync skipped:', profileErr);
