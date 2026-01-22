@@ -26,6 +26,7 @@ export function useGestorProcesses() {
           tipo,
           valor_solicitado,
           status,
+          status_workflow,
           descricao,
           created_at,
           itens_despesa,
@@ -35,8 +36,8 @@ export function useGestorProcesses() {
             nome
           )
         `)
-        .eq('status', 'PENDENTE ATESTO')
         .eq('destino_atual', 'GESTOR')
+        .or('status.eq.PENDENTE ATESTO,status_workflow.eq.PC_SUBMITTED') // Atesto concessão OU Atesto PC
         .order('created_at', { ascending: false });
 
       if (error) throw error;
