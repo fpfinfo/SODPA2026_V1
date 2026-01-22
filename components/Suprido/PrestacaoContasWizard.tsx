@@ -158,7 +158,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
   const canProceed = (step: WizardStep): boolean => {
     switch (step) {
       case 1: return true; // Always can view summary
-      case 2: return hasComprovantes && totalGasto > 0;
+      case 2: return totalGasto > 0; // Comprovantes exist if total > 0
       case 3: {
         // GDR step: must have all required GDRs uploaded
         const inssOk = !temINSSParaRecolher || gdrINSSPaga;
