@@ -274,14 +274,30 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       const { data, error } = await supabase
         .from('solicitacoes')
         .select('id, nup, valor_solicitado, data_credito, user_id, status_workflow')
-        .eq('status_workflow', 'AWAITING_SUPRIDO_CONFIRMATION');
+        .eq('status_workflow', 'AWAITING_SUPRIDO_CONFIRMATION')
+        .eq('user_id', currentUserId); // Filter by current user
       
       console.log('📋 [Suprido/Dashboard] Pending confirmations:', data);
       if (error) console.error('❌ [Suprido/Dashboard] Query error:', error);
       
       if (!error && data) {
-        // Mostrar todos os pendentes (pode ajustar para filtrar por user_id se necessário)
         setPendingConfirmations(data);
+        
+        // Check URL params for auto-confirmation prompt
+        const params = new URLSearchParams(window.location.search);
+        const action = params.get('action');
+        const id = params.get('id');
+        
+        if (action === 'confirm' && id) {
+          const targetProcess = data.find((p: any) => p.id === id);
+          if (targetProcess) {
+            // Check if we already have a confirmation modal state or just scroll/highlight
+            // For now, we'll auto-scoll to top and show a toast, or trigger it directly?
+            // Safer to just ensure it's visible. The banner is at the top.
+            // Let's scroll to top just in case.
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }
       }
     };
     fetchPendingConfirmations();
@@ -325,6 +341,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
       });
 
       setPendingConfirmations(prev => prev.filter(p => p.id !== processId));
+
+      await refreshHistory(); // Refresh history to update capabilities/buttons immediately
 
       showToast({
         title: 'Recebimento Confirmado!',
@@ -390,9 +408,13 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   // KPI States - calculated from history data
   const kpiData = useMemo(() => {
     // Calculate values based on solicitações history
-    const aprovadas = history.filter((s: any) => s.status === 'CONCEDIDO' || s.status === 'PRESTANDO CONTAS');
+    const aprovadas = history.filter((s: any) => 
+      s.status === 'CONCEDIDO' || 
+      s.status === 'PRESTANDO CONTAS' ||
+      s.status_workflow === 'AWAITING_SUPRIDO_CONFIRMATION' // Money is available
+    );
     const pendentes = history.filter((s: any) => s.status === 'PENDENTE' || s.status === 'PENDENTE ANÁLISE' || s.status === 'PENDENTE ATESTO');
-    const prestando = history.filter((s: any) => s.status === 'PRESTANDO CONTAS');
+    const prestando = history.filter((s: any) => s.status === 'PRESTANDO CONTAS' || s.status_workflow === 'AWAITING_ACCOUNTABILITY');
     const rascunhos = history.filter((s: any) => s.status === 'RASCUNHO');
     
     // Saldo Disponível: Sum of approved values
@@ -3431,7 +3453,8 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
         user_id: userId,
         nup: generatedNUP,
         tipo: formState.type,
-        status: 'Aguardando Atesto',
+        status: 'PENDENTE ATESTO',  // Exact match for useGestorProcesses filter
+        destino_atual: 'GESTOR',    // Required for Gestor inbox visibility
         valor_solicitado: totalValue,
         valor_aprovado: 0,
         descricao: formState.desc,
@@ -3459,7 +3482,8 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
            .from('solicitacoes')
            .update({ 
               ...payload, 
-              status: 'Aguardando Atesto',
+              status: 'PENDENTE ATESTO',  // Exact match for useGestorProcesses filter
+              destino_atual: 'GESTOR',    // Required for Gestor inbox visibility
               updated_at: new Date().toISOString()
            })
            .eq('id', editingProcessId)

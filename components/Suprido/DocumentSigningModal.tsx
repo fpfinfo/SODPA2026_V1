@@ -1,6 +1,4 @@
-'use client'
-
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   X, 
   BadgeCheck, 
@@ -36,6 +34,15 @@ export const DocumentSigningModal: React.FC<DocumentSigningModalProps> = ({
   const [currentStep, setCurrentStep] = useState<'CAPA' | 'REQUERIMENTO'>('CAPA')
   const [isCasSigned, setIsCapaSigned] = useState(false)
   const [isRequerimentoSigned, setIsRequerimentoSigned] = useState(false)
+
+  // Reset states when modal opens to ensure fresh signing flow
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep('CAPA')
+      setIsCapaSigned(false)
+      setIsRequerimentoSigned(false)
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 

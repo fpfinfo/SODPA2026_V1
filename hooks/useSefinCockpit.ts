@@ -403,11 +403,26 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
 
       if (error) throw error
 
-      // Update documento status to ASSINADO
+      // Update documento status to ASSINADO with signer info
       if (task?.documento_id) {
+        // First, get the user's profile for signer name
+        const { data: signerProfile } = await supabase
+          .from('profiles')
+          .select('nome, cargo')
+          .eq('id', user.id)
+          .single()
+        
         await supabase
           .from('documentos')
-          .update({ status: 'ASSINADO' })
+          .update({ 
+            status: 'ASSINADO',
+            signed_at: new Date().toISOString(),
+            signed_by: user.id,
+            metadata: {
+              signed_by_name: signerProfile?.nome || 'Ordenador de Despesa',
+              signer_role: signerProfile?.cargo || 'Ordenador de Despesa'
+            }
+          })
           .eq('id', task.documento_id)
         
         // Also sync execution_documents to show correct status in SOSFU
@@ -486,12 +501,27 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
 
       if (error) throw error
 
-      // Update documento status for each signed task
+      // Get signer profile for metadata
+      const { data: signerProfile } = await supabase
+        .from('profiles')
+        .select('nome, cargo')
+        .eq('id', user.id)
+        .single()
+
+      // Update documento status for each signed task with signer info
       const documentoIds = (tasks || []).map(t => t.documento_id).filter(Boolean)
       if (documentoIds.length > 0) {
         await supabase
           .from('documentos')
-          .update({ status: 'ASSINADO' })
+          .update({ 
+            status: 'ASSINADO',
+            signed_at: new Date().toISOString(),
+            signed_by: user.id,
+            metadata: {
+              signed_by_name: signerProfile?.nome || 'Ordenador de Despesa',
+              signer_role: signerProfile?.cargo || 'Ordenador de Despesa'
+            }
+          })
           .in('id', documentoIds)
         
         // Also sync execution_documents to show correct status in SOSFU

@@ -391,6 +391,8 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         .from('solicitacoes')
         .update({
           ob_numero: obFile.name.replace('.pdf', ''),
+          status: 'PAYMENT_PROCESSING', // SCS 4.0: Move to payment processing
+          status_workflow: 'PAYMENT_PROCESSING',
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);

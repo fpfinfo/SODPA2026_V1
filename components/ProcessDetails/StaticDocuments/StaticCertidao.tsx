@@ -88,7 +88,7 @@ export const StaticCertidao: React.FC<StaticCertidaoProps> = ({ processData, doc
         <div className="mt-16 text-center space-y-4">
           <div className="pt-4 border-t border-slate-400 max-w-md mx-auto">
             <p className="font-bold text-base uppercase">
-              Seção de Suprimento de Fundos - SOSFU
+              ANAILTON PAULO DE ALENCAR
             </p>
             <p className="text-sm text-slate-600">Secretaria Executiva de Finanças - SEFIN</p>
             <p className="text-xs text-slate-500 mt-1">Tribunal de Justiça do Estado do Pará</p>
@@ -100,6 +100,16 @@ export const StaticCertidao: React.FC<StaticCertidaoProps> = ({ processData, doc
           <p>Documento gerado eletronicamente pelo Sistema SISUP.</p>
           <p>A autenticidade pode ser verificada através do ID: <strong>{documentData?.id?.substring(0, 16) || 'N/A'}</strong></p>
         </div>
+
+        {/* Digital signature block - Show when document is signed */}
+        {(documentData?.status === 'ASSINADO' || documentData?.status === 'Assinado') && (
+          <div className="mt-6 text-center text-xs border-t border-emerald-200 pt-4 bg-emerald-50/50 rounded-lg p-4">
+            <p className="text-emerald-600 font-bold mb-2">✓ ASSINADO ELETRONICAMENTE</p>
+            <p>Assinado digitalmente por <strong>{documentData?.metadata?.signed_by_name || 'Anailton Paulo de Alencar'}</strong></p>
+            <p>Data: {formatDate(documentData?.metadata?.signed_at || documentData?.signed_at || documentData?.updated_at || documentData?.created_at)}</p>
+            <p className="text-[10px] mt-1">Documento válido conforme Lei 14.063/2020</p>
+          </div>
+        )}
       </div>
     </div>
   );

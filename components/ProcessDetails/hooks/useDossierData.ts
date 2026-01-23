@@ -11,8 +11,11 @@ export interface DossierDocument {
   created_by: string;
   created_at: string;
   updated_at?: string;
+  signed_at?: string;
+  signed_by?: string;
   solicitacao_id: string;
   metadata?: any;
+  file_url?: string; // For external PDF documents
   profiles?: {
     nome: string;
     cargo: string;

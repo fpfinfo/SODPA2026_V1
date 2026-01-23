@@ -115,23 +115,9 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
   // ========================================
   // HANDLERS
   // ========================================
-  const handleConfirmCredit = () => {
+  const handleConfirmCredit = async () => {
     setIsConfirmingCredit(true);
-    // Simulate bank verification delay
-    setTimeout(() => {
-      setCreditConfirmed(true);
-      setIsConfirmingCredit(false);
-      showToast({
-        title: 'Crédito Confirmado',
-        message: 'Recurso verificado na conta do suprido',
-        type: 'success'
-      });
-    }, 1500);
-  };
-
-
-  const handleReleaseFunds = async () => {
-    setIsReleasing(true);
+    
     try {
       // 1. Update workflow status to awaiting Suprido confirmation
       await updateStatus('AWAITING_SUPRIDO_CONFIRMATION');
@@ -153,26 +139,16 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         .eq('id', processData.id)
         .single();
 
-      console.log('📧 [TechnicalAnalysis] Creating notification for user_id:', processInfo?.user_id);
-
       if (processInfo?.user_id) {
-        const { data: notificationData, error: notificationError } = await supabase.from('system_notifications').insert({
+        await supabase.from('system_notifications').insert({
           user_id: processInfo.user_id,
           type: 'CRITICAL',
           category: 'PROCESS',
           title: '💰 Recurso Creditado - Confirme o Recebimento',
-          message: `Seu suprimento de fundos (${processInfo.nup}) foi creditado em sua conta. Acesse o sistema para confirmar o recebimento.`,
+          message: `Seu suprimento de fundos (${processInfo.nup}) foi creditado em sua conta. Acesse o sistema para confirmar o recebimento e iniciar a execução.`,
           link_action: `/suprido?action=confirm&id=${processData.id}`,
           is_read: false
-        }).select();
-
-        if (notificationError) {
-          console.error('❌ [TechnicalAnalysis] Notification insert error:', notificationError);
-        } else {
-          console.log('✅ [TechnicalAnalysis] Notification created:', notificationData);
-        }
-      } else {
-        console.warn('⚠️ [TechnicalAnalysis] No user_id found for process:', processData.id);
+        });
       }
 
       // 4. Record in history
@@ -186,21 +162,27 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         created_at: new Date().toISOString()
       });
 
+      setCreditConfirmed(true);
       showToast({
-        title: 'Crédito Confirmado',
-        message: 'Suprido notificado para confirmar o recebimento',
+        title: 'Crédito Confirmado e Liberado!',
+        message: 'O Suprido foi notificado para iniciar a prestação de contas.',
         type: 'success'
       });
     } catch (error: any) {
-      console.error('Error releasing funds:', error);
+      console.error('Error confirming credit:', error);
       showToast({
-        title: 'Erro ao liberar',
+        title: 'Erro ao confirmar',
         message: error.message || 'Tente novamente',
         type: 'error'
       });
     } finally {
-      setIsReleasing(false);
+      setIsConfirmingCredit(false);
     }
+  };
+
+  const handleReleaseFunds = async () => {
+    // Legacy function kept for compatibility if needed, but logic is moved to handleConfirmCredit
+    await handleConfirmCredit();
   };
 
 

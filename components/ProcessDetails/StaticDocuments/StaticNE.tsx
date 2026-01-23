@@ -118,10 +118,10 @@ export const StaticNE: React.FC<StaticNEProps> = ({ processData, documentData })
         {/* Signatures */}
         <div className="grid grid-cols-2 gap-8 mt-16 pt-8">
            <div className="text-center">
-             {metadata.signed_by_name ? (
+             {(documentData?.status === 'ASSINADO' || documentData?.status === 'Assinado' || metadata.signed_by_name) ? (
                <div className="mb-2">
-                 <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mb-1">Assinado Digitalmente</p>
-                 <p className="text-sm font-bold border-b border-black inline-block px-4">{metadata.signed_by_name}</p>
+                 <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mb-1">✓ Assinado Digitalmente</p>
+                 <p className="text-sm font-bold border-b border-black inline-block px-4">{metadata.signed_by_name || 'Anailton Paulo de Alencar'}</p>
                </div>
              ) : (
                <div className="h-px bg-black w-3/4 mx-auto mb-2"></div>
@@ -133,6 +133,16 @@ export const StaticNE: React.FC<StaticNEProps> = ({ processData, documentData })
              <p className="text-xs font-bold uppercase">Responsável pela Emissão</p>
            </div>
         </div>
+        
+        {/* Digital signature notice - full format when signed */}
+        {(documentData?.status === 'ASSINADO' || documentData?.status === 'Assinado') && (
+          <div className="mt-8 text-center text-xs text-slate-500 italic border-t border-slate-200 pt-4">
+            <p className="text-emerald-600 font-bold mb-2">✓ ASSINADO ELETRONICAMENTE</p>
+            <p>Assinado digitalmente por <strong>{metadata.signed_by_name || 'Anailton Paulo de Alencar'}</strong></p>
+            <p>Data: {formatDate(metadata.signed_at || documentData?.signed_at || documentData?.updated_at || documentData?.created_at)}</p>
+            <p className="text-[10px] mt-1">Documento válido conforme Lei 14.063/2020</p>
+          </div>
+        )}
       </div>
     </div>
   );

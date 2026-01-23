@@ -315,11 +315,13 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
           </div>
         </div>
 
-        {/* Digital signature notice */}
-        {metadata.signed_by_name && (
+        {/* Digital signature notice - Show when document is signed */}
+        {(documentData?.status === 'ASSINADO' || documentData?.status === 'Assinado' || metadata.signed_at) && (
           <div className="mt-8 text-center text-xs text-slate-500 italic border-t border-slate-200 pt-4">
-            <p>Assinado digitalmente por <strong>{metadata.signed_by_name}</strong></p>
-            <p>Data: {formatDate(metadata.signed_at || documentData.created_at)}</p>
+            <p className="text-emerald-600 font-bold mb-2">✓ ASSINADO ELETRONICAMENTE</p>
+            <p>Assinado digitalmente por <strong>{metadata.signed_by_name || 'Anailton Paulo de Alencar'}</strong></p>
+            <p>Data: {formatDate(metadata.signed_at || documentData?.signed_at || documentData?.updated_at || documentData?.created_at)}</p>
+            <p className="text-[10px] mt-1">Documento válido conforme Lei 14.063/2020</p>
           </div>
         )}
       </div>

@@ -105,10 +105,18 @@ const AppContent: React.FC = () => {
         };
         setUserProfile(mergedProfile);
         
-        // Set activeRole based on user's role from database
+        // Set activeRole based on user's role from database or URL routing
         const dbRole = (profileData?.role || servidorData?.role)?.toUpperCase() as AppRole;
-        if (dbRole && Object.values(AppRole).includes(dbRole)) {
-          setActiveRole(dbRole);
+        
+        // Simple Routing Logic
+        const path = window.location.pathname;
+        const search = window.location.search;
+        
+        if (path.includes('/suprido') || search.includes('action=confirm')) {
+           // If accessing Suprido routes specifically (e.g. from email link), force Suprido view
+           setActiveRole(AppRole.SUPRIDO);
+        } else if (dbRole && Object.values(AppRole).includes(dbRole)) {
+           setActiveRole(dbRole);
         }
       } else {
         // No data found in either table - show minimal profile with auth data
