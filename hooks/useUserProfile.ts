@@ -18,6 +18,7 @@ export interface UserProfile {
   gestor_nome?: string;
   gestor_email?: string;
   role?: string;
+  signature_pin?: string;
   _source: 'servidores_tj' | 'profiles' | 'auth_only';
 }
 
@@ -43,6 +44,13 @@ export function useUserProfile(user: any): UseUserProfileResult & { initialRole:
     try {
       setLoading(true);
       const currentUserId = user.id;
+      
+      // Guard against empty ID to prevent 400 Bad Request
+      if (!currentUserId) {
+        setLoading(false);
+        return;
+      }
+
       const userEmail = user.email;
 
       // Parallel Data Fetching
@@ -89,6 +97,7 @@ export function useUserProfile(user: any): UseUserProfileResult & { initialRole:
           gestor_nome: servidorData?.gestor_nome || profileData?.gestor_nome,
           gestor_email: servidorData?.gestor_email || profileData?.gestor_email,
           role: profileData?.role || servidorData?.role || 'SUPRIDO',
+          signature_pin: profileData?.signature_pin,
           _source: servidorData ? 'servidores_tj' : 'profiles',
         };
 

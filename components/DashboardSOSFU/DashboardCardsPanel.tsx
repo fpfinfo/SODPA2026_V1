@@ -1,12 +1,15 @@
 import React from 'react';
 import { Inbox, UserCog, ShieldCheck, CheckSquare, FileSearch, Database } from 'lucide-react';
 import { SOSFUStats } from '../../hooks/useSOSFUProcesses';
+import { Skeleton } from '../ui/Skeleton';
+import { MotionWrapper } from '../ui/MotionWrapper';
 
 export type CardMode = 'CONCESSION' | 'PC';
 
 interface DashboardCardsPanelProps {
   sosfuStats: SOSFUStats;
   mode?: CardMode; // Dynamic mode for labels
+  isLoading?: boolean;
   onInboxClick: () => void;
   onMyTasksClick: () => void;
   onAwaitingSignClick: () => void;
@@ -16,6 +19,7 @@ interface DashboardCardsPanelProps {
 export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
   sosfuStats,
   mode = 'CONCESSION',
+  isLoading = false,
   onInboxClick,
   onMyTasksClick,
   onAwaitingSignClick,
@@ -40,7 +44,9 @@ export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
       {/* 📥 CAIXA DE ENTRADA */}
-      <div 
+      {/* 📥 CAIXA DE ENTRADA */}
+      <MotionWrapper 
+        delay={0.1}
         onClick={onInboxClick} 
         className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"
       >
@@ -52,23 +58,25 @@ export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Caixa de Entrada</span>
         </div>
         <div>
-          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.inbox.total}</h3>
+          {isLoading ? <Skeleton className="h-8 w-16 mb-1" /> : <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.inbox.total}</h3>}
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-blue-600">Novos Recebidos</p>
           <div className="flex gap-4 mt-2">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.inbox.solicitacoes} Sol.</span>
+              {isLoading ? <Skeleton className="h-3 w-12" /> : <span className="text-[10px] font-bold text-slate-400">{sosfuStats.inbox.solicitacoes} Sol.</span>}
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
-              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.inbox.prestacoes} PC</span>
+              {isLoading ? <Skeleton className="h-3 w-12" /> : <span className="text-[10px] font-bold text-slate-400">{sosfuStats.inbox.prestacoes} PC</span>}
             </div>
           </div>
         </div>
-      </div>
+      </MotionWrapper>
 
       {/* 👤 MINHA MESA */}
-      <div 
+      {/* 👤 MINHA MESA */}
+      <MotionWrapper 
+        delay={0.2}
         onClick={onMyTasksClick} 
         className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"
       >
@@ -80,14 +88,16 @@ export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Minha Mesa</span>
         </div>
         <div>
-          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.myTasks}</h3>
+          {isLoading ? <Skeleton className="h-8 w-16 mb-1" /> : <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.myTasks}</h3>}
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-purple-600">Atribuídos a Mim</p>
           <p className="text-[10px] text-slate-400 mt-1">Sua fila de trabalho</p>
         </div>
-      </div>
+      </MotionWrapper>
 
       {/* 📤 CARD 3: FLUXO SEFIN / EM ANÁLISE (Dynamic) */}
-      <div 
+      {/* 📤 CARD 3: FLUXO SEFIN / EM ANÁLISE (Dynamic) */}
+      <MotionWrapper 
+        delay={0.3}
         onClick={onAwaitingSignClick} 
         className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition-all cursor-pointer"
       >
@@ -99,23 +109,25 @@ export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">{labels.card3Tag}</span>
         </div>
         <div>
-          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.awaitingSignature + (sosfuStats.signed || 0)}</h3>
+          {isLoading ? <Skeleton className="h-8 w-16 mb-1" /> : <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.awaitingSignature + (sosfuStats.signed || 0)}</h3>}
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-amber-600">{labels.card3Title}</p>
           <div className="flex gap-4 mt-2">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
-              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.awaitingSignature} {labels.card3Sub1}</span>
+              {isLoading ? <Skeleton className="h-3 w-12" /> : <span className="text-[10px] font-bold text-slate-400">{sosfuStats.awaitingSignature} {labels.card3Sub1}</span>}
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              <span className="text-[10px] font-bold text-slate-400">{sosfuStats.signed || 0} {labels.card3Sub2}</span>
+              {isLoading ? <Skeleton className="h-3 w-12" /> : <span className="text-[10px] font-bold text-slate-400">{sosfuStats.signed || 0} {labels.card3Sub2}</span>}
             </div>
           </div>
         </div>
-      </div>
+      </MotionWrapper>
 
       {/* ✅ CARD 4: AGUARD. PC / AGUARD. BAIXA (Dynamic) */}
-      <div 
+      {/* ✅ CARD 4: AGUARD. PC / AGUARD. BAIXA (Dynamic) */}
+      <MotionWrapper 
+        delay={0.4}
         onClick={onFinanceClick} 
         className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer"
       >
@@ -127,14 +139,14 @@ export const DashboardCardsPanel: React.FC<DashboardCardsPanelProps> = ({
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">{labels.card4Tag}</span>
         </div>
         <div>
-          <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.awaitingPC}</h3>
+          {isLoading ? <Skeleton className="h-8 w-16 mb-1" /> : <h3 className="text-3xl font-black text-slate-800 mb-1">{sosfuStats.awaitingPC}</h3>}
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-emerald-600">{labels.card4Title}</p>
           <div className="flex items-center gap-1.5 mt-2">
             <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
-            <span className="text-[10px] font-bold text-slate-400">{sosfuStats.prestacoesAudit} {labels.card4Sub}</span>
+            {isLoading ? <Skeleton className="h-3 w-12" /> : <span className="text-[10px] font-bold text-slate-400">{sosfuStats.prestacoesAudit} {labels.card4Sub}</span>}
           </div>
         </div>
-      </div>
+      </MotionWrapper>
     </div>
   );
 };

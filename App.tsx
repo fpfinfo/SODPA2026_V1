@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { AlertBanner } from './components/ui/AlertBanner';
 import { useUserProfile } from './hooks/useUserProfile';
 import { AppNavbar } from './components/Layout/AppNavbar';
+import { CommandPalette } from './components/CommandPalette';
 
 // Lazy load heavy dashboard components for better initial load performance
 const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').then(m => ({ default: m.DashboardSOSFU })));
@@ -42,6 +43,7 @@ const AppContent: React.FC = () => {
   const [previousActiveRole, setPreviousActiveRole] = useState<AppRole | null>(null); // Stores role before profile navigation
   // Shared processes state for cross-module integration (e.g., SOSFU -> SEFIN)
   const [sharedProcesses, setSharedProcesses] = useState<Process[]>([]);
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
 
   // Custom Hook for Profile Data
   const { userProfile, refetchUser, initialRole } = useUserProfile(user);
@@ -158,6 +160,18 @@ const AppContent: React.FC = () => {
         )}
         </Suspense>
       </main>
+
+      <CommandPalette 
+        open={isCommandOpen} 
+        onOpenChange={setIsCommandOpen}
+        onNavigate={(role) => {
+            setActiveRole(role);
+            setSupridoViewOverride(null);
+        }}
+        onSignOut={signOut}
+        onProfile={handleAvatarClick}
+        onPreferences={handlePreferences}
+      />
     </div>
   );
 };

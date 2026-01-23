@@ -2,6 +2,8 @@
 import React from 'react';
 import { Process, ProcessType, AccountStatus } from '../types';
 import { MoreHorizontal, FileText, Send, UserCheck, UserPlus, ShieldCheck } from 'lucide-react';
+import { Skeleton } from './ui/Skeleton';
+import { MotionTableRow, StaggerTableBody } from './ui/MotionWrapper';
 
 interface ListViewProps {
   processes: Process[];
@@ -25,31 +27,31 @@ export const ListView: React.FC<ListViewProps> = ({ processes, onViewDetails, on
             <th className="px-4 py-3 text-right">Ações</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <StaggerTableBody className="divide-y divide-slate-100">
           {isLoading ? (
             Array.from({ length: 6 }).map((_, index) => (
-                <tr key={index} className="animate-pulse">
+                <tr key={index}>
                     <td className="px-4 py-3">
-                        <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                        <Skeleton className="h-4 w-3/4 mb-2" />
+                        <Skeleton className="h-3 w-1/2" />
                     </td>
                     <td className="px-4 py-3">
-                        <div className="h-3 bg-slate-200 rounded w-1/3 mb-1"></div>
-                        <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                        <Skeleton className="h-3 w-1/3 mb-1" />
+                        <Skeleton className="h-3 w-1/2" />
                     </td>
                     <td className="px-4 py-3">
-                         <div className="h-4 bg-slate-200 rounded w-24"></div>
+                         <Skeleton className="h-4 w-24" />
                     </td>
                     <td className="px-4 py-3">
                          <div className="flex items-center gap-2">
-                             <div className="w-6 h-6 bg-slate-200 rounded-full"></div>
-                             <div className="h-3 bg-slate-200 rounded w-16"></div>
+                             <Skeleton className="w-6 h-6 rounded-full" />
+                             <Skeleton className="h-3 w-16" />
                          </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                             <div className="w-8 h-8 bg-slate-200 rounded"></div>
-                             <div className="w-8 h-8 bg-slate-200 rounded"></div>
+                             <Skeleton className="w-8 h-8 rounded" />
+                             <Skeleton className="w-8 h-8 rounded" />
                         </div>
                     </td>
                 </tr>
@@ -63,7 +65,7 @@ export const ListView: React.FC<ListViewProps> = ({ processes, onViewDetails, on
                 const canSentinela = process.status === AccountStatus.AUDIT;
 
                 return (
-                <tr 
+                <MotionTableRow 
                     key={process.id} 
                     className="hover:bg-slate-50 group transition-colors cursor-pointer"
                     onClick={() => onViewDetails && onViewDetails(process)}
@@ -135,11 +137,11 @@ export const ListView: React.FC<ListViewProps> = ({ processes, onViewDetails, on
                             </button>
                         </div>
                     </td>
-                </tr>
+                </MotionTableRow>
                 );
              })
           )}
-        </tbody>
+        </StaggerTableBody>
       </table>
     </div>
   );

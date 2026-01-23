@@ -48,6 +48,8 @@ import { useGestorProcesses, useGestorKPIs } from '../../hooks/useGestorProcesse
 import PortariaManagement from './PortariaManagement';
 import { PrestacaoAtestoTab } from './PrestacaoAtestoTab';
 import { StaticCertidaoAtesto } from '../ProcessDetails/StaticDocuments/StaticCertidaoAtesto';
+import { SignatureModal } from '../ui/SignatureModal';
+import { useUserProfile } from '../../hooks/useUserProfile';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -119,6 +121,10 @@ export const GestorDashboard: React.FC = () => {
   const [viewingDoc, setViewingDoc] = useState<any>(null);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Signature Modal State
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const { userProfile } = useUserProfile({ id: currentUserId });
   
   // Toast hook
   const { showToast } = useToast();
@@ -435,7 +441,7 @@ export const GestorDashboard: React.FC = () => {
 
     const template = {
       type: 'Certidão de Atesto',
-      title: `Certidão de Atesto do Gestor Nº ${Math.floor(Math.random() * 100)}/2026`,
+      title: `Minuta de Certidão de Atesto Nº ${Math.floor(Math.random() * 100)}/2026`,
       content: `CERTIDÃO DE ATESTO DA CHEFIA IMEDIATA\n\nCERTIFICO, no uso das minhas atribuições legais e em conformidade com o Regulamento de Suprimento de Fundos do TJPA, que a despesa pretendida pelo servidor ${selectedProcess.interested} no processo ${selectedProcess.nup} reveste-se de interesse público e atende aos critérios de conveniência e oportunidade desta unidade judiciária.\n\nDeclaro que verifiquei a disponibilidade orçamentária da unidade e a adequação dos itens solicitados.\n\nAtesto, ainda, a impossibilidade de atendimento da demanda via fluxo normal de compras/licitação em tempo hábil.\n\nEncaminhe-se ao Serviço de Suprimento de Fundos (SOSFU) para análise técnica.`,
       icon: BadgeCheck
     };
@@ -490,8 +496,8 @@ export const GestorDashboard: React.FC = () => {
                   <BadgeCheck size={28} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black">Certidão de Atesto do Gestor</h3>
-                  <p className="text-blue-100 text-sm font-medium">Revise o documento antes de assinar</p>
+                  <h3 className="text-xl font-black">Revisão de Minuta</h3>
+                  <p className="text-blue-100 text-sm font-medium">Confira os dados antes de prosseguir para assinatura</p>
                 </div>
               </div>
               
@@ -531,7 +537,7 @@ export const GestorDashboard: React.FC = () => {
                     ) : (
                       <>
                         <BadgeCheck size={18} />
-                        Assinar Certidão
+                        Validar Minuta
                       </>
                     )}
                   </button>
@@ -575,36 +581,61 @@ export const GestorDashboard: React.FC = () => {
   }
 
 
-  const handleSaveAtesto = async () => {
-    if (editingDoc && selectedProcess) {
-      try {
-        // Save the Atesto document to Supabase
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        const { error } = await supabase.from('documentos').insert({
-          solicitacao_id: selectedProcess.id,
-          nome: editingDoc.title,
-          titulo: editingDoc.title,
-          tipo: 'CERTIDAO_ATESTO',
-          status: 'ASSINADO',
-          conteudo: editingDoc.content,
-          created_by: user?.id
-        });
 
-        if (error) throw error;
+  const handleInitiateSave = () => {
+    if (!userProfile?.signature_pin) {
+      showToast({
+        title: 'PIN não configurado',
+        message: 'Configure seu PIN de assinatura no perfil para prosseguir.',
+        type: 'error'
+      });
+      return;
+    }
+    setIsSignatureModalOpen(true);
+  };
 
-        // Refresh dossier docs to show the new document
-        await fetchDossierDocs(selectedProcess.id);
-        
-        setView('DETAILS');
-        setSubView('DOSSIER');
-        setEditingDoc(null);
-        
-        showToast({ type: 'success', title: 'Certidão salva!', message: 'Certidão de Atesto salva com sucesso.' });
-      } catch (error) {
-        console.error('Error saving atesto:', error);
-        showToast({ type: 'error', title: 'Erro ao salvar', message: 'Não foi possível salvar a Certidão de Atesto.' });
-      }
+  const handleConfirmSaveAtesto = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!editingDoc || !selectedProcess) return { success: false, error: 'Documento não encontrado' };
+    
+    // Validate PIN
+    if (pin !== userProfile?.signature_pin) {
+        return { success: false, error: 'PIN incorreto.' };
+    }
+
+    try {
+      // Save the Atesto document to Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase.from('documentos').insert({
+        solicitacao_id: selectedProcess.id,
+        nome: editingDoc.title,
+        titulo: editingDoc.title,
+        tipo: 'CERTIDAO_ATESTO',
+        status: 'ASSINADO',
+        conteudo: editingDoc.content,
+        created_by: user?.id,
+        // Add metadata about signature if needed
+        metadata: {
+            signed_at: new Date().toISOString(),
+            signer_id: user?.id,
+            signer_role: userProfile?.role
+        }
+      });
+
+      if (error) throw error;
+
+      // Refresh dossier docs to show the new document
+      await fetchDossierDocs(selectedProcess.id);
+      
+      setView('DETAILS');
+      setSubView('DOSSIER');
+      setEditingDoc(null);
+      
+      showToast({ type: 'success', title: 'Certidão salva!', message: 'Certidão de Atesto salva com sucesso.' });
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error saving atesto:', error);
+      return { success: false, error: error.message || 'Erro ao salvar documento' };
     }
   };
 
@@ -1444,7 +1475,7 @@ export const GestorDashboard: React.FC = () => {
                 <div className="flex items-center gap-3 text-amber-700 font-black text-[10px] uppercase"><Info size={16}/> Atenção</div>
                 <p className="text-[11px] text-amber-800 leading-relaxed font-medium italic">Esta certidão de atesto vincula a responsabilidade da chefia imediata sobre a necessidade da despesa solicitada.</p>
              </div>
-             <button onClick={handleSaveAtesto} className="w-full py-5 bg-emerald-600 text-white rounded-[24px] text-xs font-black uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-3"><Signature size={18}/> Assinar e Salvar</button>
+             <button onClick={handleInitiateSave} className="w-full py-5 bg-emerald-600 text-white rounded-[24px] text-xs font-black uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-3"><Signature size={18}/> Assinar e Salvar</button>
              <button onClick={() => setView('DETAILS')} className="w-full py-5 bg-slate-100 text-slate-500 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
           </div>
        </aside>
@@ -1466,7 +1497,7 @@ export const GestorDashboard: React.FC = () => {
              <div className="pt-24 text-center space-y-1">
                 <div className="w-64 h-px bg-slate-300 mx-auto mb-6"></div>
                 <p className="text-sm font-bold text-slate-800 uppercase tracking-tight">Diogo Bonfim Fernandez</p>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Secretário de Planejamento (Interino)</p>
+                <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Secretário de Planejamento (Interino)</p>
              </div>
              <div className="absolute inset-0 flex items-center justify-center opacity-[0.015] pointer-events-none select-none"><img src={BRASAO_TJPA_URL} className="w-[500px] grayscale" /></div>
           </div>
@@ -1480,6 +1511,14 @@ export const GestorDashboard: React.FC = () => {
       {view === 'DETAILS' && renderDetails()}
       {view === 'EDIT_DOC' && renderEditor()}
       {view === 'HISTORY' && renderHistory()}
+
+      <SignatureModal 
+        isOpen={isSignatureModalOpen}
+        onClose={() => setIsSignatureModalOpen(false)}
+        onConfirm={handleConfirmSaveAtesto}
+        title="Assinar Certidão"
+        description="Digite seu PIN para assinar digitalmente a certidão de atesto."
+      />
 
       {/* Tramitar Modal */}
       {selectedProcess && (

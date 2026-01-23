@@ -20,6 +20,8 @@ import {
 import { usePrestacaoContas, ComprovantePC } from '../../hooks/usePrestacaoContas';
 import { useToast } from '../ui/ToastProvider';
 import { supabase } from '../../lib/supabaseClient';
+import { SignatureModal } from '../ui/SignatureModal';
+import { useUserProfile } from '../../hooks/useUserProfile';
 
 // =============================================================================
 // TYPES
@@ -47,11 +49,23 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
   onSuccess,
   onClose
 }) => {
+
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDevolverModal, setShowDevolverModal] = useState(false);
   const [motivoDevolucao, setMotivoDevolucao] = useState('');
   const [expandedComprovante, setExpandedComprovante] = useState<string | null>(null);
+  
+  // User Profile & PIN State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { userProfile } = useUserProfile(currentUser);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUser(data.user);
+    });
+  }, []);
 
   const {
     pc,
@@ -107,13 +121,32 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
   // ACTIONS
   // ==========================================================================
 
-  const handleEmitirAtesto = async () => {
-    if (!pc) return;
+  const handleClickEmitir = () => {
+    if (!userProfile?.signature_pin) {
+      showToast({
+        title: 'PIN não configurado',
+        message: 'Você precisa configurar seu PIN de assinatura no perfil antes de emitir atestos.',
+        type: 'error'
+      });
+      return;
+    }
+    setIsSignatureModalOpen(true);
+  };
+
+  const handleConfirmWithPin = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!pc) return { success: false, error: 'PC não encontrada' };
+    
+    // Validate PIN
+    if (pin !== userProfile?.signature_pin) {
+        return { success: false, error: 'PIN incorreto.' };
+    }
 
     setIsSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use currentUser state instead of refetching
+      const user = currentUser;
+
 
       // Update PC status
       const { error: updateError } = await supabase
@@ -167,13 +200,13 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
       });
 
       onSuccess?.();
+      return { success: true };
     } catch (err: any) {
       console.error('Error emitting atesto:', err);
-      showToast({
-        title: 'Erro ao emitir atesto',
-        message: err.message || 'Tente novamente',
-        type: 'error'
-      });
+      // Don't show toast here if we want the modal to handle error display, 
+      // but the modal expects a generic string. 
+      // Let's return the error string.
+      return { success: false, error: err.message || 'Erro ao emitir atesto' };
     } finally {
       setIsSubmitting(false);
     }
@@ -479,7 +512,7 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
         </button>
 
         <button
-          onClick={handleEmitirAtesto}
+          onClick={handleClickEmitir}
           disabled={isSubmitting}
           className="flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
         >
@@ -532,6 +565,16 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Signature Modal */}
+      <SignatureModal
+        isOpen={isSignatureModalOpen}
+        onClose={() => setIsSignatureModalOpen(false)}
+        onConfirm={handleConfirmWithPin}
+        title="Validar Atesto"
+        description="Digite seu PIN para confirmar a emissão do atesto e responsabilizar-se pela análise."
+        documentsCount={1}
+      />
     </div>
   );
 };

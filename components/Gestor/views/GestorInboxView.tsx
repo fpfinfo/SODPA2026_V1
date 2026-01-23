@@ -17,10 +17,19 @@ import { DocumentCreationWizard } from '../../DocumentCreationWizard'
 import { supabase } from '../../../lib/supabaseClient'
 import { useToast } from '../../ui/ToastProvider'
 import { StaticCertidaoAtesto } from '../../ProcessDetails/StaticDocuments/StaticCertidaoAtesto'
+import { SignatureModal } from '../../ui/SignatureModal'
+import { useUserProfile } from '../../../hooks/useUserProfile'
 
 interface GestorInboxViewProps {
   searchQuery: string
 }
+
+const PREVIEW_DOCUMENT_DATA = {
+  status: 'MINUTA',
+  metadata: {
+    numero_certidao: 'PREVIEW'
+  }
+};
 
 export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
   const { data: pendingProcesses = [], isLoading, refetch } = useGestorProcesses()
@@ -35,6 +44,10 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
   
   // NEW: Preview modal state
   const [showAtestoPreview, setShowAtestoPreview] = useState(false)
+  
+  // Signature Modal State
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const { userProfile } = useUserProfile({ id: currentUserId });
 
   // Fetch current user
   React.useEffect(() => {
@@ -54,9 +67,27 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
     setShowAtestoPreview(true)
   }
 
-  // Step 2: Actually generate and save the atesto (only after reviewing)
-  const handleConfirmAtesto = async () => {
-    if (!selectedProcess || !currentUserId) return
+  // Step 2: Initiate signature (opens PIN modal)
+  const handleInitiateAtesto = () => {
+    if (!userProfile?.signature_pin) {
+      showToast({
+        title: 'PIN não configurado',
+        message: 'Configure seu PIN de assinatura no perfil para prosseguir.',
+        type: 'error'
+      })
+      return
+    }
+    setIsSignatureModalOpen(true)
+  }
+
+  // Step 3: Actually generate and save the atesto (after PIN validation)
+  const handleConfirmAtestoWithPin = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!selectedProcess || !currentUserId) return { success: false, error: 'Erro de sessão' }
+
+    // Validate PIN
+    if (pin !== userProfile?.signature_pin) {
+        return { success: false, error: 'PIN incorreto.' }
+    }
 
     setIsGeneratingAtesto(true)
     try {
@@ -94,7 +125,13 @@ ${cargo}`
         tipo: 'CERTIDAO_ATESTO',
         status: 'ASSINADO',
         conteudo: atestoContent,
-        created_by: currentUserId
+        created_by: currentUserId,
+        // Add metadata about signature
+        metadata: {
+            signed_at: new Date().toISOString(),
+            signer_id: currentUserId,
+            signer_role: userProfile?.role
+        }
       })
 
       if (error) throw error
@@ -108,14 +145,11 @@ ${cargo}`
 
       // Refresh to show updated data
       refetch()
+      return { success: true }
 
     } catch (error) {
       console.error('Error generating atesto:', error)
-      showToast({ 
-        type: 'error', 
-        title: 'Erro', 
-        message: 'Não foi possível gerar a Certidão de Atesto.' 
-      })
+      return { success: false, error: 'Não foi possível gerar a Certidão de Atesto.' }
     } finally {
       setIsGeneratingAtesto(false)
     }
@@ -176,7 +210,7 @@ ${cargo}`
                 <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
                   <StaticCertidaoAtesto 
                     processData={selectedProcess} 
-                    documentData={{ status: 'MINUTA' }} 
+                    documentData={PREVIEW_DOCUMENT_DATA} 
                   />
                 </div>
               </div>
@@ -195,19 +229,19 @@ ${cargo}`
                     Cancelar
                   </button>
                   <button 
-                    onClick={handleConfirmAtesto}
+                    onClick={handleInitiateAtesto}
                     disabled={isGeneratingAtesto}
                     className="px-8 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {isGeneratingAtesto ? (
                       <>
                         <RefreshCw size={18} className="animate-spin" />
-                        Assinando...
+                        Validando...
                       </>
                     ) : (
                       <>
                         <BadgeCheck size={18} />
-                        Assinar Certidão
+                        Validar Minuta
                       </>
                     )}
                   </button>
@@ -244,6 +278,14 @@ ${cargo}`
             }}
           />
         )}
+        
+        <SignatureModal
+           isOpen={isSignatureModalOpen}
+           onClose={() => setIsSignatureModalOpen(false)}
+           onConfirm={handleConfirmAtestoWithPin}
+           title="Assinar Certidão"
+           description="Digite seu PIN para assinar digitalmente a certidão de atesto."
+        />
       </>
     )
   }

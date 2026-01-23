@@ -128,7 +128,6 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<SupplyCategory | 'ALL'>('ALL');
   const [auditFilter, setAuditFilter] = useState<'ALL' | 'CRITICAL' | 'PENDING'>('ALL');
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
   const [detailsModalTab, setDetailsModalTab] = useState<'OVERVIEW' | 'ANALYSIS' | 'DOSSIER'>('OVERVIEW');
   const [assigningProcessId, setAssigningProcessId] = useState<string | null>(null);
@@ -205,7 +204,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
       }
     } 
   }, [forceTab, onInternalTabChange]);
-  useEffect(() => { setIsLoading(true); const timer = setTimeout(() => setIsLoading(false), 400); return () => clearTimeout(timer); }, [activeTab, listFilter, viewMode]);
+
 
   const stats = sosfuStats;
 
@@ -544,7 +543,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
                 onViewDetails={(p) => { setSelectedProcess(p); setDetailsModalTab('OVERVIEW'); }} 
                 onAction={(action, id) => handleAction(action, id)} 
                 staffWorkload={{}} 
-                isLoading={isLoading} 
+                isLoading={isProcessesLoading} 
                 teamMembers={realTeamMembers}
               />
             </div>
@@ -578,6 +577,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
                             <DashboardCardsPanel
                 sosfuStats={sosfuStats}
                 mode={cardMode}
+                isLoading={isProcessesLoading}
                 onInboxClick={() => { setListFilter('INBOX'); setViewMode('LIST'); }}
                 onMyTasksClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
                 onAwaitingSignClick={() => { setListFilter('AWAITING_SIGN'); setViewMode('LIST'); }}
@@ -613,7 +613,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
                 onViewDetails={(p) => { setSelectedProcess(p); setDetailsModalTab('OVERVIEW'); }} 
                 onAction={(action, id) => handleAction(action, id)} 
                 staffWorkload={{}} 
-                isLoading={isLoading} 
+                isLoading={isProcessesLoading} 
                 teamMembers={realTeamMembers}
               />
             </div>

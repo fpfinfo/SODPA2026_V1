@@ -39,15 +39,7 @@ export const StaticCertidaoAtesto: React.FC<StaticCertidaoAtestoProps> = ({
 
   return (
     <div className="space-y-8 font-serif text-slate-900 text-sm leading-relaxed">
-      {/* Title */}
-      <div className="text-center mb-10">
-        <h2 className="text-2xl font-black uppercase tracking-widest mb-2">
-          CERTIDÃO DE ATESTO DO GESTOR
-        </h2>
-        <p className="text-sm text-slate-500">CERTIDAO_ATESTO</p>
-      </div>
 
-      <div className="w-full h-px bg-slate-900/20 mb-8"></div>
 
       {/* Certidão Title and Number */}
       <div className="text-center mb-8">

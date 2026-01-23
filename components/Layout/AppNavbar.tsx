@@ -32,7 +32,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   return (
-    <nav className="bg-white border-b border-slate-200 h-16 flex items-center px-8 sticky top-0 z-[100] shadow-sm">
+    <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200/60 h-16 flex items-center px-8 sticky top-0 z-[100] shadow-sm transition-all duration-300 supports-[backdrop-filter]:bg-white/80">
       <div className="flex items-center gap-4">
         <img 
           src={brasaoUrl} 
@@ -63,7 +63,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
           </button>
           
           {showRoleMenu && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl py-2 z-[110] animate-in fade-in slide-in-from-top-2">
+            <div className="absolute top-full right-0 mt-2 w-48 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl shadow-xl py-2 z-[110] animate-in fade-in slide-in-from-top-2 duration-200">
                <p className="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mudar Visão</p>
                {Object.values(AppRole).map(role => (
                  <button 
@@ -101,7 +101,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
           </div>
 
           {showUserMenu && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 z-[110] animate-in fade-in slide-in-from-top-2 overflow-hidden">
+            <div className="absolute top-full right-0 mt-2 w-56 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-xl py-2 z-[110] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden ring-1 ring-black/5">
               <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100 mb-1">
                 <p className="text-xs font-bold text-slate-800">Minha Conta</p>
                 <p className="text-[10px] text-slate-400 truncate">{userProfile?.email || 'suprido@tjpa.jus.br'}</p>
