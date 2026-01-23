@@ -256,28 +256,27 @@ export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
           <span className="text-xs text-slate-500 mr-2">Filtros rápidos:</span>
           
-          {['Todos', 'Assinados', 'Pendentes', 'Devolvidos'].map(filter => (
+          {[
+            { label: 'Todos', value: 'all' },
+            { label: 'Assinados', value: 'signed' },
+            { label: 'Pendentes', value: 'pending' },
+            { label: 'Devolvidos', value: 'returned' }
+          ].map(filter => (
             <button
-              key={filter}
+              key={filter.label}
               onClick={() => {
-                const statusMap: Record<string, 'all' | 'pending' | 'signed' | 'returned'> = {
-                  'Todos': 'all',
-                  'Assinados': 'signed',
-                  'Pendentes': 'pending',
-                  'Devolvidos': 'returned'
-                }
-                updateFilter('status', statusMap[filter])
+                updateFilter('status', filter.value as any)
                 setCurrentPage(1)
               }}
               className={`
                 px-3 py-1 rounded-full text-xs font-medium transition-all
-                ${filters.status === (filter === 'Todos' ? 'all' : filter.toLowerCase().replace('s', ''))
-                  ? 'bg-amber-500 text-white'
+                ${filters.status === filter.value
+                  ? 'bg-amber-500 text-white shadow-md shadow-amber-200'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }
               `}
             >
-              {filter}
+              {filter.label}
             </button>
           ))}
         </div>

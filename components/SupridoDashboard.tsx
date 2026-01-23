@@ -209,10 +209,6 @@ export const SupridoDashboard: React.FC<{ forceView?: string | null; onInternalV
 
       if (!error && data) {
         setPendingConfirmations(data);
-      } else if (allPending && allPending.length > 0) {
-        // Fallback: mostrar todos os pendentes se o filtro por user_id falhar
-        console.log('ℹ️ [SupridoDashboard] Using fallback - showing all pending');
-        setPendingConfirmations(allPending);
       }
     };
     fetchPendingConfirmations();

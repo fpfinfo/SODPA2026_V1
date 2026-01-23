@@ -359,6 +359,13 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         created_at: new Date().toISOString()
       });
 
+      // Clear the "Resource Credited" notification
+      await supabase
+        .from('system_notifications')
+        .update({ is_read: true })
+        .contains('metadata', { process_id: processId })
+        .eq('type', 'CRITICAL'); // double check to be safe
+
       setPendingConfirmations(prev => prev.filter(p => p.id !== processId));
 
       await refreshHistory(); // Refresh history to update capabilities/buttons immediately
@@ -437,16 +444,23 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     const rascunhos = history.filter((s: any) => s.status === 'RASCUNHO');
     
     // Saldo Disponível: Sum of approved values
-    const saldoDisponivel = aprovadas.reduce((acc: number, s: any) => acc + (s.value || 0), 0);
+    const saldoDisponivel = aprovadas.reduce((acc: number, s: any) => acc + (s.val || 0), 0);
     
     // A Prestar Contas: Sum of values in 'PRESTANDO CONTAS' status
-    const aPrestarContas = prestando.reduce((acc: number, s: any) => acc + (s.value || 0), 0);
+    const aPrestarContas = prestando.reduce((acc: number, s: any) => acc + (s.val || 0), 0);
     
     // Adiantamentos Ativos
     const adiantamentosAtivos = aprovadas.length;
     
-    // Dias restantes (simulated - 30 days from last approval, or 30 if none)
-    const diasRestantes = prestando.length > 0 ? 30 : 0;
+    // Dias restantes: Calculate from data_fim + 7 days (Prazo de Prestação de Contas)
+    // If no data_fim, assume 90 days application + 7 days PC
+    const diasRestantes = prestando.length > 0 ? Math.min(...prestando.map((s: any) => {
+      const start = new Date(s.data_inicio || s.created_at);
+      const end = s.data_fim ? new Date(s.data_fim) : new Date(start.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days default
+      const deadline = new Date(end.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 days for PC
+      const diff = Math.ceil((deadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      return diff;
+    })) : 0;
     
     // Pendências
     const pendencias = pendentes.length + rascunhos.length;

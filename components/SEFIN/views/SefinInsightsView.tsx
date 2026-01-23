@@ -78,14 +78,39 @@ function StatCard({ title, value, change, icon, chartData, chartColor }: StatCar
 export function SefinInsightsView() {
   const { tasks, kpis, isLoading } = useSefinCockpit({ autoRefresh: false })
 
-  // Mock data for charts (in production, calculate from real data)
-  const weeklySignatures = [12, 8, 15, 10, 18, 14, kpis.signedToday]
-  const weeklyPending = [5, 8, 6, 10, 7, 9, kpis.pendingTotal]
-
   // Calculate additional metrics
-  const signedTotal = tasks.filter(t => t.status === 'ASSINADO').length
-  const returnedTotal = tasks.filter(t => t.status === 'DEVOLVIDO').length
+  const signedTotal = tasks.filter(t => t.status === 'SIGNED').length
+  const returnedTotal = tasks.filter(t => t.status === 'REJECTED').length
   const returnRate = tasks.length > 0 ? Math.round((returnedTotal / tasks.length) * 100) : 0
+
+  // Calculate real weekly stats
+  const weeklyStats = React.useMemo(() => {
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+    const today = new Date()
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(d.getDate() - (6 - i))
+      return d
+    })
+
+    const signatures = last7Days.map(date => {
+      return tasks.filter(t => 
+        t.status === 'SIGNED' && 
+        new Date(t.signed_at || t.created_at).toDateString() === date.toDateString()
+      ).length
+    })
+
+    const pending = last7Days.map(date => {
+      return tasks.filter(t => 
+        t.status === 'PENDING' && 
+        new Date(t.created_at).toDateString() === date.toDateString()
+      ).length
+    })
+
+    const labels = last7Days.map(d => days[d.getDay()])
+
+    return { signatures, pending, labels }
+  }, [tasks])
 
   // Document type breakdown
   const typeBreakdown = [
@@ -134,7 +159,7 @@ export function SefinInsightsView() {
           value={signedTotal}
           change={{ value: 12, isPositive: true }}
           icon={<CheckCircle2 size={18} className="text-emerald-600" />}
-          chartData={weeklySignatures}
+          chartData={weeklyStats.signatures}
           chartColor="bg-emerald-500"
         />
         <StatCard
@@ -190,17 +215,22 @@ export function SefinInsightsView() {
           </h3>
 
           <div className="flex items-end justify-between h-40 gap-2">
-            {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'].map((day, i) => (
-              <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex flex-col items-center gap-1">
-                  <div 
-                    className="w-full max-w-[24px] bg-amber-500 rounded-t"
-                    style={{ height: `${(weeklySignatures[i] / Math.max(...weeklySignatures)) * 80}px` }}
-                  />
-                </div>
-                <span className="text-xs text-slate-500">{day}</span>
-              </div>
-            ))}
+            {weeklyStats.labels.map((day, i) => {
+               const value = weeklyStats.signatures[i];
+               const max = Math.max(...weeklyStats.signatures, 1); // Prevent div by zero
+               return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex flex-col items-center gap-1">
+                      <div 
+                        className="w-full max-w-[24px] bg-amber-500 rounded-t transition-all duration-500"
+                        style={{ height: `${(value / max) * 100}%`, minHeight: value > 0 ? '4px' : '0' }}
+                        title={`${value} assinados`}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-500">{day}</span>
+                  </div>
+               )
+            })}
           </div>
 
           <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-slate-100">
@@ -227,19 +257,19 @@ export function SefinInsightsView() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div className="bg-white/10 rounded-lg p-4">
             <div className="text-2xl font-bold text-amber-400 mb-1">
-              {kpis.urgentCount === 0 ? '100%' : `${100 - Math.round((kpis.urgentCount / (kpis.pendingTotal || 1)) * 100)}%`}
+              {kpis.urgentCount === 0 ? '100%' : `${ Math.max(0, 100 - Math.round((kpis.urgentCount / (kpis.pendingTotal || 1)) * 100))}%`}
             </div>
             <div className="text-sm text-slate-300">SLA Cumprido</div>
           </div>
           <div className="bg-white/10 rounded-lg p-4">
             <div className="text-2xl font-bold text-emerald-400 mb-1">
-              {kpis.avgSignTime < 24 ? 'Excelente' : kpis.avgSignTime < 48 ? 'Bom' : 'Atenção'}
+              {kpis.avgSignTime === 0 ? '-' : kpis.avgSignTime < 24 ? 'Excelente' : kpis.avgSignTime < 48 ? 'Bom' : 'Atenção'}
             </div>
             <div className="text-sm text-slate-300">Tempo de Resposta</div>
           </div>
           <div className="bg-white/10 rounded-lg p-4">
             <div className="text-2xl font-bold text-blue-400 mb-1">
-              {Math.round((signedTotal / (signedTotal + kpis.pendingTotal || 1)) * 100)}%
+              {tasks.length > 0 ? Math.round((signedTotal / tasks.length) * 100) : 0}%
             </div>
             <div className="text-sm text-slate-300">Taxa de Conclusão</div>
           </div>

@@ -10,6 +10,10 @@ import { PortariaFormModal } from '../Modals/PortariaFormModal';
 import { NotaEmpenhoFormModal } from '../Modals/NotaEmpenhoFormModal';
 import { DocumentoLiquidacaoFormModal } from '../Modals/DocumentoLiquidacaoFormModal';
 import { OrdemBancariaFormModal } from '../Modals/OrdemBancariaFormModal';
+import { SignatureModal } from '../../ui/SignatureModal';
+import { useUserProfile } from '../../../hooks/useUserProfile';
+import { supabase } from '../../../lib/supabaseClient';
+import { useToast } from '../../ui/ToastProvider';
 
 interface ExecutionTabProps {
   processData: any;
@@ -81,6 +85,35 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const [showNEModal, setShowNEModal] = useState(false);
   const [showDLModal, setShowDLModal] = useState(false);
   const [showOBModal, setShowOBModal] = useState(false);
+  
+  // Signature / PIN State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { userProfile } = useUserProfile(currentUser);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const { showToast } = useToast();
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUser(data.user);
+    });
+  }, []);
+
+  const handleConfirmCertidao = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+     if (!userProfile?.signature_pin) {
+        return { success: false, error: 'PIN não configurado no perfil.' };
+     }
+     
+     if (pin !== userProfile.signature_pin) {
+        return { success: false, error: 'PIN incorreto.' };
+     }
+
+     try {
+       await generateDocument({ tipo: 'CERTIDAO_REGULARIDADE' });
+       return { success: true };
+     } catch (err: any) {
+       return { success: false, error: err.message || 'Erro ao gerar certidão.' };
+     }
+  };
 
   // Safe parse function
   const parseItens = (data: any): any[] => {
@@ -110,6 +143,13 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
 
   const getDocumentStatus = (tipo: string): 'PENDENTE' | 'GERADO' | 'ASSINADO' => {
     const doc = documents.find(d => d.tipo === tipo);
+    
+    // VISUAL FIX: Se a SEFIN já assinou (status global), força status visual ASSINADO para documentos do Bloco A
+    // Isso corrige casos onde o backend atualizou o workflow mas ainda não sincronizou o status individual dos docs
+    if (isSignedBySefin && ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'].includes(tipo)) {
+        return 'ASSINADO';
+    }
+
     return doc?.status || 'PENDENTE';
   };
 
@@ -138,7 +178,22 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
       alert(`❌ Servidor possui pendências:\n\n${(pendenciasCheck.detalhes || []).join('\n')}\n\nRegularize antes de gerar a certidão.`);
       return;
     }
-    generateDocument({ tipo: 'CERTIDAO_REGULARIDADE' });
+    if (pendenciasCheck?.has_pendencias) {
+      alert(`❌ Servidor possui pendências:\n\n${(pendenciasCheck.detalhes || []).join('\n')}\n\nRegularize antes de gerar a certidão.`);
+      return;
+    }
+    
+    // Check if user has PIN configured
+    if (!userProfile?.signature_pin) {
+        showToast({
+            title: 'PIN não configurado',
+            message: 'Configure seu PIN de assinatura no perfil para gerar certidões.',
+            type: 'error'
+        });
+        return;
+    }
+
+    setIsSignatureModalOpen(true);
   };
 
   const handleNESubmit = async (formData: any) => {
@@ -540,6 +595,15 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
           neData={state.ne || undefined}
         />
       )}
+
+      <SignatureModal
+        isOpen={isSignatureModalOpen}
+        onClose={() => setIsSignatureModalOpen(false)}
+        onConfirm={handleConfirmCertidao}
+        title="Assinar Certidão"
+        description="Digite seu PIN para confirmar a emissão da Certidão de Regularidade."
+        documentsCount={1}
+      />
     </div>
   );
 };

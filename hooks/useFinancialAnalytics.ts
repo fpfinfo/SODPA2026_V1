@@ -198,7 +198,7 @@ export const useFinancialAnalytics = () => {
         });
       }
 
-      // 5. Buscar solicitações com email do profile
+      // 5. Buscar solicitações com email do profile e documentos de execução
       const { data: requestsData, error } = await supabase
         .from('solicitacoes')
         .select(`
@@ -212,13 +212,17 @@ export const useFinancialAnalytics = () => {
           profiles:user_id (
             email,
             nome
+          ),
+          execution_documents (
+            tipo,
+            status
           )
         `)
         .not('valor_solicitado', 'is', null);
 
       if (error) throw error;
       
-      const requests = requestsData as unknown as FinancialRequestRaw[];
+      const requests = requestsData as any[]; 
 
       // Aggregation Maps
       const comarcaMap = new Map<string, number>();
@@ -229,77 +233,68 @@ export const useFinancialAnalytics = () => {
       const elementMap = new Map<string, number>();
       const supridoMap = new Map<string, { value: number, role: string, unit: string, name: string }>();
 
-      let totalExecuted = 0;
+      let totalExecuted = 0; // Liquidado/Pago (Card 4)
+      let totalCommittedReal = 0; // Empenhado (Card 2)
 
       requests?.forEach((req) => {
         const value = Number(req.valor_aprovado || req.valor_solicitado || 0);
         
-        // Verificar se é uma solicitação ativa/aprovada
-        const isActive = ACTIVE_STATUSES.some(s => 
-          req.status?.toUpperCase().includes(s.toUpperCase())
-        );
+        // Verificar documentos
+        const docs = req.execution_documents || [];
+        const hasNE = docs.some((d: any) => d.tipo === 'NOTA_EMPENHO' && (d.status === 'GERADO' || d.status === 'ASSINADO'));
+        const hasDL = docs.some((d: any) => d.tipo === 'NOTA_LIQUIDACAO' && (d.status === 'GERADO' || d.status === 'ASSINADO'));
         
-        if (isActive) {
-          totalExecuted += value;
+        // Empenhado: Tem Nota de Empenho ou status avançado
+        if (hasNE || ACTIVE_STATUSES.some(s => req.status?.toUpperCase().includes(s.toUpperCase()))) {
+             totalCommittedReal += value;
         }
 
-        // 1. By Type
-        const typeLabel = TYPE_MAPPING[req.tipo] || req.tipo || 'Outros';
-        typeMap.set(typeLabel, (typeMap.get(typeLabel) || 0) + value);
-
-        // 2. By Element (Parsing JSON)
-        // itens_despesa pode vir como string JSON ou array
-        let itensDespesa = req.itens_despesa;
-        if (typeof itensDespesa === 'string') {
-          try {
-            itensDespesa = JSON.parse(itensDespesa);
-          } catch {
-            itensDespesa = [];
-          }
-        }
-        
-        if (Array.isArray(itensDespesa) && itensDespesa.length > 0) {
-          itensDespesa.forEach((item: ExpenseItemRaw) => {
-             const elementCode = item.element || item.code || 'Outros'; 
-             const itemValue = Number(item.value || item.val || 0);
-             if (itemValue > 0) {
-               elementMap.set(elementCode, (elementMap.get(elementCode) || 0) + itemValue);
-             }
-          });
+        // Liquidado/Pago: Tem Nota de Liquidação ou status concluído
+        if (hasDL || ['CONCLUIDO', 'PAGO', 'CONCLUÍDA'].includes(req.status?.toUpperCase())) {
+            totalExecuted += value;
         }
 
-        // 3. By Geography & Suprido - USANDO servidores_tj
-        const userEmail = req.profiles?.email?.toLowerCase().trim();
-        const servidor = userEmail ? servidoresByEmail.get(userEmail) : null;
+        // Para os gráficos de distribuição, usamos o valor empenhado como base (mais abrangente)
+        if (hasNE || ACTIVE_STATUSES.some(s => req.status?.toUpperCase().includes(s.toUpperCase()))) {
+            // 1. By Type
+            const typeLabel = TYPE_MAPPING[req.tipo] || req.tipo || 'Outros';
+            typeMap.set(typeLabel, (typeMap.get(typeLabel) || 0) + value);
 
-        // Top Supridos
-        const supridoName = servidor?.nome || req.profiles?.nome || 'Desconhecido';
-        const supridoRole = servidor?.cargo || 'Servidor';
-        const supridoUnit = servidor?.comarca || 'Lotação Desconhecida';
-        
-        const currentSuprido = supridoMap.get(supridoName) || { 
-          value: 0, 
-          role: supridoRole, 
-          unit: supridoUnit,
-          name: supridoName 
-        };
-        currentSuprido.value += value;
-        supridoMap.set(supridoName, currentSuprido);
+            // 2. By Element
+            let itensDespesa = req.itens_despesa;
+            if (typeof itensDespesa === 'string') {
+              try { itensDespesa = JSON.parse(itensDespesa); } catch { itensDespesa = []; }
+            }
+            if (Array.isArray(itensDespesa) && itensDespesa.length > 0) {
+              itensDespesa.forEach((item: ExpenseItemRaw) => {
+                 const elementCode = item.element || item.code || 'Outros'; 
+                 const itemValue = Number(item.value || item.val || 0);
+                 if (itemValue > 0) {
+                   elementMap.set(elementCode, (elementMap.get(elementCode) || 0) + itemValue);
+                 }
+              });
+            }
 
-        // Geography - de servidores_tj
-        if (servidor) {
-          if (servidor.comarca) {
-            comarcaMap.set(servidor.comarca, (comarcaMap.get(servidor.comarca) || 0) + value);
-          }
-          if (servidor.entrancia) {
-            entranciaMap.set(servidor.entrancia, (entranciaMap.get(servidor.entrancia) || 0) + value);
-          }
-          if (servidor.polo) {
-            poloMap.set(servidor.polo, (poloMap.get(servidor.polo) || 0) + value);
-          }
-          if (servidor.regiao) {
-            regiaoMap.set(servidor.regiao, (regiaoMap.get(servidor.regiao) || 0) + value);
-          }
+            // 3. By Geography & Suprido
+            const userEmail = req.profiles?.email?.toLowerCase().trim();
+            const servidor = userEmail ? servidoresByEmail.get(userEmail) : null;
+
+            const supridoName = servidor?.nome || req.profiles?.nome || 'Desconhecido';
+            const supridoRole = servidor?.cargo || 'Servidor';
+            const supridoUnit = servidor?.comarca || 'Lotação Desconhecida';
+            
+            const currentSuprido = supridoMap.get(supridoName) || { 
+              value: 0, role: supridoRole, unit: supridoUnit, name: supridoName 
+            };
+            currentSuprido.value += value;
+            supridoMap.set(supridoName, currentSuprido);
+
+            if (servidor) {
+              if (servidor.comarca) comarcaMap.set(servidor.comarca, (comarcaMap.get(servidor.comarca) || 0) + value);
+              if (servidor.entrancia) entranciaMap.set(servidor.entrancia, (entranciaMap.get(servidor.entrancia) || 0) + value);
+              if (servidor.polo) poloMap.set(servidor.polo, (poloMap.get(servidor.polo) || 0) + value);
+              if (servidor.regiao) regiaoMap.set(servidor.regiao, (regiaoMap.get(servidor.regiao) || 0) + value);
+            }
         }
       });
 
@@ -314,7 +309,7 @@ export const useFinancialAnalytics = () => {
           name: ELEMENT_LABELS[code] || code,
           value,
           code,
-          percent: totalExecuted > 0 ? (value / totalExecuted) * 100 : 0
+          percent: totalCommittedReal > 0 ? (value / totalCommittedReal) * 100 : 0
         }))
         .sort((a, b) => b.value - a.value);
 
@@ -337,37 +332,24 @@ export const useFinancialAnalytics = () => {
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
 
-      // 6. Buscar alocações orçamentárias usando plan_id
+      // 6. Buscar alocações orçamentárias (apenas para Dotação Inicial)
       let allocationsData: any[] = [];
-      let allocationError = null;
-      
       if (budgetPlanId) {
         const result = await supabase
           .from('budget_allocations')
           .select('ptres_code, allocated_value, committed_value')
           .eq('plan_id', budgetPlanId);
-        
         allocationsData = result.data || [];
-        allocationError = result.error;
       }
 
-      if (allocationError) {
-        console.error('Error fetching allocations:', allocationError);
-      }
-
-      // Calcular totais das alocações
-      if (allocationsData && allocationsData.length > 0) {
-        const totalFromAllocations = allocationsData.reduce((sum, a) => sum + (Number(a.allocated_value) || 0), 0);
-        if (tetoOrcamentario === 0 && totalFromAllocations > 0) {
-          tetoOrcamentario = totalFromAllocations;
-        }
-      }
+      // Calcular porcentagem de execução sobre a dotação
+      const percentageUsed = tetoOrcamentario > 0 ? (totalCommittedReal / tetoOrcamentario) * 100 : 0;
 
       setData({
         budget: {
           total: tetoOrcamentario,
-          executed: totalExecuted,
-          percentage: tetoOrcamentario > 0 ? (totalExecuted / tetoOrcamentario) * 100 : 0,
+          executed: totalExecuted, // Agora reflete o Real Liquidado
+          percentage: percentageUsed, // Porcentagem do Empenhado sobre Total
           executedOrdinary: typeMap.get('Ordinário') || 0,
           executedExtraordinary: (typeMap.get('Extraordinário - Emergencial') || 0) + 
                                   (typeMap.get('Extraordinário - Júri') || 0) +
@@ -383,7 +365,7 @@ export const useFinancialAnalytics = () => {
         budgetAllocations: allocationsData.map((a: any) => ({
           ptres_code: a.ptres_code,
           allocated_value: Number(a.allocated_value) || 0,
-          committed_value: Number(a.committed_value) || 0
+          committed_value: totalCommittedReal // Override committed with real value for simple display
         })),
         isLoading: false,
         error: null
@@ -392,11 +374,7 @@ export const useFinancialAnalytics = () => {
     } catch (err: unknown) {
       console.error('Error fetching financial analytics:', err);
       const errorMessage = err instanceof Error ? err.message : 'Falha ao carregar dados analíticos.';
-      setData(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: errorMessage 
-      }));
+      setData(prev => ({ ...prev, isLoading: false, error: errorMessage }));
     }
   };
 

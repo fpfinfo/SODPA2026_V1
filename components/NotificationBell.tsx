@@ -3,10 +3,12 @@ import { Bell, Check, Trash2, Info, AlertTriangle, AlertCircle, CheckCircle } fr
 import { useNotifications, SystemNotification } from '../hooks/useNotifications';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { NotificationHistoryModal } from './NotificationHistoryModal';
 
 export const NotificationBell: React.FC = () => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, markGroupAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -90,7 +92,14 @@ export const NotificationBell: React.FC = () => {
                             {notif.message}
                           </p>
                           {notif.link_action && (
-                            <a href={notif.link_action} className="text-xs text-blue-600 hover:underline mt-1 block font-medium">
+                            <a 
+                              href={notif.link_action} 
+                              onClick={() => {
+                                markGroupAsRead(notif.title);
+                                setIsOpen(false);
+                              }}
+                              className="text-xs text-blue-600 hover:underline mt-1 block font-medium"
+                            >
                                 Resolver Agora →
                             </a>
                           )}
@@ -110,9 +119,26 @@ export const NotificationBell: React.FC = () => {
                 </div>
               )}
             </div>
+            
+            <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+              <button 
+                className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors uppercase tracking-wide"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsHistoryOpen(true);
+                }}
+              >
+                Ver Histórico Completo
+              </button>
+            </div>
           </div>
         </>
       )}
+
+      <NotificationHistoryModal 
+        isOpen={isHistoryOpen} 
+        onClose={() => setIsHistoryOpen(false)} 
+      />
     </div>
   );
 };

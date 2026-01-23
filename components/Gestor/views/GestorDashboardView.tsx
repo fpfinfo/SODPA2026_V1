@@ -22,7 +22,7 @@ export function GestorDashboardView() {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   // Calculate total pending value
-  const totalPendingValue = pendingProcesses.reduce((sum, p) => sum + (p.value || 0), 0)
+  const totalPendingValue = pendingProcesses.reduce((sum, p) => sum + (p.val || 0), 0)
 
   return (
     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar animate-in fade-in pb-32">
@@ -46,62 +46,62 @@ export function GestorDashboardView() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Pendentes de Atesto */}
-        <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform" />
+        <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group cursor-pointer relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-indigo-600 opacity-10 rounded-bl-[80px] pointer-events-none transition-opacity group-hover:opacity-20" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
-                <Clock size={20} />
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-100 transition-colors">
+                <Clock size={24} strokeWidth={2} />
               </div>
-              <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Ação Necessária</span>
+              <span className="text-[10px] font-black text-blue-600/80 uppercase tracking-widest">Ação Necessária</span>
             </div>
-            <p className="text-4xl font-black text-slate-800">{pendingCount}</p>
-            <p className="text-xs font-medium text-slate-500 mt-1">Pendentes de Atesto</p>
+            <p className="text-4xl font-black text-slate-800 tracking-tighter loading-none">{pendingCount}</p>
+            <p className="text-xs font-bold text-blue-600/80 mt-1 uppercase tracking-wide">Pendentes de Atesto</p>
           </div>
         </div>
 
         {/* Atestados no Mês */}
-        <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform" />
+        <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500 to-teal-600 opacity-10 rounded-bl-[80px] pointer-events-none transition-opacity group-hover:opacity-20" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-                <BadgeCheck size={20} />
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-100 transition-colors">
+                <BadgeCheck size={24} strokeWidth={2} />
               </div>
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Este Mês</span>
+              <span className="text-[10px] font-black text-emerald-600/80 uppercase tracking-widest">Este Mês</span>
             </div>
-            <p className="text-4xl font-black text-slate-800">{atestadosNoMes}</p>
-            <p className="text-xs font-medium text-slate-500 mt-1">Atestados</p>
+            <p className="text-4xl font-black text-slate-800 tracking-tighter loading-none">{atestadosNoMes}</p>
+            <p className="text-xs font-bold text-emerald-600/80 mt-1 uppercase tracking-wide">Atestados Enviaos</p>
           </div>
         </div>
 
         {/* Devoluções */}
-        <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform" />
+        <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500 to-rose-600 opacity-10 rounded-bl-[80px] pointer-events-none transition-opacity group-hover:opacity-20" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-red-100 text-red-600 rounded-xl">
-                <ThumbsDown size={20} />
+              <div className="p-3 bg-red-50 text-red-600 rounded-xl group-hover:bg-red-100 transition-colors">
+                <ThumbsDown size={24} strokeWidth={2} />
               </div>
-              <span className="text-[10px] font-black text-red-600 uppercase tracking-wider">Atenção</span>
+              <span className="text-[10px] font-black text-red-600/80 uppercase tracking-widest">Atenção</span>
             </div>
-            <p className="text-4xl font-black text-slate-800">{devolucoes}</p>
-            <p className="text-xs font-medium text-slate-500 mt-1">Devoluções</p>
+            <p className="text-4xl font-black text-slate-800 tracking-tighter loading-none">{devolucoes}</p>
+            <p className="text-xs font-bold text-red-600/80 mt-1 uppercase tracking-wide">Devoluções</p>
           </div>
         </div>
 
         {/* Valor Total Pendente */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-[28px] shadow-xl hover:shadow-2xl transition-all group relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform" />
+        <div className="bg-gradient-to-br from-slate-800 to-slate-950 p-6 rounded-[28px] shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all group relative overflow-hidden text-white">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-[0.03] rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/10 text-white rounded-xl">
-                <TrendingUp size={20} />
+              <div className="p-3 bg-white/10 text-white rounded-xl backdrop-blur-sm">
+                <TrendingUp size={24} strokeWidth={2} />
               </div>
-              <span className="text-[10px] font-black text-white/60 uppercase tracking-wider">Volume</span>
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Financeiro</span>
             </div>
-            <p className="text-2xl font-black text-white">{formatCurrency(totalPendingValue)}</p>
-            <p className="text-xs font-medium text-white/60 mt-1">Valor Total Pendente</p>
+            <p className="text-3xl font-black tracking-tighter loading-none">{formatCurrency(totalPendingValue)}</p>
+            <p className="text-xs font-bold text-white/40 mt-1 uppercase tracking-wide">Total Pendente</p>
           </div>
         </div>
       </div>

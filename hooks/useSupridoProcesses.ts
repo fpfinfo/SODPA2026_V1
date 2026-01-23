@@ -87,7 +87,9 @@ export function useSupridoHistory(userId?: string) {
           status,
           descricao,
           created_at,
-          destino_atual
+          destino_atual,
+          data_inicio,
+          data_fim
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
@@ -104,6 +106,8 @@ export function useSupridoHistory(userId?: string) {
         status: s.status,
         desc: s.descricao || 'Sem descrição',
         destino: s.destino_atual,
+        data_fim: s.data_fim,
+        created_at: s.created_at
       }));
     },
     enabled: !!userId,

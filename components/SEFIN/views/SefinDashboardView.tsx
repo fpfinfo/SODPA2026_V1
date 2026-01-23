@@ -119,9 +119,17 @@ export function SefinDashboardView() {
       .slice(0, 3)
   }, [tasks])
 
-  // Calculate totals
+  // Calculate totals (Sum unique processes)
   const totalValue = useMemo(() => {
-    return tasks.reduce((sum, t) => sum + (t.processo?.valor_total || 0), 0)
+    const uniqueProcesses = new Set<string>()
+    return tasks.reduce((sum, t) => {
+      // Use solicitacao_id to identify unique processes
+      if (t.solicitacao_id && !uniqueProcesses.has(t.solicitacao_id)) {
+        uniqueProcesses.add(t.solicitacao_id)
+        return sum + (t.processo?.valor_total || 0)
+      }
+      return sum
+    }, 0)
   }, [tasks])
 
   if (isLoading) {
@@ -290,23 +298,23 @@ export function SefinDashboardView() {
             <div>
               <StatRow 
                 label="Portarias" 
-                value={filteredTasks.filter(t => t.tipo === 'PORTARIA').length} 
+                value={tasks.filter(t => t.tipo === 'PORTARIA').length} 
               />
               <StatRow 
                 label="Certidões" 
-                value={filteredTasks.filter(t => t.tipo === 'CERTIDAO_REGULARIDADE').length} 
+                value={tasks.filter(t => t.tipo === 'CERTIDAO_REGULARIDADE').length} 
               />
               <StatRow 
                 label="Notas de Empenho" 
-                value={filteredTasks.filter(t => t.tipo === 'NOTA_EMPENHO').length} 
+                value={tasks.filter(t => t.tipo === 'NOTA_EMPENHO').length} 
               />
               <StatRow 
                 label="Liquidações" 
-                value={filteredTasks.filter(t => t.tipo === 'NOTA_LIQUIDACAO').length} 
+                value={tasks.filter(t => t.tipo === 'NOTA_LIQUIDACAO').length} 
               />
               <StatRow 
                 label="Ordens Bancárias" 
-                value={filteredTasks.filter(t => t.tipo === 'ORDEM_BANCARIA').length} 
+                value={tasks.filter(t => t.tipo === 'ORDEM_BANCARIA').length} 
               />
             </div>
           </div>

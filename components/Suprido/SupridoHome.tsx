@@ -109,30 +109,59 @@ export const SupridoHome: React.FC<SupridoHomeProps> = ({
             label: 'SALDO DISPONÍVEL', 
             val: formatCurrency(kpiData.saldoDisponivel), 
             sub: `${kpiData.adiantamentosAtivos} ADIANTAMENTO${kpiData.adiantamentosAtivos !== 1 ? 'S' : ''} ATIVO${kpiData.adiantamentosAtivos !== 1 ? 'S' : ''}`, 
-            icon: Wallet 
+            icon: Wallet,
+            theme: 'emerald',
+            gradient: 'from-emerald-500 to-teal-600',
+            bg: 'bg-emerald-50',
+            text: 'text-emerald-900',
+            subText: 'text-emerald-600/80',
+            iconColor: 'text-emerald-600'
           },
           { 
             label: 'A PRESTAR CONTAS', 
             val: formatCurrency(kpiData.aPrestarContas), 
             sub: kpiData.diasRestantes > 0 ? `PRAZO: ${kpiData.diasRestantes} DIAS RESTANTES` : 'SEM PRESTAÇÕES PENDENTES', 
-            icon: Clock 
+            icon: Clock,
+            theme: 'amber',
+            gradient: 'from-amber-500 to-orange-600',
+            bg: 'bg-amber-50',
+            text: 'text-amber-900',
+            subText: 'text-amber-600/80',
+            iconColor: 'text-amber-600'
           },
           { 
             label: 'STATUS GERAL', 
             val: kpiData.statusGeral, 
             sub: kpiData.pendencias === 0 ? 'SEM PENDÊNCIAS IMPEDITIVAS' : `${kpiData.pendencias} SOLICITAÇÕES PENDENTES`, 
             icon: CheckCircle2, 
+            theme: 'blue',
+            gradient: 'from-blue-600 to-indigo-700',
+            bg: 'bg-white', // Default minimalist for status
+            text: 'text-slate-900',
+            subText: 'text-slate-500',
+            iconColor: 'text-blue-600',
             border: kpiData.pendencias === 0 
           },
         ].map((kpi, i) => (
-          <div key={i} className={`bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm flex flex-col justify-between h-48 group transition-all hover:shadow-xl ${kpi.border ? 'border-l-[12px] border-l-emerald-400' : ''}`}>
-             <div className="flex justify-between items-start">
-                <div className="p-4 bg-slate-50 text-slate-400 rounded-2xl group-hover:text-blue-600 transition-all"><kpi.icon size={28} /></div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{kpi.label}</span>
+          <div key={i} className={`relative overflow-hidden p-8 rounded-[40px] border border-slate-200 shadow-sm flex flex-col justify-between h-48 group transition-all hover:shadow-2xl hover:-translate-y-1 ${kpi.theme === 'blue' ? 'bg-white' : kpi.bg}`}>
+             {/* Gradient Accent for Colorful Cards */}
+             {kpi.theme !== 'blue' && (
+               <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${kpi.gradient} opacity-10 rounded-bl-[100px] pointer-events-none transition-opacity group-hover:opacity-20`}></div>
+             )}
+
+             <div className="flex justify-between items-start z-10">
+                <div className={`p-3.5 rounded-2xl transition-all ${kpi.theme === 'blue' ? 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600' : 'bg-white/60 backdrop-blur-sm shadow-sm ' + kpi.iconColor}`}>
+                   <kpi.icon size={26} strokeWidth={2} />
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest mt-2 ${kpi.theme === 'blue' ? 'text-slate-400' : kpi.subText}`}>{kpi.label}</span>
              </div>
-             <div>
-                <h3 className="text-4xl font-black text-slate-800 tracking-tighter leading-none">{kpi.val}</h3>
-                <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">{kpi.sub}</p>
+             
+             <div className="z-10">
+                <h3 className={`text-4xl font-black tracking-tighter leading-none mb-2 ${kpi.text}`}>{kpi.val}</h3>
+                <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide ${kpi.theme === 'blue' ? 'text-slate-400' : kpi.subText}`}>
+                   {kpi.theme === 'amber' && <AlertTriangle size={12} className="animate-pulse" />}
+                   {kpi.sub}
+                </div>
              </div>
           </div>
         ))}
