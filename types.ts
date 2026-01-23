@@ -108,7 +108,8 @@ export enum ConcessionStatus {
   GRANTED = 'CONCEDIDO', // Status concluído com sucesso
   // Novos status de tramitação institucional
   SENT_TO_SEFIN = 'ENVIADO_SEFIN',
-  RETURNED_FROM_SEFIN = 'RETORNADO_SEFIN'
+  RETURNED_FROM_SEFIN = 'RETORNADO_SEFIN',
+  AWAITING_SUPRIDO_CONFIRMATION = 'AWAITING_SUPRIDO_CONFIRMATION' // Novo status pós-crédito
 }
 
 // Added AccountStatus enum for accountability steps
@@ -123,7 +124,9 @@ export enum AccountStatus {
   PRAZO_RECURSAL = 'Aguardando Prazo Recursal',
   AVERBACAO_SGP = 'Averbação SGP',
   // Novo Status SIAFE
-  SIAFE_DONE = 'Baixado no SIAFE'
+  SIAFE_DONE = 'Baixado no SIAFE',
+  // Novo workflow status
+  AWAITING_ACCOUNTABILITY = 'AWAITING_ACCOUNTABILITY'
 }
 
 export type ProcessStatus = ConcessionStatus | AccountStatus | string;

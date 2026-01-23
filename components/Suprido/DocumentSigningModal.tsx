@@ -7,10 +7,13 @@ import {
   BookOpen,
   RefreshCw,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Lock,
+  Loader2
 } from 'lucide-react'
 import { StaticCover } from '../ProcessDetails/StaticDocuments/StaticCover'
 import { StaticRequest } from '../ProcessDetails/StaticDocuments/StaticRequest'
+import { useToast } from '../ui/ToastProvider'
 
 interface DocumentSigningModalProps {
   isOpen: boolean
@@ -31,9 +34,15 @@ export const DocumentSigningModal: React.FC<DocumentSigningModalProps> = ({
   onCancel,
   isSubmitting = false
 }) => {
+  const { showToast } = useToast()
   const [currentStep, setCurrentStep] = useState<'CAPA' | 'REQUERIMENTO'>('CAPA')
   const [isCasSigned, setIsCapaSigned] = useState(false)
   const [isRequerimentoSigned, setIsRequerimentoSigned] = useState(false)
+  
+  // PIN Verification State
+  const [signingTarget, setSigningTarget] = useState<'CAPA' | 'REQUERIMENTO' | null>(null)
+  const [pinInput, setPinInput] = useState('')
+  const [isVerifying, setIsVerifying] = useState(false)
 
   // Reset states when modal opens to ensure fresh signing flow
   useEffect(() => {
@@ -41,19 +50,56 @@ export const DocumentSigningModal: React.FC<DocumentSigningModalProps> = ({
       setCurrentStep('CAPA')
       setIsCapaSigned(false)
       setIsRequerimentoSigned(false)
+      setSigningTarget(null)
+      setPinInput('')
     }
   }, [isOpen])
 
   if (!isOpen) return null
 
-  const handleSignCapa = () => {
-    setIsCapaSigned(true)
-    // Auto-advance to next document after a brief delay
-    setTimeout(() => setCurrentStep('REQUERIMENTO'), 500)
+  // Initiate signing process
+  const handleStartSign = (target: 'CAPA' | 'REQUERIMENTO') => {
+    if (!profileData?.signature_pin) {
+      showToast({
+        type: 'error',
+        title: 'Assinatura Indisponível',
+        message: 'Você precisa configurar seu PIN de Assinatura no perfil antes de assinar documentos.'
+      })
+      return
+    }
+    setSigningTarget(target)
+    setPinInput('')
   }
 
-  const handleSignRequerimento = () => {
-    setIsRequerimentoSigned(true)
+  const handleConfirmSign = () => {
+    if (!pinInput || pinInput.length < 4) return
+
+    setIsVerifying(true)
+    
+    // Simulate API delay for UX
+    setTimeout(() => {
+      if (pinInput === profileData.signature_pin) {
+        // Success
+        if (signingTarget === 'CAPA') {
+            setIsCapaSigned(true)
+            showToast({ type: 'success', title: 'Sucesso', message: 'Capa assinada com sucesso!' })
+            // Auto-advance
+            setTimeout(() => {
+                setCurrentStep('REQUERIMENTO')
+                setSigningTarget(null) 
+                setPinInput('') 
+            }, 500)
+        } else {
+            setIsRequerimentoSigned(true)
+            showToast({ type: 'success', title: 'Sucesso', message: 'Requerimento assinado com sucesso!' })
+            setSigningTarget(null)
+            setPinInput('')
+        }
+      } else {
+        showToast({ type: 'error', title: 'PIN Incorreto', message: 'PIN de assinatura inválido.' })
+      }
+      setIsVerifying(false)
+    }, 600)
   }
 
   const canSubmit = isCasSigned && isRequerimentoSigned
@@ -214,46 +260,80 @@ export const DocumentSigningModal: React.FC<DocumentSigningModalProps> = ({
               Cancelar
             </button>
 
-            {/* Sign Button - based on current step */}
-            {currentStep === 'CAPA' && !isCasSigned && (
-              <button 
-                onClick={handleSignCapa}
-                className="px-8 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center gap-2"
-              >
-                <BadgeCheck size={18} />
-                Assinar Capa
-              </button>
-            )}
+            {/* If verifying PIN, show input instead of buttons */}
+            {signingTarget ? (
+                <div className="flex items-center gap-2 animate-in slide-in-from-right">
+                    <div className="relative">
+                        <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="password"
+                            autoFocus
+                            placeholder="PIN de Assinatura"
+                            value={pinInput}
+                            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            onKeyDown={(e) => e.key === 'Enter' && handleConfirmSign()}
+                            className="pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <button
+                        onClick={handleConfirmSign}
+                        disabled={isVerifying || pinInput.length < 4}
+                        className="px-6 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isVerifying ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                        Confirmar
+                    </button>
+                    <button
+                        onClick={() => { setSigningTarget(null); setPinInput(''); }}
+                        className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+            ) : (
+                <>
+                    {/* Sign Button - based on current step */}
+                    {currentStep === 'CAPA' && !isCasSigned && (
+                    <button 
+                        onClick={() => handleStartSign('CAPA')}
+                        className="px-8 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center gap-2"
+                    >
+                        <BadgeCheck size={18} />
+                        Assinar Capa
+                    </button>
+                    )}
 
-            {currentStep === 'REQUERIMENTO' && !isRequerimentoSigned && (
-              <button 
-                onClick={handleSignRequerimento}
-                className="px-8 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center gap-2"
-              >
-                <BadgeCheck size={18} />
-                Assinar Requerimento
-              </button>
-            )}
+                    {currentStep === 'REQUERIMENTO' && !isRequerimentoSigned && (
+                    <button 
+                        onClick={() => handleStartSign('REQUERIMENTO')}
+                        className="px-8 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center gap-2"
+                    >
+                        <BadgeCheck size={18} />
+                        Assinar Requerimento
+                    </button>
+                    )}
 
-            {/* Submit Button - only when both are signed */}
-            {canSubmit && (
-              <button 
-                onClick={onComplete}
-                disabled={isSubmitting}
-                className="px-8 py-3 bg-emerald-600 font-black text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <RefreshCw size={18} className="animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  <>
-                    <ArrowRight size={18} />
-                    Enviar para Atesto
-                  </>
-                )}
-              </button>
+                    {/* Submit Button - only when both are signed */}
+                    {canSubmit && (
+                    <button 
+                        onClick={onComplete}
+                        disabled={isSubmitting}
+                        className="px-8 py-3 bg-emerald-600 font-black text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? (
+                        <>
+                            <RefreshCw size={18} className="animate-spin" />
+                            Enviando...
+                        </>
+                        ) : (
+                        <>
+                            <ArrowRight size={18} />
+                            Enviar para Atesto
+                        </>
+                        )}
+                    </button>
+                    )}
+                </>
             )}
           </div>
         </div>
