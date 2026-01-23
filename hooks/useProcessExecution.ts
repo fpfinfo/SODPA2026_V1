@@ -370,9 +370,9 @@ export function useProcessExecution(solicitacaoId: string) {
   const canGenerateNE = 
     state.certidao?.status === 'GERADO' || state.certidao?.status === 'ASSINADO';
   const canGenerateDL = 
-    state.portaria?.status === 'ASSINADO' &&
-    state.certidao?.status === 'ASSINADO' &&
-    state.ne?.status === 'ASSINADO';
+    (state.portaria?.status === 'ASSINADO' || state.portaria?.status === 'GERADO') &&
+    (state.certidao?.status === 'ASSINADO' || state.certidao?.status === 'GERADO') &&
+    (state.ne?.status === 'ASSINADO' || state.ne?.status === 'GERADO');
   const canGenerateOB = state.dl?.status === 'GERADO' || state.dl?.status === 'ASSINADO';
   const canSendToSEFIN = 
     state.portaria?.status === 'GERADO' &&

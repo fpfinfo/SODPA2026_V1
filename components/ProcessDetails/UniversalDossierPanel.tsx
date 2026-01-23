@@ -3,7 +3,7 @@ import { FileText, Eye, FileDown, BookOpen, Loader2 } from 'lucide-react';
 import { useDossierData } from './hooks/useDossierData';
 import { DocumentInventory } from './DocumentInventory';
 import { PrestacaoContasSection } from './PrestacaoContasSection';
-import { StaticCover, StaticRequest, StaticCertidao } from './StaticDocuments';
+import { StaticCover, StaticRequest, StaticCertidao, StaticCertidaoAtesto } from './StaticDocuments';
 import { StaticDL } from './StaticDocuments/StaticDL';
 import { StaticOB } from './StaticDocuments/StaticOB';
 import { StaticNE } from './StaticDocuments/StaticNE';
@@ -97,13 +97,35 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
     setShowPdfViewer(true);
   };
 
-  // Build documents list for PDF
+  // Check if CAPA and REQUERIMENTO_INICIAL are signed in dossierDocs
+  const capaSignedDoc = dossierDocs.find(doc => 
+    (doc.tipo === 'CAPA' || doc.titulo?.includes('Capa') || doc.nome?.includes('Capa')) && 
+    doc.status === 'ASSINADO'
+  );
+  
+  const requerimentoSignedDoc = dossierDocs.find(doc => 
+    (doc.tipo === 'REQUERIMENTO_INICIAL' || doc.titulo?.includes('Requerimento') || doc.nome?.includes('Requerimento')) && 
+    doc.status === 'ASSINADO'
+  );
+
+  const isCapaSigned = !!capaSignedDoc;
+  const isRequerimentoSigned = !!requerimentoSignedDoc;
+
+  // Filter dossierDocs to exclude Capa/Requerimento (they are rendered separately as static components)
+  const filteredDossierDocs = dossierDocs.filter(doc => {
+    const isCapa = doc.tipo === 'CAPA' || doc.titulo?.includes('Capa') || doc.nome?.includes('Capa');
+    const isRequerimento = doc.tipo === 'REQUERIMENTO_INICIAL' || doc.titulo?.includes('Requerimento') || doc.nome?.includes('Requerimento');
+    // Exclude Capa and Requerimento from dynamic docs - they're rendered via StaticCover/StaticRequest
+    return !isCapa && !isRequerimento;
+  });
+
+  // Build documents list for PDF - always include static Capa and Requerimento with isSigned flag
   const docsToRender = selectedPreviewDoc
     ? [selectedPreviewDoc]
     : [
-        { id: '1', title: 'Capa do Processo', type: 'STATIC_CAPA' },
-        { id: '2', title: 'Requerimento Inicial', type: 'STATIC_REQ' },
-        ...dossierDocs.map((doc) => ({
+        { id: '1', title: 'Capa do Processo', type: 'STATIC_CAPA', isSigned: isCapaSigned },
+        { id: '2', title: 'Requerimento Inicial', type: 'STATIC_REQ', isSigned: isRequerimentoSigned },
+        ...filteredDossierDocs.map((doc) => ({
           id: doc.id,
           title: doc.nome || doc.titulo || 'Documento Anexo',
           type: 'DYNAMIC',
@@ -293,9 +315,9 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
 
                     {/* Render Content Based on Type */}
                     {docItem.type === 'STATIC_CAPA' ? (
-                      <StaticCover processData={processData} />
+                      <StaticCover processData={processData} isSigned={docItem.isSigned || false} />
                     ) : docItem.type === 'STATIC_REQ' ? (
-                      <StaticRequest processData={processData} />
+                      <StaticRequest processData={processData} isSigned={docItem.isSigned || false} />
                     ) : docItem.originalDoc?.file_url && docItem.originalDoc?.source_type === 'EXTERNAL_ERP' ? (
                       /* External ERP Document - Render PDF from Storage */
                       <div className="flex-1 flex flex-col items-center justify-start">
@@ -330,6 +352,12 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                       <StaticPortaria processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'CERTIDAO_REGULARIDADE' ? (
                       <StaticCertidao processData={processData} documentData={docItem.originalDoc} />
+                    ) : docItem.originalDoc?.tipo === 'CAPA' ? (
+                      <StaticCover processData={processData} />
+                    ) : docItem.originalDoc?.tipo === 'REQUERIMENTO_INICIAL' ? (
+                      <StaticRequest processData={processData} />
+                    ) : docItem.originalDoc?.tipo === 'CERTIDAO_ATESTO' || docItem.originalDoc?.tipo === 'ATESTO' || docItem.originalDoc?.tipo === 'CERTIDAO' ? (
+                      <StaticCertidaoAtesto processData={processData} documentData={docItem.originalDoc} />
                     ) : (
                       <>
                         {/* Dynamic Document */}

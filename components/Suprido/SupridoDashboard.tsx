@@ -67,6 +67,7 @@ import { useRoleRequests, ROLE_LABELS, SystemRole } from '../../hooks/useRoleReq
 import { useToast } from '../ui/ToastProvider';
 import { useSupridoProcesses } from '../../hooks/useSupridoProcesses';
 import { PrestacaoContasWizard } from './PrestacaoContasWizard';
+import { DocumentSigningModal } from './DocumentSigningModal';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -226,6 +227,9 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   // Tramitar Modal state
   const [showTramitarModal, setShowTramitarModal] = useState(false);
   
+  // Document Signing Modal state (Capa + Requerimento review before submit)
+  const [showDocumentSigningModal, setShowDocumentSigningModal] = useState(false);
+
 
 // Tramitacao History state (for audit log)
   const [tramitacaoHistory, setTramitacaoHistory] = useState<any[]>([]);
@@ -1195,7 +1199,7 @@ const INITIAL_FORM_STATE: FormState = {
     }
   };
 
-  // Handler: Submit to Atesto
+  // Handler: Submit to Atesto - now opens document signing modal first
   const handleSubmitJuriToAtesto = async () => {
     if (!isJuriSigned) {
       showToast({ type: 'warning', title: 'Atenção', message: 'Por favor, assine a justificativa antes de enviar para atesto.' });
@@ -1206,11 +1210,18 @@ const INITIAL_FORM_STATE: FormState = {
       return;
     }
 
+    // Open document signing modal for Capa + Requerimento review
+    setShowDocumentSigningModal(true);
+  };
+
+  // Handler: Actual submit after document signing is complete
+  const handleConfirmSubmitAfterSigning = async () => {
     setIsSubmitting(true);
     try {
       const totalValue = Math.round(formState.juriProjectionItems.reduce((acc, item) => acc + item.total, 0));
       const nupNumber = `TJPA-SOL-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       
+      // 1. Create the solicitação
       const { data, error } = await supabase.from('solicitacoes').insert([{
         user_id: profileData?.id,
         nup: nupNumber,
@@ -1230,6 +1241,94 @@ const INITIAL_FORM_STATE: FormState = {
       }]).select();
 
       if (error) throw error;
+      
+      const solicitacaoId = data?.[0]?.id;
+      
+      // 2. Create signed Capa and Requerimento documents
+      if (solicitacaoId) {
+        const formatCurrencyForDoc = (val: number) => 
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        
+        const currentDate = new Date().toLocaleDateString('pt-BR', { 
+          day: '2-digit', month: 'long', year: 'numeric' 
+        });
+        const unidade = profileData?.lotacao || 'Unidade Judiciária';
+        const supridoNome = profileData?.nome || 'Servidor';
+        
+        // Capa do Processo content
+        const capaContent = `CAPA DO PROCESSO
+
+PODER JUDICIÁRIO
+TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ
+
+NUP: ${nupNumber}
+
+INTERESSADO: ${supridoNome}
+MODALIDADE: Sessão de Júri
+LOTAÇÃO: ${unidade}
+VALOR SOLICITADO: ${formatCurrencyForDoc(totalValue)}
+DATA DE PROTOCOLO: ${currentDate}
+
+Documento assinado eletronicamente pelo Sistema SISUP.`;
+
+        // Requerimento Inicial content
+        const requerimentoContent = `REQUERIMENTO INICIAL - SUPRIMENTO DE FUNDOS
+
+NUP: ${nupNumber}
+
+1. DADOS DA SOLICITAÇÃO
+Tipo: Sessão de Júri
+Data Início: ${formState.startDate || 'N/A'}
+Data Fim: ${formState.endDate || 'N/A'}
+Lotação: ${unidade}
+
+2. JUSTIFICATIVA
+${formState.desc}
+
+3. VALOR TOTAL SOLICITADO
+${formatCurrencyForDoc(totalValue)}
+
+ASSINATURA ELETRÔNICA:
+Assinado por: ${supridoNome}
+Data: ${currentDate}
+
+Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
+
+        // Insert both documents as ASSINADO
+        await supabase.from('documentos').insert([
+          {
+            solicitacao_id: solicitacaoId,
+            nome: `Capa do Processo - ${nupNumber}`,
+            titulo: 'Capa do Processo',
+            tipo: 'CAPA',
+            status: 'ASSINADO',
+            conteudo: capaContent,
+            created_by: profileData?.id,
+            metadata: {
+              signed_by_name: supridoNome,
+              signer_role: 'Suprido',
+              signed_at: new Date().toISOString()
+            }
+          },
+          {
+            solicitacao_id: solicitacaoId,
+            nome: `Requerimento Inicial - ${nupNumber}`,
+            titulo: 'Requerimento Inicial',
+            tipo: 'REQUERIMENTO_INICIAL',
+            status: 'ASSINADO',
+            conteudo: requerimentoContent,
+            created_by: profileData?.id,
+            metadata: {
+              signed_by_name: supridoNome,
+              signer_role: 'Suprido',
+              signed_at: new Date().toISOString()
+            }
+          }
+        ]);
+      }
+      
+      // Close modal
+      setShowDocumentSigningModal(false);
       
       showToast({ type: 'success', title: 'Sucesso', message: `Solicitação enviada para atesto com sucesso! NUP: ${nupNumber}` });
       setCurrentView('DASHBOARD');
@@ -3297,6 +3396,16 @@ const INITIAL_FORM_STATE: FormState = {
   };
 
   const handleCreateRequest = async () => {
+    // Open document signing modal instead of directly creating
+    // Set formState type for Extra-Emergencial if not already set
+    if (formState.type !== 'Sessão de Júri') {
+      setFormState(prev => ({ ...prev, type: 'Extra-Emergencial' }));
+    }
+    setShowDocumentSigningModal(true);
+  };
+
+  // Actual creation logic after signing - used by both Júri and Extra-Emergencial
+  const handleCreateRequestAfterSigning = async () => {
     setIsCreating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -3322,7 +3431,7 @@ const INITIAL_FORM_STATE: FormState = {
         user_id: userId,
         nup: generatedNUP,
         tipo: formState.type,
-        status: 'Pendente Análise',
+        status: 'Aguardando Atesto',
         valor_solicitado: totalValue,
         valor_aprovado: 0,
         descricao: formState.desc,
@@ -3342,26 +3451,114 @@ const INITIAL_FORM_STATE: FormState = {
           payload.itens_despesa = formState.items;
       }
 
+      let solicitacaoId: string | null = null;
+
       if (editingProcessId) {
          // UPDATE existing draft -> Convert to Pendente Análise
-         const { error } = await supabase
+         const { data, error } = await supabase
            .from('solicitacoes')
            .update({ 
               ...payload, 
-              status: 'Pendente Análise',
+              status: 'Aguardando Atesto',
               updated_at: new Date().toISOString()
            })
-           .eq('id', editingProcessId);
+           .eq('id', editingProcessId)
+           .select();
          if (error) throw error;
+         solicitacaoId = editingProcessId;
          showToast({ type: 'success', title: 'Solicitação Enviada', message: `Rascunho convertido em Solicitação ${generatedNUP} com sucesso!` });
       } else {
          // INSERT new request
-         const { error } = await supabase.from('solicitacoes').insert(payload);
+         const { data, error } = await supabase.from('solicitacoes').insert(payload).select();
          if (error) throw error;
+         solicitacaoId = data?.[0]?.id || null;
          showToast({ type: 'success', title: 'Solicitação Criada', message: `Solicitação ${generatedNUP} criada com sucesso!` });
       }
       
-      // 1. Create System Notification (only for new requests or converted drafts)
+      // Create signed Capa and Requerimento documents
+      if (solicitacaoId) {
+        const formatCurrencyForDoc = (val: number) => 
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        
+        const currentDate = new Date().toLocaleDateString('pt-BR', { 
+          day: '2-digit', month: 'long', year: 'numeric' 
+        });
+        const unidade = profileData?.lotacao || 'Unidade Judiciária';
+        const supridoNome = profileData?.nome || 'Servidor';
+        
+        // Capa do Processo content
+        const capaContent = `CAPA DO PROCESSO
+
+PODER JUDICIÁRIO
+TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ
+
+NUP: ${generatedNUP}
+
+INTERESSADO: ${supridoNome}
+MODALIDADE: ${formState.type}
+LOTAÇÃO: ${unidade}
+VALOR SOLICITADO: ${formatCurrencyForDoc(totalValue)}
+DATA DE PROTOCOLO: ${currentDate}
+
+Documento assinado eletronicamente pelo Sistema SISUP.`;
+
+        // Requerimento Inicial content
+        const requerimentoContent = `REQUERIMENTO INICIAL - SUPRIMENTO DE FUNDOS
+
+NUP: ${generatedNUP}
+
+1. DADOS DA SOLICITAÇÃO
+Tipo: ${formState.type}
+Data Início: ${formState.startDate || 'N/A'}
+Data Fim: ${formState.endDate || 'N/A'}
+Lotação: ${unidade}
+
+2. JUSTIFICATIVA
+${formState.desc}
+
+3. VALOR TOTAL SOLICITADO
+${formatCurrencyForDoc(totalValue)}
+
+ASSINATURA ELETRÔNICA:
+Assinado por: ${supridoNome}
+Data: ${currentDate}
+
+Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
+
+        // Insert both documents as ASSINADO
+        await supabase.from('documentos').insert([
+          {
+            solicitacao_id: solicitacaoId,
+            nome: `Capa do Processo - ${generatedNUP}`,
+            titulo: 'Capa do Processo',
+            tipo: 'CAPA',
+            status: 'ASSINADO',
+            conteudo: capaContent,
+            created_by: userId,
+            metadata: {
+              signed_by_name: supridoNome,
+              signer_role: 'Suprido',
+              signed_at: new Date().toISOString()
+            }
+          },
+          {
+            solicitacao_id: solicitacaoId,
+            nome: `Requerimento Inicial - ${generatedNUP}`,
+            titulo: 'Requerimento Inicial',
+            tipo: 'REQUERIMENTO_INICIAL',
+            status: 'ASSINADO',
+            conteudo: requerimentoContent,
+            created_by: userId,
+            metadata: {
+              signed_by_name: supridoNome,
+              signer_role: 'Suprido',
+              signed_at: new Date().toISOString()
+            }
+          }
+        ]);
+      }
+      
+      // Create System Notification
       await supabase.from('system_notifications').insert({
         user_id: userId,
         type: 'SUCCESS',
@@ -3371,6 +3568,9 @@ const INITIAL_FORM_STATE: FormState = {
         link_action: `/suprido/process/${generatedNUP}`, 
         is_read: false
       });
+      
+      // Close modal
+      setShowDocumentSigningModal(false);
       
       await refreshHistory();
       setFormState(INITIAL_FORM_STATE); // Reset form
@@ -4541,6 +4741,30 @@ Assinado eletronicamente pelo servidor suprido.`,
           }}
         />
       )}
+
+      {/* Document Signing Modal - Capa + Requerimento review before submit */}
+      <DocumentSigningModal
+        isOpen={showDocumentSigningModal}
+        processData={{
+          nup: formState.nup,
+          type: formState.type,
+          desc: formState.desc,
+          startDate: formState.startDate,
+          endDate: formState.endDate,
+          totalValue: formState.type === 'Sessão de Júri' 
+            ? formState.juriProjectionItems.reduce((acc, item) => acc + item.total, 0)
+            : formState.items.reduce((acc, item) => acc + (item.qty * item.val), 0),
+          items: formState.items,
+          juriProjectionItems: formState.juriProjectionItems,
+          juriComarca: formState.juriComarca,
+          juriProcessNumber: formState.juriProcessNumber,
+          unit: profileData?.lotacao || 'Unidade Judiciária'
+        }}
+        profileData={profileData}
+        onComplete={handleCreateRequestAfterSigning}
+        onCancel={() => setShowDocumentSigningModal(false)}
+        isSubmitting={isCreating}
+      />
     </div>
   );
 };

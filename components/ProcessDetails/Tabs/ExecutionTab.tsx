@@ -161,12 +161,38 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   };
 
   const handleDLSubmit = async (formData: any) => {
-    generateDocument({ tipo: 'NOTA_LIQUIDACAO', formData });
+    // Novo fluxo: formData contém file, file_path, file_url (upload externo)
+    if (formData.file_path && formData.file_url) {
+      generateDocument({ 
+        tipo: 'NOTA_LIQUIDACAO', 
+        formData: {
+          ...formData,
+          source_type: 'EXTERNAL_ERP',
+          original_filename: formData.file?.name || 'documento_liquidacao.pdf',
+          file_size_bytes: formData.file?.size || 0
+        }
+      });
+    } else {
+      generateDocument({ tipo: 'NOTA_LIQUIDACAO', formData });
+    }
     setShowDLModal(false);
   };
 
   const handleOBSubmit = async (formData: any) => {
-    generateDocument({ tipo: 'ORDEM_BANCARIA', formData });
+    // Novo fluxo: formData contém file, file_path, file_url (upload externo)
+    if (formData.file_path && formData.file_url) {
+      generateDocument({ 
+        tipo: 'ORDEM_BANCARIA', 
+        formData: {
+          ...formData,
+          source_type: 'EXTERNAL_ERP',
+          original_filename: formData.file?.name || 'ordem_bancaria.pdf',
+          file_size_bytes: formData.file?.size || 0
+        }
+      });
+    } else {
+      generateDocument({ tipo: 'ORDEM_BANCARIA', formData });
+    }
     setShowOBModal(false);
   };
 

@@ -16,6 +16,7 @@ import { TramitarModal } from '../../TramitarModal'
 import { DocumentCreationWizard } from '../../DocumentCreationWizard'
 import { supabase } from '../../../lib/supabaseClient'
 import { useToast } from '../../ui/ToastProvider'
+import { StaticCertidaoAtesto } from '../../ProcessDetails/StaticDocuments/StaticCertidaoAtesto'
 
 interface GestorInboxViewProps {
   searchQuery: string
@@ -31,6 +32,9 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
   const [showDocumentWizard, setShowDocumentWizard] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const [isGeneratingAtesto, setIsGeneratingAtesto] = useState(false)
+  
+  // NEW: Preview modal state
+  const [showAtestoPreview, setShowAtestoPreview] = useState(false)
 
   // Fetch current user
   React.useEffect(() => {
@@ -44,8 +48,14 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-  // Handle Atesto generation
-  const handleGenerateAtesto = async () => {
+  // Step 1: Open preview modal (triggered by button click)
+  const handleOpenAtestoPreview = () => {
+    if (!selectedProcess) return
+    setShowAtestoPreview(true)
+  }
+
+  // Step 2: Actually generate and save the atesto (only after reviewing)
+  const handleConfirmAtesto = async () => {
     if (!selectedProcess || !currentUserId) return
 
     setIsGeneratingAtesto(true)
@@ -89,6 +99,7 @@ ${cargo}`
 
       if (error) throw error
 
+      setShowAtestoPreview(false)
       showToast({ 
         type: 'success', 
         title: 'Atesto Gerado!', 
@@ -141,9 +152,70 @@ ${cargo}`
           canCreateDocument={true}
           isLoadingAtesto={isGeneratingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
-          onGenerateAtesto={handleGenerateAtesto}
+          onGenerateAtesto={handleOpenAtestoPreview}
           onCreateDocument={() => setShowDocumentWizard(true)}
         />
+
+        {/* ATESTO PREVIEW MODAL */}
+        {showAtestoPreview && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 text-white flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <BadgeCheck size={28} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black">Certidão de Atesto do Gestor</h3>
+                  <p className="text-blue-100 text-sm font-medium">Revise o documento antes de assinar</p>
+                </div>
+              </div>
+              
+              {/* Document Preview - Using StaticCertidaoAtesto for WYSIWYG parity with Dossiê */}
+              <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
+                <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+                  <StaticCertidaoAtesto 
+                    processData={selectedProcess} 
+                    documentData={{ status: 'MINUTA' }} 
+                  />
+                </div>
+              </div>
+              
+              {/* Footer Actions */}
+              <div className="border-t border-slate-200 bg-white px-8 py-5 flex items-center justify-between">
+                <p className="text-xs text-slate-500 flex items-center gap-2">
+                  <AlertCircle size={14} className="text-amber-500" />
+                  Ao assinar, você confirma a veracidade das informações
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowAtestoPreview(false)}
+                    className="px-6 py-3 bg-slate-100 font-bold text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleConfirmAtesto}
+                    disabled={isGeneratingAtesto}
+                    className="px-8 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isGeneratingAtesto ? (
+                      <>
+                        <RefreshCw size={18} className="animate-spin" />
+                        Assinando...
+                      </>
+                    ) : (
+                      <>
+                        <BadgeCheck size={18} />
+                        Assinar Certidão
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showTramitarModal && (
           <TramitarModal
@@ -175,6 +247,7 @@ ${cargo}`
       </>
     )
   }
+
 
   return (
     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar animate-in fade-in pb-32">

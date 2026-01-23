@@ -47,6 +47,7 @@ import { UniversalProcessDetailsPage } from '../ProcessDetails';
 import { useGestorProcesses, useGestorKPIs } from '../../hooks/useGestorProcesses';
 import PortariaManagement from './PortariaManagement';
 import { PrestacaoAtestoTab } from './PrestacaoAtestoTab';
+import { StaticCertidaoAtesto } from '../ProcessDetails/StaticDocuments/StaticCertidaoAtesto';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -479,30 +480,60 @@ export const GestorDashboard: React.FC = () => {
           onCreateDocument={() => setShowDocumentWizard(true)}
         />
         
-        {/* Atesto Confirmation Modal */}
+        {/* Atesto Preview and Signature Modal */}
         {showAtestoConfirm && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2">
-                  <BadgeCheck size={32} />
+            <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 text-white flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <BadgeCheck size={28} />
                 </div>
-                <h3 className="text-xl font-black text-slate-800">Confirmar Atesto</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  Você está prestes a gerar a <strong>Certidão de Atesto</strong> para este processo. Isso confirma a disponibilidade orçamentária e a necessidade da despesa.
+                <div>
+                  <h3 className="text-xl font-black">Certidão de Atesto do Gestor</h3>
+                  <p className="text-blue-100 text-sm font-medium">Revise o documento antes de assinar</p>
+                </div>
+              </div>
+              
+              {/* Document Preview - Using StaticCertidaoAtesto for WYSIWYG parity with Dossiê */}
+              <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
+                <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+                  <StaticCertidaoAtesto 
+                    processData={selectedProcess} 
+                    documentData={{ status: 'MINUTA' }} 
+                  />
+                </div>
+              </div>
+              
+              {/* Footer Actions */}
+              <div className="border-t border-slate-200 bg-white px-8 py-5 flex items-center justify-between">
+                <p className="text-xs text-slate-500 flex items-center gap-2">
+                  <AlertCircle size={14} className="text-amber-500" />
+                  Ao assinar, você confirma a veracidade das informações
                 </p>
-                <div className="flex gap-3 w-full mt-6">
+                <div className="flex gap-3">
                   <button 
                     onClick={() => setShowAtestoConfirm(false)}
-                    className="flex-1 py-3 bg-slate-100 font-bold text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
+                    className="px-6 py-3 bg-slate-100 font-bold text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
                   >
                     Cancelar
                   </button>
                   <button 
                     onClick={handleConfirmGenerateAtesto}
-                    className="flex-1 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95"
+                    disabled={isGeneratingAtesto}
+                    className="px-8 py-3 bg-blue-600 font-black text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Confirmar, Gerar
+                    {isGeneratingAtesto ? (
+                      <>
+                        <RefreshCw size={18} className="animate-spin" />
+                        Assinando...
+                      </>
+                    ) : (
+                      <>
+                        <BadgeCheck size={18} />
+                        Assinar Certidão
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

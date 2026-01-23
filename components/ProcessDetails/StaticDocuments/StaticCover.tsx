@@ -18,11 +18,12 @@ interface ProcessData {
 
 interface StaticCoverProps {
   processData: ProcessData;
+  isSigned?: boolean;
 }
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-export const StaticCover: React.FC<StaticCoverProps> = ({ processData }) => {
+export const StaticCover: React.FC<StaticCoverProps> = ({ processData, isSigned = false }) => {
   const formatCurrency = (value?: number) => {
     if (!value) return 'R$ 0,00';
     return `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
@@ -99,6 +100,28 @@ export const StaticCover: React.FC<StaticCoverProps> = ({ processData }) => {
       <div className="mt-16 text-center text-sm text-slate-400">
         <p>Data de Protocolo: {formatDate(processData.date || processData.created_at)}</p>
       </div>
+
+      {/* Electronic Signature - Only show when document is signed */}
+      {isSigned && (
+        <div className="mt-8 w-full space-y-4">
+          <div className="p-6 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+            <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
+              ASSINATURA ELETRÔNICA:
+            </h5>
+            <div className="flex items-center gap-3 text-[11px] font-medium text-slate-700">
+              <div className="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-black text-[9px]">
+                OK
+              </div>
+              <p>
+                ASSINADO ELETRONICAMENTE POR: <strong>{processData.suprido_nome || processData.interested || 'Servidor'}</strong> em {formatDate(processData.created_at)} às {new Date().toLocaleTimeString('pt-BR')}
+              </p>
+            </div>
+            <p className="text-[9px] text-slate-400 mt-4 leading-relaxed">
+              A autenticidade deste documento pode ser conferida no sistema SISUP através do NUP {processData.nup}.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

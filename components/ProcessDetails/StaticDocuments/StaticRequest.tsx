@@ -34,11 +34,12 @@ interface ProcessData {
 
 interface StaticRequestProps {
   processData: ProcessData;
+  isSigned?: boolean;
 }
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => {
+export const StaticRequest: React.FC<StaticRequestProps> = ({ processData, isSigned = false }) => {
   const formatCurrency = (value?: number) => {
     if (!value) return 'R$ 0,00';
     return `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
@@ -158,30 +159,32 @@ export const StaticRequest: React.FC<StaticRequestProps> = ({ processData }) => 
         </div>
       </div>
 
-      {/* Electronic Signatures */}
-      <div className="mt-auto space-y-6">
-        <div className="p-6 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
-          <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
-            ASSINATURAS ELETRÔNICAS:
-          </h5>
-          <div className="flex items-center gap-3 text-[11px] font-medium text-slate-700">
-            <div className="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-black text-[9px]">
-              OK
+      {/* Electronic Signatures - Only show when document is signed */}
+      {isSigned && (
+        <div className="mt-auto space-y-6">
+          <div className="p-6 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+            <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
+              ASSINATURAS ELETRÔNICAS:
+            </h5>
+            <div className="flex items-center gap-3 text-[11px] font-medium text-slate-700">
+              <div className="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-black text-[9px]">
+                OK
+              </div>
+              <p>
+                ASSINADO ELETRONICAMENTE POR: <strong>{processData.suprido_nome || processData.interested || 'Servidor'}</strong> em {formatDate(processData.created_at)} às {new Date().toLocaleTimeString('pt-BR')}
+              </p>
             </div>
-            <p>
-              ASSINADO ELETRONICAMENTE POR: <strong>{processData.suprido_nome || processData.interested || 'Servidor'}</strong> em {formatDate(processData.created_at)} às {new Date().toLocaleTimeString('pt-BR')}
+            <p className="text-[9px] text-slate-400 mt-4 leading-relaxed">
+              A autenticidade deste documento pode ser conferida no sistema SISUP através do NUP {processData.nup}.
             </p>
           </div>
-          <p className="text-[9px] text-slate-400 mt-4 leading-relaxed">
-            A autenticidade deste documento pode ser conferida no sistema SISUP através do NUP {processData.nup}.
-          </p>
-        </div>
 
-        <div className="text-center pt-8 border-t border-slate-100 text-[9px] text-slate-400 uppercase tracking-widest">
-          Documento gerado automaticamente pelo Sistema SISUP - TJPA <br />
-          Data de geração: {new Date().toLocaleDateString('pt-BR')}, {new Date().toLocaleTimeString('pt-BR')}
+          <div className="text-center pt-8 border-t border-slate-100 text-[9px] text-slate-400 uppercase tracking-widest">
+            Documento gerado automaticamente pelo Sistema SISUP - TJPA <br />
+            Data de geração: {new Date().toLocaleDateString('pt-BR')}, {new Date().toLocaleTimeString('pt-BR')}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

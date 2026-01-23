@@ -1,20 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { X, DollarSign, AlertCircle, Loader2, Building2 } from 'lucide-react';
-import { DropdownFonteRecurso } from './BudgetDropdowns';
+import React, { useState } from 'react';
+import { X, Upload, DollarSign, CheckCircle2, Loader2, File, Trash2 } from 'lucide-react';
+import { supabase } from '../../../lib/supabaseClient';
 
 export interface OrdemBancariaFormData {
-  ug: string;            // UG: Unidade Gestora (fixo: 040102)
-  numero_siafe: string;   // 6 dígitos
-  data_emissao: string;
-  favorecido?: string;
-  cpf?: string;
-  banco?: string;
-  agencia?: string;
-  conta_corrente?: string;
+  file: File | null;
+  file_path: string | null;
+  file_url: string | null;
 }
 
 interface OrdemBancariaFormModalProps {
-  onSubmit: (data: OrdemBancariaFormData & { numero_completo: string }) => void;
+  onSubmit: (data: OrdemBancariaFormData) => void;
   onClose: () => void;
   isLoading?: boolean;
   isOpen?: boolean;
@@ -31,229 +26,210 @@ export const OrdemBancariaFormModal: React.FC<OrdemBancariaFormModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const today = new Date().toISOString().split('T')[0];
-  const ano = new Date().getFullYear();
-  
-  // UG fixo para Suprimento de Fundos
-  const UG_SUPRIMENTO_FUNDOS = '040102';
-  
-  const [formData, setFormData] = useState<OrdemBancariaFormData>({
-    ug: UG_SUPRIMENTO_FUNDOS,
-    numero_siafe: '',
-    data_emissao: today,
-    favorecido: processData?.suprido_nome || processData?.interested || '',
-    cpf: processData?.servidor_dados?.cpf || processData?.cpf || '',
-    banco: processData?.dados_bancarios?.bankName || 'Banpará (037)',
-    agencia: processData?.dados_bancarios?.agency || '',
-    conta_corrente: processData?.dados_bancarios?.account || ''
-  });
+  const [file, setFile] = useState<File | null>(null);
+  const [filePath, setFilePath] = useState<string | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [errors, setErrors] = useState<Partial<OrdemBancariaFormData>>({});
+  const handleFileChange = async (selectedFile: File | undefined) => {
+    if (!selectedFile) return;
 
-  // Compor número completo: YYYYUUUUUUOBNNNNNN
-  // Exemplo: 2026040102OB000112
-  const numeroCompleto = formData.numero_siafe
-    ? `${ano}${formData.ug}OB${formData.numero_siafe}`
-    : '';
-
-  const validate = (): boolean => {
-    const newErrors: Partial<OrdemBancariaFormData> = {};
-
-    if (!formData.numero_siafe.trim()) {
-      newErrors.numero_siafe = 'Número SIAFE é obrigatório';
-    } else if (!/^\d{6}$/.test(formData.numero_siafe)) {
-      newErrors.numero_siafe = 'Número deve ter exatamente 6 dígitos';
+    if (selectedFile.type !== 'application/pdf') {
+      setError('Selecione um arquivo PDF válido');
+      return;
     }
 
-    if (!formData.data_emissao) {
-      newErrors.data_emissao = 'Data de emissão é obrigatória';
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError('Arquivo muito grande. Máximo: 10MB');
+      return;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      const timestamp = Date.now();
+      const processId = processData?.id || 'unknown';
+      const path = `execution/${processId}/ob_${timestamp}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(path, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(path);
+
+      setFile(selectedFile);
+      setFilePath(path);
+      setFileUrl(urlData.publicUrl);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setError(err.message || 'Erro ao fazer upload do arquivo');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveFile = async () => {
+    if (filePath) {
+      try {
+        await supabase.storage.from('documentos').remove([filePath]);
+      } catch (e) {
+        console.error('Error removing file:', e);
+      }
+    }
+    setFile(null);
+    setFilePath(null);
+    setFileUrl(null);
+    setError(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
-      onSubmit({
-        ...formData,
-        numero_completo: numeroCompleto
-      });
+    if (!file || !filePath) {
+      setError('Faça upload do PDF da Ordem Bancária');
+      return;
     }
+
+    onSubmit({
+      file,
+      file_path: filePath,
+      file_url: fileUrl
+    });
   };
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in zoom-in-95">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-purple-50 flex items-center justify-between sticky top-0 bg-white z-10">
+        <div className="px-6 py-4 border-b border-slate-200 bg-indigo-50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-600 rounded-lg text-white">
-              <DollarSign size={20} />
+            <div className="p-2 bg-indigo-600 rounded-lg text-white">
+              <Upload size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Gerar Ordem Bancária</h3>
-              <p className="text-xs text-slate-600">Informe o número SIAFE e confira os dados</p>
+              <h3 className="text-lg font-bold text-slate-900">Anexar Ordem Bancária</h3>
+              <p className="text-xs text-slate-600">Faça upload do PDF exportado do SIAFE</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            disabled={isLoading}
-            className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
+            disabled={isLoading || isUploading}
+            className="p-2 hover:bg-indigo-100 rounded-lg transition-colors"
           >
             <X size={20} className="text-slate-500" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          
-          {/* Dados Bancários (Read-Only Preview) */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <Building2 size={14} /> Dados Bancários do Servidor
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Banco</label>
-                 <div className="font-mono text-sm font-bold text-slate-700">{formData.banco || 'Não informado'}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] uppercase text-slate-400 font-bold">Agência</label>
-                  <div className="font-mono text-sm font-bold text-slate-700">{formData.agencia || '-'}</div>
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase text-slate-400 font-bold">Conta</label>
-                  <div className="font-mono text-sm font-bold text-slate-700">{formData.conta_corrente || '-'}</div>
-                </div>
-              </div>
-            </div>
-             {!formData.agencia && (
-                <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center gap-2">
-                  <AlertCircle size={14} />
-                  Dados bancários incompletos no perfil.
-                </div>
-              )}
-          </div>
-
-          {/* UG: Unidade Gestora (Fixo) */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
-              UG: Unidade Gestora
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={UG_SUPRIMENTO_FUNDOS}
-                disabled
-                className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-500 font-mono text-lg tracking-wider cursor-not-allowed"
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">
-                FIXO
-              </div>
-            </div>
-          </div>
-
-          {/* Número SIAFE */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
-              Número SIAFE (6 dígitos) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="000111"
-              value={formData.numero_siafe}
-              maxLength={6}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '');
-                setFormData({ ...formData, numero_siafe: value });
-                setErrors({ ...errors, numero_siafe: undefined });
-              }}
-              className={`w-full px-4 py-2.5 rounded-xl border-2 ${
-                errors.numero_siafe 
-                  ? 'border-red-300 bg-red-50' 
-                  : 'border-slate-200 bg-white'
-              } focus:border-purple-500 focus:outline-none transition-colors font-mono text-lg tracking-wider`}
-            />
-            {errors.numero_siafe && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                <AlertCircle size={14} />
-                {errors.numero_siafe}
-              </p>
-            )}
-            <p className="mt-1.5 text-xs text-slate-500">
-              Número da ordem bancária emitida pelo SIAFE
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Info Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Nova regra:</strong> O PDF da Ordem Bancária deve ser exportado diretamente do <strong>SIAFE</strong> 
+              (fonte da verdade). O SOSFU apenas armazena e gerencia assinaturas digitais.
             </p>
           </div>
 
-          {/* Data Emissão */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
-              Data de Emissão <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={formData.data_emissao}
-              max={today}
-              onChange={(e) => {
-                setFormData({ ...formData, data_emissao: e.target.value });
-                setErrors({ ...errors, data_emissao: undefined });
-              }}
-              className={`w-full px-4 py-2.5 rounded-xl border-2 ${
-                errors.data_emissao 
-                  ? 'border-red-300 bg-red-50' 
-                  : 'border-slate-200 bg-white'
-              } focus:border-purple-500 focus:outline-none transition-colors`}
-            />
-            {errors.data_emissao && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                <AlertCircle size={14} />
-                {errors.data_emissao}
-              </p>
+          {/* Upload Area */}
+          <div 
+            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+              file 
+                ? 'border-emerald-300 bg-emerald-50' 
+                : error
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-indigo-300 bg-white hover:border-indigo-400 hover:bg-indigo-50'
+            }`}
+          >
+            {file ? (
+              <div className="space-y-3">
+                <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center">
+                  <CheckCircle2 size={32} className="text-emerald-600" />
+                </div>
+                <p className="font-bold text-emerald-800">{file.name}</p>
+                <p className="text-xs text-emerald-600">
+                  {(file.size / 1024).toFixed(1)} KB • PDF pronto para registro
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
+                >
+                  <Trash2 size={14} />
+                  Remover e escolher outro
+                </button>
+              </div>
+            ) : isUploading ? (
+              <div className="space-y-3">
+                <Loader2 size={32} className="mx-auto text-indigo-600 animate-spin" />
+                <p className="text-sm text-slate-600">Fazendo upload...</p>
+              </div>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
+                  <Upload size={32} className="text-indigo-600" />
+                </div>
+                <p className="text-sm text-slate-700 font-medium mb-2">
+                  Arraste o PDF da Ordem Bancária aqui
+                </p>
+                <p className="text-xs text-slate-500 mb-4">
+                  ou clique para selecionar do seu computador
+                </p>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => handleFileChange(e.target.files?.[0])}
+                  className="hidden"
+                  id="ob-upload"
+                  disabled={isUploading}
+                />
+                <label 
+                  htmlFor="ob-upload" 
+                  className="cursor-pointer inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
+                >
+                  <File size={16} />
+                  Selecionar PDF do SIAFE
+                </label>
+              </>
             )}
           </div>
 
-          {/* Preview do Número Completo */}
-          {numeroCompleto && (
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-              <p className="text-xs font-bold text-purple-700 mb-2 flex items-center gap-2">
-                📋 Número Completo da Ordem Bancária
-              </p>
-              <p className="text-2xl font-black text-purple-900 font-mono tracking-wider">
-                {numeroCompleto}
-              </p>
-              <p className="text-xs text-purple-600 mt-2">
-                {ano} (ano) + {formData.ug} (UG) + OB + {formData.numero_siafe} (SIAFE)
-              </p>
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+              {error}
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-slate-200">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={isLoading}
-              className="flex-1 px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+              disabled={isLoading || isUploading}
+              className="flex-1 px-4 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 disabled:opacity-50 transition-all"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={isLoading || !numeroCompleto}
-              className="flex-1 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-xl font-bold text-sm transition-colors shadow-lg flex items-center justify-center gap-2"
+              disabled={isLoading || isUploading || !file}
+              className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Gerando...
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Registrando...
                 </>
               ) : (
-                'Gerar OB'
+                <>
+                  <DollarSign size={18} />
+                  Anexar OB
+                </>
               )}
             </button>
           </div>
