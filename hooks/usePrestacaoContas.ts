@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query'
 export type PCStatus =
   | 'RASCUNHO'
   | 'SUBMETIDA'
+  | 'AGUARDANDO_ATESTO_GESTOR'
   | 'EM_ANALISE'
   | 'PENDENCIA'
   | 'APROVADA'
@@ -151,16 +152,36 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
       setIsLoading(true)
       setError(null)
 
-      // Buscar PC
-      const { data: pcData, error: pcError } = await supabase
+      // Buscar PC - get the most recent one that's not RASCUNHO (or fallback to any)
+      // First try to get PC with status AGUARDANDO_ATESTO_GESTOR
+      const { data: pcArray, error: pcError } = await supabase
         .from('prestacao_contas')
         .select('*')
         .eq('solicitacao_id', solicitacaoId)
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(10)
 
-      if (pcError && pcError.code !== 'PGRST116') { // 116 = not found
+      if (pcError) {
         throw pcError
       }
+
+      // Find the PC with AGUARDANDO_ATESTO_GESTOR status, or the most recent one
+      const pcData = pcArray?.find(p => p.status === 'AGUARDANDO_ATESTO_GESTOR') 
+                  || pcArray?.find(p => p.status === 'SUBMETIDA')
+                  || pcArray?.[0] 
+                  || null
+
+      console.log('📋 [usePrestacaoContas] Query result:', {
+        solicitacaoId,
+        totalPCs: pcArray?.length || 0,
+        selectedPC: pcData?.id,
+        pcStatus: pcData?.status,
+        valores: {
+          concedido: pcData?.valor_concedido,
+          gasto: pcData?.valor_gasto,
+          devolvido: pcData?.valor_devolvido
+        }
+      })
 
       setPC(pcData || null)
 
@@ -184,6 +205,13 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
       setIsLoading(false)
     }
   }, [solicitacaoId])
+
+  // Auto-fetch PC on mount and when solicitacaoId changes
+  useEffect(() => {
+    if (solicitacaoId) {
+      fetchPC()
+    }
+  }, [solicitacaoId, fetchPC])
 
   // ==========================================================================
   // CREATE - Iniciar nova PC (rascunho)
@@ -219,7 +247,7 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
   // ==========================================================================
   // SUBMIT - Submeter para análise SOSFU
   // ==========================================================================
-  const submitPC = useCallback(async () => {
+  const submitPC = useCallback(async (nup?: string) => {
     if (!pc) throw new Error('PC não encontrada')
 
     try {
@@ -246,7 +274,7 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
       const { error } = await supabase
         .from('prestacao_contas')
         .update({
-          status: 'SUBMETIDA',
+          status: 'AGUARDANDO_ATESTO_GESTOR',
           submitted_at: new Date().toISOString()
         })
         .eq('id', pc.id)
@@ -257,7 +285,7 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
       await supabase
         .from('solicitacoes')
         .update({
-          status_workflow: 'PC_SUBMITTED',
+          status_workflow: 'AGUARDANDO_ATESTO_GESTOR',
           destino_atual: 'GESTOR', // PC precisa de atesto do Gestor antes de ir para SOSFU
           updated_at: new Date().toISOString()
         })
@@ -271,9 +299,22 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
           origem: 'SUPRIDO',
           destino: 'GESTOR', // Gestor precisa dar atesto na PC
           status_anterior: 'AWAITING_ACCOUNTABILITY',
-          status_novo: 'PC_SUBMITTED',
+          status_novo: 'AGUARDANDO_ATESTO_GESTOR',
           observacao: `Prestação de Contas submetida para atesto do Gestor. Valor: R$ ${valorGastoCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         })
+
+      // [NOTIFICATION] Notify Gestor
+      if (nup) {
+        await supabase.from('system_notifications').insert({
+          role_target: 'GESTOR',
+          type: 'INFO',
+          category: 'PROCESS',
+          title: 'Nova Prestação de Contas Recebida',
+          message: `O suprido enviou a PC do processo NUP ${nup}. Aguardando seu atesto.`,
+          link_action: `/gestor/dashboard?nup=${nup}`, // Deep link heuristic
+          metadata: { solicitacao_id: solicitacaoId, nup }
+        });
+      }
 
       setPC(prev => prev ? { ...prev, status: 'SUBMETIDA' } : null)
       queryClient.invalidateQueries({ queryKey: ['processes'] })
@@ -285,6 +326,72 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
       return { success: false, error: err.message }
     }
   }, [pc, comprovantes, solicitacaoId, queryClient])
+
+  // ==========================================================================
+  // ATESTAR - Gestor atesta PC e envia para SOSFU
+  // ==========================================================================
+  const atestarPC = useCallback(async (comentario?: string, nup?: string) => {
+    if (!pc) throw new Error('PC não encontrada')
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // Update PC status to EM_ANALISE (SOSFU)
+      const { error } = await supabase
+        .from('prestacao_contas')
+        .update({
+          status: 'EM_ANALISE',
+          reviewed_at: new Date().toISOString(), // Using reviewed_at as the "Atesto" timestamp for now
+          reviewed_by: user?.id
+        })
+        .eq('id', pc.id)
+
+      if (error) throw error
+
+      // Atualizar workflow da solicitação - Agora vai para SOSFU
+      await supabase
+        .from('solicitacoes')
+        .update({
+          status_workflow: 'PC_REVIEW_SOSFU',
+          destino_atual: 'SOSFU',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', solicitacaoId)
+
+      // Registrar histórico
+      await supabase
+        .from('historico_tramitacao')
+        .insert({
+          solicitacao_id: solicitacaoId,
+          origem: 'GESTOR',
+          destino: 'SOSFU',
+          status_anterior: 'PC_SUBMITTED',
+          status_novo: 'PC_REVIEW_SOSFU',
+          observacao: comentario || 'Prestação de Contas atestada pelo Gestor. Encaminhada para análise técnica da SOSFU.'
+        })
+
+      // [NOTIFICATION] Notify SOSFU
+      if (nup) {
+        await supabase.from('system_notifications').insert({
+          role_target: 'SOSFU',
+          type: 'INFO',
+          category: 'PROCESS',
+          title: 'Prestação de Contas Atestada',
+          message: `Gestor atestou a PC do NUP ${nup}. Pronto para análise técnica.`,
+          metadata: { solicitacao_id: solicitacaoId, nup }
+        });
+      }
+
+      setPC(prev => prev ? { ...prev, status: 'EM_ANALISE' } : null)
+      queryClient.invalidateQueries({ queryKey: ['processes'] })
+      
+      console.log('✅ [usePrestacaoContas] Attested and sent to SOSFU')
+      return { success: true }
+    } catch (err: any) {
+      console.error('❌ [usePrestacaoContas] Atestar error:', err)
+      return { success: false, error: err.message }
+    }
+  }, [pc, solicitacaoId, queryClient])
 
   // ==========================================================================
   // DEVOLV - Devolver para correção (SOSFU action)
@@ -496,7 +603,8 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
       totalComprovantes: comprovantes.length,
       // Flags de status
       isDraft: pc?.status === 'RASCUNHO',
-      isSubmitted: pc?.status === 'SUBMETIDA',
+      isSubmitted: pc?.status === 'SUBMETIDA' || pc?.status === 'AGUARDANDO_ATESTO_GESTOR',
+      isGestorReview: pc?.status === 'AGUARDANDO_ATESTO_GESTOR',
       isPendency: pc?.status === 'PENDENCIA',
       isApproved: pc?.status === 'APROVADA',
       isDone: pc?.status === 'SIAFE_BAIXADA',
@@ -504,7 +612,7 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
       // Permissões
       canEdit: pc?.status === 'RASCUNHO' || pc?.status === 'PENDENCIA',
       canSubmit: pc?.status === 'RASCUNHO' || pc?.status === 'PENDENCIA',
-      canReview: pc?.status === 'SUBMETIDA' || pc?.status === 'EM_ANALISE',
+      canReview: pc?.status === 'SUBMETIDA' || pc?.status === 'EM_ANALISE' || pc?.status === 'AGUARDANDO_ATESTO_GESTOR',
       canBaixa: pc?.status === 'APROVADA'
     }
   }, [pc, comprovantes])
@@ -523,6 +631,7 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
     fetchPC,
     createPC,
     submitPC,
+    atestarPC,
     devolvPC,
     approvePC,
     baixaSiafe,

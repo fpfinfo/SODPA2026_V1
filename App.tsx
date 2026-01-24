@@ -16,7 +16,6 @@ import { CommandPalette } from './components/CommandPalette';
 const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').then(m => ({ default: m.DashboardSOSFU })));
 const SupridoDashboard = React.lazy(() => import('./components/Suprido/SupridoDashboard').then(m => ({ default: m.SupridoDashboard })));
 const GestorCockpit = React.lazy(() => import('./components/Gestor/GestorCockpit').then(m => ({ default: m.GestorCockpit })));
-const SefinDashboard = React.lazy(() => import('./components/SefinDashboard').then(m => ({ default: m.SefinDashboard })));
 const SefinCockpit = React.lazy(() => import('./components/SEFIN/SefinCockpit').then(m => ({ default: m.SefinCockpit })));
 const AjsefinDashboard = React.lazy(() => import('./components/AjsefinDashboard').then(m => ({ default: m.AjsefinDashboard })));
 const SgpDashboard = React.lazy(() => import('./components/SgpDashboard').then(m => ({ default: m.SgpDashboard })));

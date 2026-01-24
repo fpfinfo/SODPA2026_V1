@@ -29,14 +29,15 @@ interface UseUserProfileResult {
   refetchUser: () => Promise<void>;
 }
 
-export function useUserProfile(user: any): UseUserProfileResult & { initialRole: AppRole | null } {
+export function useUserProfile(user: { id?: string; email?: string } | null): UseUserProfileResult & { initialRole: AppRole | null } {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [initialRole, setInitialRole] = useState<AppRole | null>(null);
 
   const fetchUser = useCallback(async () => {
-    if (!user) {
+    // 1. Strict Guard Clauses
+    if (!user || !user.id) {
       setLoading(false);
       return;
     }
@@ -44,18 +45,11 @@ export function useUserProfile(user: any): UseUserProfileResult & { initialRole:
     try {
       setLoading(true);
       const currentUserId = user.id;
-      
-      // Guard against empty ID to prevent 400 Bad Request
-      if (!currentUserId) {
-        setLoading(false);
-        return;
-      }
-
       const userEmail = user.email;
 
       // Parallel Data Fetching
       const [servidorResponse, profileResponse] = await Promise.all([
-        // 1. Fetch from servidores_tj by email
+        // 1. Fetch from servidor_tj by email (only if email exists)
         userEmail 
           ? supabase
               .from('servidores_tj')
@@ -84,7 +78,7 @@ export function useUserProfile(user: any): UseUserProfileResult & { initialRole:
           // Override with servidores_tj data (authoritative source)
           id: currentUserId || profileData?.id,
           nome: servidorData?.nome || profileData?.nome || 'Usuário',
-          email: servidorData?.email || userEmail || profileData?.email,
+          email: servidorData?.email || userEmail || profileData?.email || '',
           cpf: servidorData?.cpf || profileData?.cpf,
           matricula: servidorData?.matricula || profileData?.matricula,
           cargo: servidorData?.cargo || profileData?.cargo,
@@ -111,10 +105,14 @@ export function useUserProfile(user: any): UseUserProfileResult & { initialRole:
 
       } else {
         // Fallback
-        console.warn('No profile data found for:', userEmail);
+        // Only warn if we had a valid ID but found nothing
+        if (userEmail) {
+             console.warn('No profile data found for:', userEmail);
+        }
+        
         setUserProfile({
           id: currentUserId,
-          email: userEmail,
+          email: userEmail || '',
           nome: userEmail?.split('@')[0] || 'Usuário',
           _source: 'auth_only'
         });
@@ -125,7 +123,7 @@ export function useUserProfile(user: any): UseUserProfileResult & { initialRole:
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id, user?.email]); // Dependencies: only re-run if ID or Email changes
 
   useEffect(() => {
     fetchUser();

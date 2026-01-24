@@ -86,7 +86,7 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
-      setDossierDocs(docsData || []);
+      // setDossierDocs(docsData || []); // Moved to end with merge
 
       // 2. Fetch prestação de contas
       const { data: pcData, error: pcError } = await supabase
@@ -99,6 +99,8 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
       setPrestacaoData(pcData || null);
 
       // 3. Fetch comprovantes if PC exists
+      let virtualDocs: DossierDocument[] = [];
+      
       if (pcData) {
         const { data: compData, error: compError } = await supabase
           .from('comprovantes_pc')
@@ -108,9 +110,77 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
 
         if (compError) throw compError;
         setComprovantesPC(compData || []);
+
+        // Transform Comprovantes to DossierDocs
+        const receiptDocs = (compData || []).map((c: any) => ({
+          id: c.id,
+          nome: c.file_name || `Comprovante ${c.tipo}`,
+          titulo: `${c.tipo} - ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.valor)}`,
+          tipo: 'COMPROVANTE_DESPESA',
+          status: 'ANEXADO',
+          conteudo: c.descricao || `Despesa com ${c.elemento_despesa}`,
+          created_by: 'SUPRIDO', // Inferred
+          created_at: c.created_at,
+          solicitacao_id: processId,
+          file_url: c.storage_url, // IMPORTANT: Use storage_url for the viewer
+          metadata: {
+            elemento: c.elemento_despesa,
+            valor: c.valor
+          }
+        }));
+
+        // Transform GDRs to DossierDocs
+        const gdrDocs = [];
+        
+        if (pcData.gdr_inss_arquivo_url) {
+          gdrDocs.push({
+            id: `gdr-inss-${pcData.id}`,
+            nome: 'GDR INSS.pdf',
+            titulo: 'GDR - Recolhimento INSS',
+            tipo: 'GDR',
+            status: 'PAGO',
+            conteudo: `Guia de Recolhimento INSS - Nº ${pcData.gdr_inss_numero}`,
+            created_by: 'SUPRIDO',
+            created_at: pcData.updated_at || pcData.created_at, // Use update time as proxy for upload
+            solicitacao_id: processId,
+            file_url: pcData.gdr_inss_arquivo_url,
+            metadata: {
+              valor: pcData.gdr_inss_valor,
+              numero: pcData.gdr_inss_numero
+            }
+          });
+        }
+
+        if (pcData.gdr_saldo_arquivo_url) {
+          gdrDocs.push({
+            id: `gdr-saldo-${pcData.id}`,
+            nome: 'GDR Devolução.pdf',
+            titulo: 'GDR - Devolução de Saldo',
+            tipo: 'GDR',
+            status: 'PAGO',
+            conteudo: `Guia de Devolução de Saldo - Nº ${pcData.gdr_saldo_numero}`,
+            created_by: 'SUPRIDO',
+            created_at: pcData.updated_at || pcData.created_at,
+            solicitacao_id: processId,
+            file_url: pcData.gdr_saldo_arquivo_url,
+            metadata: {
+              valor: pcData.gdr_saldo_valor,
+              numero: pcData.gdr_saldo_numero
+            }
+          });
+        }
+
+        virtualDocs = [...receiptDocs, ...gdrDocs];
       } else {
         setComprovantesPC([]);
       }
+
+      // Merge and Sort
+      const allDocs = [...(docsData || []), ...virtualDocs].sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+      setDossierDocs(allDocs);
 
     } catch (err) {
       console.error('Error fetching dossier docs:', err);

@@ -337,11 +337,20 @@ export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
     setTaskToSign(null)
   }
 
-  // Calculate total value of selected tasks
-  const selectedTotalValue = Array.from(selectedIds).reduce((sum, id) => {
-    const task = tasks.find(t => t.id === id)
-    return sum + (task?.processo?.valor_total || 0)
-  }, 0)
+  // Calculate total value of selected tasks (Deduplicated by Process)
+  const selectedTotalValue = useMemo(() => {
+    const uniqueProcessIds = new Set<string>()
+    let total = 0
+
+    Array.from(selectedIds).forEach(id => {
+      const task = tasks.find(t => t.id === id)
+      if (task?.processo?.id && !uniqueProcessIds.has(task.processo.id)) {
+        uniqueProcessIds.add(task.processo.id)
+        total += (task.processo.valor_total || 0)
+      }
+    })
+    return total
+  }, [selectedIds, tasks])
 
   // Filter and sort pending tasks
   const pendingTasks = useMemo(() => {

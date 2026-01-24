@@ -181,8 +181,6 @@ export function useNotifications() {
         .map(n => n.id);
 
       // 1. Update UI (mark read AND remove from view if desired, but here we just mark read)
-      // Actually, if we MUTE the title, they should disappear?
-      // For UX consistency, let's just mark them read in state.
       setNotifications(prev => prev.map(n => n.title === title ? { ...n, is_read: true } : n));
       
       const countToRemove = notifications.filter(n => n.title === title && !n.is_read).length;
@@ -215,6 +213,34 @@ export function useNotifications() {
     }
   };
 
+  const markReadByMetadata = async (key: string, value: any) => {
+    try {
+      const targetIds = notifications
+        .filter(n => n.metadata && n.metadata[key] === value && !n.is_read)
+        .map(n => n.id);
+
+      if (targetIds.length === 0) return;
+
+      // 1. Optimistic Update
+      setNotifications(prev => prev.map(n => targetIds.includes(n.id) ? { ...n, is_read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - targetIds.length));
+
+      // 2. Local Storage
+      const localDismissed = JSON.parse(localStorage.getItem('sosfu_dismissed_notifs') || '[]');
+      const newDismissed = [...new Set([...localDismissed, ...targetIds])];
+      localStorage.setItem('sosfu_dismissed_notifs', JSON.stringify(newDismissed));
+
+      // 3. Backend Update
+      await supabase
+        .from('system_notifications')
+        .update({ is_read: true })
+        .in('id', targetIds);
+
+    } catch (error) {
+      console.error('Error marking read by metadata:', error);
+    }
+  };
+
   return {
     notifications,
     unreadCount,
@@ -222,6 +248,7 @@ export function useNotifications() {
     refresh: fetchNotifications,
     markAsRead,
     markAllAsRead,
-    markGroupAsRead
+    markGroupAsRead,
+    markReadByMetadata
   };
 }

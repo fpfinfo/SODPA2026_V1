@@ -19,6 +19,7 @@ import { useToast } from '../../ui/ToastProvider'
 import { StaticCertidaoAtesto } from '../../ProcessDetails/StaticDocuments/StaticCertidaoAtesto'
 import { SignatureModal } from '../../ui/SignatureModal'
 import { useUserProfile } from '../../../hooks/useUserProfile'
+import { PrestacaoAtestoTab } from '../PrestacaoAtestoTab'
 
 interface GestorInboxViewProps {
   searchQuery: string
@@ -49,6 +50,9 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const { userProfile } = useUserProfile({ id: currentUserId });
 
+  // PC Atesto View State - when process has an AGUARDANDO_ATESTO_GESTOR PC
+  const [showPCAtestoView, setShowPCAtestoView] = useState(false);
+
   // Fetch current user
   React.useEffect(() => {
     const fetchUser = async () => {
@@ -62,9 +66,22 @@ export function GestorInboxView({ searchQuery }: GestorInboxViewProps) {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   // Step 1: Open preview modal (triggered by button click)
+  // Detect if it's a PC attestation based on status_workflow
   const handleOpenAtestoPreview = () => {
     if (!selectedProcess) return
-    setShowAtestoPreview(true)
+    
+    // Check if this is a PC attestation (status_workflow indicates AGUARDANDO_ATESTO_GESTOR)
+    const isPCProcess = selectedProcess.rawData?.status_workflow === 'AGUARDANDO_ATESTO_GESTOR' ||
+                        selectedProcess.rawData?.status_workflow === 'PC_SUBMITTED' ||
+                        selectedProcess.status === 'AGUARDANDO_ATESTO_GESTOR';
+    
+    if (isPCProcess) {
+      // Open PC Atesto view instead of generic atesto
+      setShowPCAtestoView(true);
+    } else {
+      // Open generic atesto preview
+      setShowAtestoPreview(true);
+    }
   }
 
   // Step 2: Initiate signature (opens PIN modal)
@@ -247,6 +264,39 @@ ${cargo}`
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* PC ATESTO VIEW - Full screen modal for Prestação de Contas attestation */}
+        {showPCAtestoView && (
+          <div className="fixed inset-0 z-[300] flex flex-col bg-white animate-in fade-in duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-8 py-6 text-white flex items-center gap-4">
+              <button 
+                onClick={() => setShowPCAtestoView(false)}
+                className="p-2 hover:bg-white/20 rounded-xl transition-all"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              </button>
+              <div className="flex-1">
+                <h3 className="text-xl font-black">Análise de Prestação de Contas</h3>
+                <p className="text-emerald-100 text-sm font-medium">NUP: {selectedProcess.nup}</p>
+              </div>
+            </div>
+            
+            {/* Content - PrestacaoAtestoTab */}
+            <div className="flex-1 overflow-auto p-6 max-w-7xl mx-auto w-full">
+              <PrestacaoAtestoTab 
+                processId={selectedProcess.id} 
+                processData={selectedProcess.rawData || selectedProcess}
+                onBack={() => setShowPCAtestoView(false)}
+                onSuccess={() => {
+                  setShowPCAtestoView(false);
+                  refetch();
+                  showToast({ type: 'success', title: 'Sucesso', message: 'Prestação de Contas atestada e enviada.' });
+                }}
+              />
             </div>
           </div>
         )}

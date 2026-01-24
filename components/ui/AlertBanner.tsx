@@ -3,17 +3,23 @@ import { AlertCircle, X, Info, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useNotifications } from '../../hooks/useNotifications';
 
 export const AlertBanner: React.FC = () => {
-  const { notifications } = useNotifications();
+  const { notifications, markAsRead, unreadCount } = useNotifications();
   const [activeAlert, setActiveAlert] = useState<any | null>(null);
 
-  // Filter for global/critical recurring alerts or sticky messages
-  // For now, let's just pick the latest CRITICAL or WARNING unread notification as a banner
+  // Pick the latest CRITICAL or WARNING unread notification as a banner
   useEffect(() => {
+    // We sort by date descendant, so find the first one that is unread and critical/system
     const critical = notifications.find(n => !n.is_read && (n.type === 'CRITICAL' || n.category === 'SYSTEM'));
     setActiveAlert(critical || null);
-  }, [notifications]);
+  }, [notifications, unreadCount]);
 
   if (!activeAlert) return null;
+
+  const handleDismiss = () => {
+    // Mark as read in hook (optimistic + backend + local storage)
+    markAsRead(activeAlert.id);
+    setActiveAlert(null);
+  };
 
   const bgColors = {
     'CRITICAL': 'bg-red-600',
@@ -43,7 +49,7 @@ export const AlertBanner: React.FC = () => {
           </p>
         </div>
         <button 
-          onClick={() => setActiveAlert(null)}
+          onClick={handleDismiss}
           className="p-1 hover:bg-white/20 rounded-full transition-colors"
         >
           <X size={18} />

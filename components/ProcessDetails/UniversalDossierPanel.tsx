@@ -3,7 +3,7 @@ import { FileText, Eye, FileDown, BookOpen, Loader2 } from 'lucide-react';
 import { useDossierData } from './hooks/useDossierData';
 import { DocumentInventory } from './DocumentInventory';
 import { PrestacaoContasSection } from './PrestacaoContasSection';
-import { StaticCover, StaticRequest, StaticCertidao, StaticCertidaoAtesto } from './StaticDocuments';
+import { StaticCover, StaticRequest, StaticCertidao, StaticCertidaoAtesto, StaticCertidaoAtestoPC } from './StaticDocuments';
 import { StaticDL } from './StaticDocuments/StaticDL';
 import { StaticOB } from './StaticDocuments/StaticOB';
 import { StaticNE } from './StaticDocuments/StaticNE';
@@ -356,8 +356,77 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                       <StaticCover processData={processData} />
                     ) : docItem.originalDoc?.tipo === 'REQUERIMENTO_INICIAL' ? (
                       <StaticRequest processData={processData} />
+                    ) : docItem.originalDoc?.tipo === 'CERTIDAO_ATESTO_PC' ? (
+                      <StaticCertidaoAtestoPC 
+                        processData={processData} 
+                        documentData={docItem.originalDoc}
+                        prestacaoData={{
+                          id: docItem.originalDoc?.id,
+                          status: docItem.originalDoc?.status,
+                          total_gasto: docItem.originalDoc?.metadata?.total_gasto,
+                          total_inss_retido: docItem.originalDoc?.metadata?.total_inss_retido,
+                          total_iss_retido: docItem.originalDoc?.metadata?.total_iss_retido,
+                          saldo_devolvido: docItem.originalDoc?.metadata?.saldo_devolvido,
+                          comprovantes_count: docItem.originalDoc?.metadata?.comprovantes_count,
+                          gdr_inss_numero: docItem.originalDoc?.metadata?.gdr_inss_numero,
+                          gdr_saldo_numero: docItem.originalDoc?.metadata?.gdr_saldo_numero
+                        }}
+                      />
                     ) : docItem.originalDoc?.tipo === 'CERTIDAO_ATESTO' || docItem.originalDoc?.tipo === 'ATESTO' || docItem.originalDoc?.tipo === 'CERTIDAO' ? (
                       <StaticCertidaoAtesto processData={processData} documentData={docItem.originalDoc} />
+                    ) : docItem.originalDoc?.tipo === 'COMPROVANTE_DESPESA' && docItem.originalDoc?.file_url ? (
+                      /* Comprovante de Despesa - Embed the file */
+                      <div className="flex-1 flex flex-col items-center justify-start">
+                        <div className="text-center mb-6">
+                          <h2 className="text-xl font-black uppercase tracking-widest">
+                            {docItem.title}
+                          </h2>
+                          <p className="text-xs text-slate-500 mt-2 flex items-center justify-center gap-2">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-bold">
+                              COMPROVANTE_DESPESA
+                            </span>
+                            {docItem.originalDoc?.metadata?.valor && (
+                              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold">
+                                R$ {Number(docItem.originalDoc.metadata.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        
+                        {/* Use object/embed for full file rendering */}
+                        <object
+                          data={docItem.originalDoc.file_url}
+                          type={docItem.originalDoc.file_url.endsWith('.pdf') ? 'application/pdf' : 'image/png'}
+                          className="w-full min-h-[700px] rounded-lg border border-slate-200"
+                        >
+                          {/* Fallback: iframe */}
+                          <iframe
+                            src={docItem.originalDoc.file_url}
+                            className="w-full min-h-[700px] rounded-lg border border-slate-200"
+                            title={docItem.title}
+                          />
+                        </object>
+                      </div>
+                    ) : docItem.originalDoc?.file_url && (
+                      docItem.originalDoc.file_url.endsWith('.png') || 
+                      docItem.originalDoc.file_url.endsWith('.jpg') || 
+                      docItem.originalDoc.file_url.endsWith('.jpeg') ||
+                      docItem.originalDoc.file_url.endsWith('.webp')
+                    ) ? (
+                      /* Generic Image Document */
+                      <div className="flex-1 flex flex-col items-center justify-start">
+                        <div className="text-center mb-8">
+                          <h2 className="text-xl font-black uppercase tracking-widest">
+                            {docItem.title}
+                          </h2>
+                          <p className="text-sm text-slate-500 mt-2">{docItem.originalDoc?.tipo || 'IMAGEM'}</p>
+                        </div>
+                        <img
+                          src={docItem.originalDoc.file_url}
+                          alt={docItem.title}
+                          className="max-w-full max-h-[800px] object-contain rounded-lg shadow-lg border border-slate-200"
+                        />
+                      </div>
                     ) : (
                       <>
                         {/* Dynamic Document */}
@@ -368,9 +437,24 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                           <p className="text-sm text-slate-500 mt-2">{docItem.originalDoc?.tipo || 'DOCUMENTO'}</p>
                         </div>
                         <div className="w-full h-px bg-slate-900/20 mb-8"></div>
-                        <div className="font-serif text-base leading-loose text-justify whitespace-pre-wrap">
-                          {docItem.originalDoc?.conteudo || 'Conteúdo não disponível para visualização.'}
-                        </div>
+                        {docItem.originalDoc?.file_url ? (
+                          <div className="text-center">
+                            <a 
+                              href={docItem.originalDoc.file_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
+                            >
+                              <FileDown size={18} />
+                              Abrir Arquivo Original
+                            </a>
+                            <p className="text-sm text-slate-400 mt-4">Clique para visualizar o arquivo anexado.</p>
+                          </div>
+                        ) : (
+                          <div className="font-serif text-base leading-loose text-justify whitespace-pre-wrap">
+                            {docItem.originalDoc?.conteudo || 'Conteúdo não disponível para visualização.'}
+                          </div>
+                        )}
 
 
                         {/* Electronic Signature Section for Signed Documents */}

@@ -68,6 +68,7 @@ import { TimelineHistory } from '../TimelineHistory';
 import { useRoleRequests, ROLE_LABELS, SystemRole } from '../../hooks/useRoleRequests';
 import { useToast } from '../ui/ToastProvider';
 import { useSupridoProcesses } from '../../hooks/useSupridoProcesses';
+import { useNotifications } from '../../hooks/useNotifications';
 import { PrestacaoContasWizard } from './PrestacaoContasWizard';
 import { DocumentSigningModal } from './DocumentSigningModal';
 import { SupridoHome } from './SupridoHome';
@@ -170,7 +171,9 @@ interface SupridoDashboardProps {
 
 export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, onInternalViewChange, onProfileUpdate, onRestoreModule }) => {
   const { showToast } = useToast();
+  const notifications = useNotifications(); // Hook injected
   const [currentView, setCurrentView] = useState<SupridoView>('DASHBOARD');
+
 
   
   // React to external view overrides (e.g. from AppNavbar)
@@ -359,12 +362,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         created_at: new Date().toISOString()
       });
 
-      // Clear the "Resource Credited" notification
-      await supabase
-        .from('system_notifications')
-        .update({ is_read: true })
-        .contains('metadata', { process_id: processId })
-        .eq('type', 'CRITICAL'); // double check to be safe
+      // Mark notification as read immediately using the hook (optimistic + persistence)
+      await notifications.markReadByMetadata('process_id', processId);
 
       setPendingConfirmations(prev => prev.filter(p => p.id !== processId));
 

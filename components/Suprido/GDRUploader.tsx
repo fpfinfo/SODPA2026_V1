@@ -74,15 +74,9 @@ export const GDRUploader: React.FC<GDRUploaderProps> = ({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validar tipo de arquivo
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-      if (!allowedTypes.includes(file.type)) {
-        setError('Formato inválido. Aceitos: PDF, JPG, PNG');
-        return;
-      }
-      // Validar tamanho (máx 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Arquivo muito grande. Máximo: 5MB');
+      // Validar tamanho (máx 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Arquivo muito grande. Máximo: 10MB');
         return;
       }
       setSelectedFile(file);

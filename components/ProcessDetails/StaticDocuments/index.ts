@@ -7,4 +7,5 @@ export { StaticNE } from './StaticNE';
 export { StaticDL } from './StaticDL';
 export { StaticOB } from './StaticOB';
 export { StaticPrestacaoContas } from './StaticPrestacaoContas';
+export { StaticCertidaoAtestoPC } from './StaticCertidaoAtestoPC';
 

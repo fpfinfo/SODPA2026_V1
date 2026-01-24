@@ -392,6 +392,7 @@ export const GestorDashboard: React.FC = () => {
   // Check if process has Certidão de Atesto (enables Tramitar button)
   const hasAtesto = dossierDocs.some(doc => 
     doc.tipo === 'CERTIDAO_ATESTO' || 
+    doc.tipo === 'CERTIDAO_ATESTO_PC' ||
     doc.tipo === 'CERTIDAO' ||
     doc.nome?.toLowerCase().includes('atesto') ||
     doc.titulo?.toLowerCase().includes('atesto')
@@ -401,23 +402,30 @@ export const GestorDashboard: React.FC = () => {
   const isAutoAtesto = selectedProcess?.user_id === currentUserId || 
                        selectedProcess?.suprido_id === currentUserId;
   
-  // Process status check - show Gerar Atesto for processes pending atesto
-  const isPendingAtesto = selectedProcess?.status?.toLowerCase()?.includes('atesto') ||
-                          selectedProcess?.status === 'PENDENTE ATESTO' ||
-                          selectedProcess?.status === 'Pendente Atesto';
+  // Atesto logic distinction:
+  // 1. Initial Atesto (Pre-Empenho) -> Status: PENDENTE ATESTO
+  // 2. PC Atesto (Post-Expense) -> Status: AGUARDANDO_ATESTO_GESTOR (Previously PC_SUBMITTED)
   
+  const isInitialAtesto = selectedProcess?.status === 'PENDENTE ATESTO';
+  const isPCJob = selectedProcess?.status === 'AGUARDANDO_ATESTO_GESTOR' || selectedProcess?.status_workflow === 'AGUARDANDO_ATESTO_GESTOR';
+
   // Show "Gerar Atesto" button when:
   // 1. NOT auto-atesto (Gestor is not the Suprido)
   // 2. AND process is pending atesto
   // 3. AND (still loading docs OR doesn't already have an atesto document)
   // We show button during loading to avoid flicker, validation happens on click
-  const needsAtesto = !isAutoAtesto && isPendingAtesto && (isLoadingDossierDocs || !hasAtesto);
+  const needsAtesto = !isAutoAtesto && isInitialAtesto && (isLoadingDossierDocs || !hasAtesto);
   
   // Can tramitar if: auto-atesto OR has atesto document
   // During loading, only allow if auto-atesto (safe because no atesto needed)
   const canTramitarToSOSFU = isAutoAtesto || (!isLoadingDossierDocs && hasAtesto);
   
-  const isChecklistComplete = Object.values(checklist).every(Boolean);
+  
+  const handlePCAnalysis = () => {
+    // Open the PC Analysis View (Tabs -> PrestacaoAtestoTab)
+    // We can reuse the PROCESS_DETAILS container but force the SUBVIEW to PC_ATESTO
+    setSubView('PC_ATESTO');
+  };
 
   const handleGenerateAtestoClick = () => {
     // Prevent duplicate atesto if already exists
@@ -468,6 +476,39 @@ export const GestorDashboard: React.FC = () => {
   // Use Universal Process Details Page when process is selected
   // BUT only if we're not in EDIT_DOC view (which is used for Certidão de Atesto)
   if (selectedProcess && view !== 'EDIT_DOC') {
+    // If asking for PC_ATESTO, show that specialized view or tab
+    if (subView === 'PC_ATESTO') {
+        return (
+            <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col animate-in slide-in-from-right">
+                {/* Custom Header for PC Analysis */}
+                <div className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setSubView('DETAILS')} className="p-2 hover:bg-slate-100 rounded-full">
+                            <ArrowLeft size={20} className="text-slate-600"/>
+                        </button>
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-800">Análise de Prestação de Contas</h2>
+                            <p className="text-sm text-slate-500">NUP: {selectedProcess.nup}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="flex-1 overflow-auto p-6 max-w-7xl mx-auto w-full">
+                    <PrestacaoAtestoTab 
+                        processId={selectedProcess.id} 
+                        processData={selectedProcess}
+                        onBack={() => setSubView('DETAILS')}
+                        onSuccess={() => {
+                            setSubView('DETAILS');
+                            refetchProcesses();
+                            showToast({ type: 'success', title: 'Sucesso', message: 'Prestação de Contas atestada e enviada.' });
+                        }}
+                    />
+                </div>
+            </div>
+        )
+    }
+
     return (
       <>
         <UniversalProcessDetailsPage
@@ -477,13 +518,16 @@ export const GestorDashboard: React.FC = () => {
             setSelectedProcess(null);
             setView('LIST');
           }}
-          canTramitar={canTramitarToSOSFU}
+          canTramitar={canTramitarToSOSFU && !isPCJob} // Disable generic tramitar if doing PC stuff
           canGenerateAtesto={needsAtesto}
           canCreateDocument={true}
           isLoadingAtesto={isGeneratingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
           onGenerateAtesto={handleGenerateAtestoClick}
           onCreateDocument={() => setShowDocumentWizard(true)}
+          // Inject PC Analysis Action
+          customActionLabel={isPCJob ? "Analisar Prestação de Contas" : undefined}
+          onCustomAction={isPCJob ? handlePCAnalysis : undefined}
         />
         
         {/* Atesto Preview and Signature Modal */}

@@ -71,7 +71,8 @@ export const TramitarModal: React.FC<TramitarModalProps> = ({
         .from('solicitacoes')
         .select('user_id, suprido_id')
         .eq('id', processId)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       const isAutoAtesto = solicitacao?.user_id === user?.id || solicitacao?.suprido_id === user?.id;
 
@@ -81,7 +82,7 @@ export const TramitarModal: React.FC<TramitarModalProps> = ({
           .from('documentos')
           .select('id')
           .eq('solicitacao_id', processId)
-          .in('tipo', ['CERTIDAO_ATESTO', 'ATESTO', 'CERTIDAO'])
+          .in('tipo', ['CERTIDAO_ATESTO', 'CERTIDAO_ATESTO_PC', 'ATESTO', 'CERTIDAO'])
           .maybeSingle();
 
         if (atestoError) {

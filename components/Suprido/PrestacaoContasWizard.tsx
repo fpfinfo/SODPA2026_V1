@@ -17,13 +17,15 @@ import {
   Calculator,
   Receipt,
   X,
-  Loader2
+  Loader2,
+  Eye
 } from 'lucide-react';
 import { usePrestacaoContas, ComprovantePC, PrestadorPFDados } from '../../hooks/usePrestacaoContas';
 import { ComprovantesUploader } from './ComprovantesUploader';
 import { ConciliacaoPanel } from './ConciliacaoPanel';
 import { GDRUploader } from './GDRUploader';
 import { PrestadorPFForm } from './PrestadorPFForm';
+import { DossierReviewPanel } from './DossierReviewPanel';
 import { useToast } from '../ui/ToastProvider';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -46,13 +48,12 @@ interface PrestacaoContasWizardProps {
   onSuccess?: () => void;
 }
 
-type WizardStep = 1 | 2 | 3 | 4;
+type WizardStep = 1 | 2 | 3;
 
 const STEPS = [
-  { id: 1, title: 'Resumo', icon: Briefcase },
-  { id: 2, title: 'Comprovantes', icon: Receipt },
-  { id: 3, title: 'GDRs', icon: Calculator },
-  { id: 4, title: 'Declaração', icon: ClipboardCheck }
+  { id: 1, title: 'Execução Financeira', icon: Receipt },
+  { id: 2, title: 'Conciliação & GDRs', icon: Calculator },
+  { id: 3, title: 'Revisão do Dossiê', icon: ClipboardCheck }
 ];
 
 // =============================================================================
@@ -157,15 +158,19 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
 
   const canProceed = (step: WizardStep): boolean => {
     switch (step) {
-      case 1: return true; // Always can view summary
-      case 2: return totalGasto > 0; // Comprovantes exist if total > 0
-      case 3: {
+      case 1: return totalGasto > 0; // Must have at least one expense
+      case 2: {
         // GDR step: must have all required GDRs uploaded
         const inssOk = !temINSSParaRecolher || gdrINSSPaga;
         const saldoOk = !temSaldoParaDevolver || gdrSaldoPaga;
         return inssOk && saldoOk;
       }
-      case 4: return declaracaoAceita && totalGasto <= processData.valorConcedido;
+      case 3: {
+        const totalDevolvido = (saldoDevolver > 0 && gdrSaldoPaga) ? saldoDevolver : 0;
+        const diferenca = Math.abs(processData.valorConcedido - (totalGasto + totalDevolvido));
+        const contaFecha = diferenca < 0.05; 
+        return declaracaoAceita && contaFecha;
+      }
       default: return false;
     }
   };
@@ -229,7 +234,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
 
     if (updateError) throw updateError;
 
-    // Update local state
+    // Modificar o estado local
     if (tipo === 'INSS') {
       setGdrINSSPaga(true);
       setGdrINSSNumero(numero);
@@ -237,6 +242,9 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
       setGdrSaldoPaga(true);
       setGdrSaldoNumero(numero);
     }
+    
+    // Refresh data form Server to ensure URLs are synced
+    await refresh();
 
     showToast({
       title: 'GDR registrada!',
@@ -250,7 +258,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
   // ==========================================================================
 
   const handleSubmit = async () => {
-    if (!canProceed(4)) return;
+    if (!canProceed(3)) return;
 
     setIsSubmitting(true);
 
@@ -269,7 +277,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
           .eq('id', pc.id);
       }
 
-      const result = await submitPC();
+      const result = await submitPC(processData.nup);
 
       if (result.success) {
         showToast({
@@ -294,93 +302,53 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
   };
 
   // ==========================================================================
-  // RENDER STEPS
+  // ==========================================================================
+  // STEP 1: EXECUÇÃO FINANCEIRA (Summary + Comprovantes)
   // ==========================================================================
 
   const renderStep1 = () => (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
-      <div className="text-center pb-6 border-b border-slate-100">
-        <div className="w-20 h-20 bg-blue-100 rounded-3xl mx-auto flex items-center justify-center mb-4">
-          <Briefcase size={40} className="text-blue-600" />
+      <div className="text-center pb-4">
+        <div className="w-16 h-16 bg-blue-100 rounded-2xl mx-auto flex items-center justify-center mb-3">
+          <Receipt size={32} className="text-blue-600" />
         </div>
-        <h2 className="text-2xl font-black text-slate-800">Resumo da Concessão</h2>
-        <p className="text-sm text-slate-500 mt-2">Verifique os dados antes de prosseguir</p>
+        <h2 className="text-2xl font-black text-slate-800">Execução Financeira</h2>
+        <p className="text-sm text-slate-500 mt-1">Lance os comprovantes de despesa</p>
       </div>
 
-      {/* Process Info Card */}
-      <div className="bg-slate-50 rounded-[28px] p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Process Info Card (Compact) */}
+      <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <div>
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">NUP</p>
-            <p className="text-lg font-black text-slate-800">{processData.nup}</p>
+            <p className="text-sm font-black text-slate-800">{processData.nup}</p>
           </div>
-          {processData.portariaNumero && (
-            <div className="text-right">
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Portaria</p>
-              <p className="text-sm font-bold text-slate-700">{processData.portariaNumero}</p>
-            </div>
-          )}
+          <div className="h-8 w-px bg-slate-200" />
+          <div>
+            <p className="text-[10px] text-slate-400 font-bold uppercase">Suprido</p>
+            <p className="text-sm font-bold text-slate-700 truncate max-w-[150px]">{processData.supridoNome}</p>
+          </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-              <User size={20} className="text-slate-400" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase">Suprido</p>
-              <p className="text-sm font-bold text-slate-800 truncate max-w-[180px]">{processData.supridoNome}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center shadow-sm">
-              <DollarSign size={20} className="text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase">Valor Concedido</p>
-              <p className="text-sm font-black text-emerald-700">{formatCurrency(processData.valorConcedido)}</p>
-            </div>
-          </div>
+        <div className="text-right">
+          <p className="text-[10px] text-slate-400 font-bold uppercase">Valor Concedido</p>
+          <p className="text-lg font-black text-emerald-700">{formatCurrency(processData.valorConcedido)}</p>
         </div>
       </div>
 
-      {/* Elementos Autorizados */}
-      {processData.elementosAprovados && processData.elementosAprovados.length > 0 && (
-        <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4">
-          <p className="text-[10px] text-purple-500 font-black uppercase tracking-wider mb-3">
-            Elementos de Despesa Autorizados:
+      {/* Deadline Warning (Compact) */}
+      {diasRestantes !== null && diasRestantes <= 7 && (
+        <div className={`rounded-xl p-3 flex items-center gap-3 ${diasRestantes <= 3 ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
+          <Calendar size={20} className={diasRestantes <= 3 ? 'text-red-600' : 'text-amber-600'} />
+          <p className={`text-sm font-bold ${diasRestantes <= 3 ? 'text-red-700' : 'text-amber-700'}`}>
+            {diasRestantes > 0 ? `${diasRestantes} dia(s) restante(s)` : diasRestantes === 0 ? 'Prazo vence HOJE!' : `Prazo vencido há ${Math.abs(diasRestantes)} dia(s)`}
           </p>
-          <div className="flex flex-wrap gap-2">
-            {processData.elementosAprovados.map(el => (
-              <span key={el} className="px-3 py-1 bg-white text-purple-700 rounded-lg text-xs font-bold border border-purple-200">
-                {el}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Deadline Warning */}
-      {diasRestantes !== null && (
-        <div className={`rounded-2xl p-4 flex items-center gap-4 ${diasRestantes <= 3 ? 'bg-red-50 border border-red-100' : diasRestantes <= 7 ? 'bg-amber-50 border border-amber-100' : 'bg-blue-50 border border-blue-100'}`}>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${diasRestantes <= 3 ? 'bg-red-100' : diasRestantes <= 7 ? 'bg-amber-100' : 'bg-blue-100'}`}>
-            <Calendar size={24} className={diasRestantes <= 3 ? 'text-red-600' : diasRestantes <= 7 ? 'text-amber-600' : 'text-blue-600'} />
-          </div>
-          <div className="flex-1">
-            <p className={`text-sm font-bold ${diasRestantes <= 3 ? 'text-red-700' : diasRestantes <= 7 ? 'text-amber-700' : 'text-blue-700'}`}>
-              {diasRestantes > 0 ? `${diasRestantes} dia(s) restante(s) para prestação` : diasRestantes === 0 ? 'Prazo vence HOJE!' : `Prazo vencido há ${Math.abs(diasRestantes)} dia(s)`}
-            </p>
-            <p className="text-xs text-slate-500">
-              Prazo: {processData.prazoPrestacao ? new Date(processData.prazoPrestacao).toLocaleDateString('pt-BR') : 'N/A'}
-            </p>
-          </div>
         </div>
       )}
 
       {/* Pendency Alert (if returned) */}
       {isPendency && pc?.motivo_pendencia && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle size={20} className="text-amber-600 mt-0.5" />
             <div>
@@ -391,38 +359,13 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
         </div>
       )}
 
-      {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
-        <Info size={20} className="text-blue-500 mt-0.5" />
-        <div>
-          <p className="text-sm text-blue-800">
-            <strong>Próximo passo:</strong> Anexe os comprovantes de despesa (notas fiscais, recibos, cupons) 
-            que demonstram a aplicação dos recursos.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="text-center pb-4">
-        <h2 className="text-2xl font-black text-slate-800">Comprovantes de Despesa</h2>
-        <p className="text-sm text-slate-500 mt-1">Anexe notas fiscais, recibos e cupons</p>
-      </div>
-
       {/* Alerta sobre Serviços PF */}
-      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+      <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
         <div className="flex items-start gap-3">
-          <Info size={20} className="text-purple-600 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-purple-800">Serviços de Pessoa Física (3.3.90.36)</p>
-            <p className="text-sm text-purple-700 mt-1">
-              Para serviços PF, será necessário informar dados do prestador e o sistema calculará 
-              automaticamente as retenções de ISS (5%) e INSS (11%).
-            </p>
-          </div>
+          <Info size={18} className="text-purple-600 mt-0.5" />
+          <p className="text-sm text-purple-700">
+            <strong>Serviço PF (3.3.90.36):</strong> Informe dados do prestador para cálculo de INSS (11%) e ISS (5%).
+          </p>
         </div>
       </div>
 
@@ -450,7 +393,11 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
     </div>
   );
 
-  const renderStep3 = () => (
+  // ==========================================================================
+  // STEP 2: CONCILIAÇÃO & GDRs
+  // ==========================================================================
+
+  const renderStep2 = () => (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
       <div className="text-center pb-4">
@@ -507,7 +454,11 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
     </div>
   );
 
-  const renderStep4 = () => (
+  // ==========================================================================
+  // STEP 3: REVISÃO DO DOSSIÊ (was renderStep4)
+  // ==========================================================================
+
+  const renderStep3 = () => (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
       <div className="text-center pb-6 border-b border-slate-100">
@@ -563,19 +514,130 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
         )}
       </div>
 
-      {/* Validation Error */}
-      {totalGasto > processData.valorConcedido && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
-          <AlertTriangle size={20} className="text-red-600 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-red-800">Valor Excedido</p>
-            <p className="text-xs text-red-700">
-              O total gasto ({formatCurrency(totalGasto)}) excede o valor concedido ({formatCurrency(processData.valorConcedido)}).
-              Revise os comprovantes.
-            </p>
+      {/* Validation Status */}
+      {(() => {
+        const totalDevolvido = (saldoDevolver > 0 && gdrSaldoPaga) ? saldoDevolver : 0;
+        const totalExplicado = totalGasto + totalDevolvido;
+        const diferenca = processData.valorConcedido - totalExplicado;
+        const contaFecha = Math.abs(diferenca) < 0.05;
+
+        if (contaFecha) {
+          return (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+              <CheckCircle2 size={24} className="text-emerald-600" />
+              <div>
+                <p className="text-sm font-bold text-emerald-800">Conciliação Concluída</p>
+                <p className="text-xs text-emerald-700">Todos os valores foram justificados. Você pode enviar a PC.</p>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <AlertTriangle size={24} className="text-amber-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-800">Conciliação Pendente</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Falta justificar: <strong>{formatCurrency(diferenca)}</strong>
+              </p>
+              <ul className="list-disc list-inside text-xs text-amber-700 mt-1">
+                {saldoDevolver > 0 && !gdrSaldoPaga && <li>É necessário emitir e pagar a GDR de Devolução.</li>}
+                {totalGasto === 0 && <li>Não há despesas lançadas.</li>}
+              </ul>
+            </div>
           </div>
+        );
+      })()}
+
+      {/* Document Review Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-6">
+        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+          <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+            <FileText size={14} /> 
+            Conferência do Dossiê Digital
+          </h4>
+          <span className="text-[10px] font-bold bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600">
+            {(comprovantes?.length || 0) + (gdrINSSPaga ? 1 : 0) + (gdrSaldoPaga ? 1 : 0)} arquivos
+          </span>
         </div>
-      )}
+        
+        <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+          {/* List Comprovantes */}
+          {comprovantes.map((comp) => (
+            <div key={comp.id} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <Receipt size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700 line-clamp-1">{comp.emitente}</p>
+                  <p className="text-[10px] text-slate-500">{comp.descricao} • {formatCurrency(comp.valor)}</p>
+                </div>
+              </div>
+              <a 
+                href={comp.storage_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                title="Ver comprovante"
+                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              >
+                <Eye size={16} />
+              </a>
+            </div>
+          ))}
+
+          {/* List GDR INSS */}
+          {gdrINSSPaga && (
+            <div className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <CheckCircle2 size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700">GDR - Recolhimento INSS</p>
+                  <p className="text-[10px] text-slate-500">Guia Paga • {formatCurrency(totalINSSRetido)}</p>
+                </div>
+              </div>
+              {pc?.gdr_inss_arquivo_url && (
+                <a 
+                  href={pc.gdr_inss_arquivo_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <Eye size={16} />
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* List GDR Saldo */}
+          {gdrSaldoPaga && (
+            <div className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <CheckCircle2 size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700">GDR - Devolução de Saldo</p>
+                  <p className="text-[10px] text-slate-500">Guia Paga • {formatCurrency(saldoDevolver)}</p>
+                </div>
+              </div>
+              {pc?.gdr_saldo_arquivo_url && (
+                <a 
+                  href={pc.gdr_saldo_arquivo_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <Eye size={16} />
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Declaration */}
       <div className="bg-slate-50 rounded-2xl p-6">
@@ -605,31 +667,41 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4">
-          <div className="flex items-center justify-center gap-3">
-            <RefreshCw size={24} className="animate-spin text-blue-600" />
-            <span className="text-slate-600">Carregando prestação de contas...</span>
-          </div>
+      <div className="flex items-center justify-center p-12">
+        <div className="flex flex-col items-center justify-center gap-3">
+          <RefreshCw size={32} className="animate-spin text-blue-600" />
+          <span className="text-slate-600 font-medium">Carregando prestação de contas...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-8">
-      <div className="bg-white rounded-[32px] w-full max-w-2xl mx-4 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="min-h-full py-8 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white rounded-[32px] w-full max-w-6xl mx-auto shadow-sm border border-slate-200 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-black uppercase tracking-tight">Prestação de Contas</h1>
-            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-all">
-              <X size={24} />
-            </button>
+        <div className="bg-slate-900 text-white p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+               <button 
+                  onClick={onClose} 
+                  className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-bold mb-2 group"
+               >
+                  <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform"/> 
+                  Voltar ao Painel
+               </button>
+               <h1 className="text-3xl font-black uppercase tracking-tight">Prestação de Contas</h1>
+               <p className="text-slate-400 mt-1 font-medium">Processo NUP {processData.nup}</p>
+            </div>
+            
+            <div className="flex items-center gap-3 px-4 py-2 bg-white/10 rounded-xl border border-white/10">
+               <DollarSign size={20} className="text-emerald-400" />
+               <span className="font-bold">{formatCurrency(processData.valorConcedido)}</span>
+            </div>
           </div>
           
           {/* Progress Steps */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between max-w-3xl mx-auto">
             {STEPS.map((step, index) => {
               const Icon = step.icon;
               const isActive = step.id === currentStep;
@@ -663,43 +735,42 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
-          {currentStep === 4 && renderStep4()}
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-100 p-4 flex items-center justify-between bg-slate-50">
+        <div className="border-t border-slate-100 p-8 flex items-center justify-between bg-slate-50">
           <button
             onClick={currentStep === 1 ? onClose : goBack}
-            className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+            className="flex items-center gap-2 px-6 py-4 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-2xl transition-all font-bold shadow-sm"
           >
             <ArrowLeft size={18} />
-            {currentStep === 1 ? 'Cancelar' : 'Voltar'}
+            {currentStep === 1 ? 'Cancelar e Voltar' : 'Voltar Etapa'}
           </button>
 
-          {currentStep < 4 ? (
+          {currentStep < 3 ? (
             <button
               onClick={goNext}
               disabled={!canProceed(currentStep)}
-              className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:-translate-y-1"
             >
-              Próximo
+              Próxima Etapa
               <ArrowRight size={18} />
             </button>
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={!canProceed(4) || isSubmitting}
-              className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canProceed(3) || isSubmitting}
+              className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-emerald-200 hover:-translate-y-1"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  Enviando...
+                  Enviando PC...
                 </>
               ) : (
                 <>
                   <Send size={18} />
-                  Enviar ao Gestor
+                  Submeter Prestação de Contas
                 </>
               )}
             </button>
