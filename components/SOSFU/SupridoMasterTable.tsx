@@ -17,8 +17,11 @@ import {
   History,
   Edit3,
   Filter,
-  ChevronDown
+  ChevronDown,
+  UserPlus
 } from 'lucide-react';
+import { useNomeacao } from '../../hooks/useNomeacao';
+import { useToast } from '../ui/ToastProvider';
 
 interface UnidadeTitular {
   id: string;
@@ -33,12 +36,13 @@ interface UnidadeTitular {
   servidor_tj_id: string | null;
   portaria_numero: string | null;
   portaria_data: string | null;
-  status: 'REGULAR' | 'IRREGULAR' | 'SUSPENSO' | 'SEM_TITULAR';
+  status: 'REGULAR' | 'IRREGULAR' | 'SUSPENSO' | 'SEM_TITULAR' | 'PENDENTE_NOMEACAO';
   motivo_irregularidade: string | null;
   valor_mensal_custeio: number;
   valor_mensal_capital: number;
   ptres: string;
   updated_at: string;
+  nomeacao_pendente_id: string | null;
 }
 
 interface SupridoMasterTableProps {
@@ -55,6 +59,9 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [tipoFilter, setTipoFilter] = useState<string>('ALL');
+  
+  const { approveNomeacao, rejectNomeacao } = useNomeacao()
+  const { showToast } = useToast()
 
   // Fetch titulares from database
   const fetchTitulares = async () => {
@@ -76,6 +83,7 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
           valor_mensal_capital,
           ptres,
           updated_at,
+          nomeacao_pendente_id,
           comarcas!unidade_titulares_comarca_id_fkey (
             nome,
             codigo
@@ -103,12 +111,13 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
         servidor_tj_id: item.servidor_tj_id,
         portaria_numero: item.portaria_numero,
         portaria_data: item.portaria_data,
-        status: item.status,
+        status: item.nomeacao_pendente_id ? 'PENDENTE_NOMEACAO' : item.status,
         motivo_irregularidade: item.motivo_irregularidade,
         valor_mensal_custeio: item.valor_mensal_custeio || 0,
         valor_mensal_capital: item.valor_mensal_capital || 0,
         ptres: item.ptres || '8193',
-        updated_at: item.updated_at
+        updated_at: item.updated_at,
+        nomeacao_pendente_id: item.nomeacao_pendente_id || null
       }));
 
       setTitulares(transformed);
@@ -122,6 +131,19 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
   useEffect(() => {
     fetchTitulares();
   }, []);
+
+  const handleApprove = async (titular: UnidadeTitular) => {
+    if (!titular.nomeacao_pendente_id) return
+    if(!confirm('Confirma a aprovação da troca de responsabilidade? A Portaria será efetivada e o novo suprido assumirá a comarca.')) return
+
+    const res = await approveNomeacao(titular.nomeacao_pendente_id, titular.comarca_id)
+    if (res.success) {
+      showToast({ title: 'Aprovado', message: 'Troca de suprido efetivada.', type: 'success' })
+      fetchTitulares()
+    } else {
+      showToast({ title: 'Erro', message: res.error, type: 'error' })
+    }
+  }
 
   // Filter titulares
   const filteredTitulares = useMemo(() => {
@@ -147,7 +169,8 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
     regular: titulares.filter(t => t.status === 'REGULAR').length,
     irregular: titulares.filter(t => t.status === 'IRREGULAR').length,
     semTitular: titulares.filter(t => t.status === 'SEM_TITULAR').length,
-    suspenso: titulares.filter(t => t.status === 'SUSPENSO').length
+    suspenso: titulares.filter(t => t.status === 'SUSPENSO').length,
+    pending: titulares.filter(t => t.status === 'PENDENTE_NOMEACAO').length
   }), [titulares]);
 
   const getStatusBadge = (status: string) => {
@@ -160,6 +183,8 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
         return <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-lg border border-amber-200"><Clock size={12}/> Suspenso</span>;
       case 'SEM_TITULAR':
         return <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg border border-slate-200"><UserX size={12}/> Sem Titular</span>;
+      case 'PENDENTE_NOMEACAO':
+         return <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-200 animate-pulse"><UserPlus size={12}/> Nomeação Pendente</span>;
       default:
         return <span className="text-slate-400 text-xs">--</span>;
     }
@@ -193,7 +218,7 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
         </div>
         
         {/* Stats Row */}
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-6 gap-4">
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
             <p className="text-3xl font-black">{stats.total}</p>
             <p className="text-[10px] font-bold text-orange-100 uppercase tracking-wider">Total</p>
@@ -214,6 +239,12 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
             <p className="text-3xl font-black text-amber-300">{stats.suspenso}</p>
             <p className="text-[10px] font-bold text-orange-100 uppercase tracking-wider">Suspensos</p>
           </div>
+          {stats.pending > 0 && (
+            <div className="bg-blue-600/30 backdrop-blur-sm rounded-xl p-3 text-center border border-blue-400/30 animate-pulse">
+               <p className="text-3xl font-black text-blue-100">{stats.pending}</p>
+               <p className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Pendentes</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -242,6 +273,7 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
             <option value="IRREGULAR">Irregular</option>
             <option value="SEM_TITULAR">Sem Titular</option>
             <option value="SUSPENSO">Suspenso</option>
+            <option value="PENDENTE_NOMEACAO">Pendência</option>
           </select>
           
           <select
@@ -297,6 +329,11 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
                       <div>
                         <p className="font-bold text-slate-800">{titular.comarca_nome}</p>
                         <p className="text-[10px] text-slate-400 font-mono">{titular.comarca_codigo}</p>
+                        {titular.nomeacao_pendente_id && (
+                           <span className="text-[9px] font-black text-blue-600 uppercase bg-blue-50 px-1 rounded border border-blue-100 mt-1 inline-block">
+                             Troca Solicitada
+                           </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -367,21 +404,33 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
                   
                   {/* Ações */}
                   <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button 
-                        onClick={() => onEditTitular?.(titular)}
-                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
-                        title="Editar"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => onViewHistory?.(titular.id)}
-                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
-                        title="Histórico"
-                      >
-                        <History size={16} />
-                      </button>
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <div className="flex gap-1">
+                        <button 
+                            onClick={() => onEditTitular?.(titular)}
+                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Editar"
+                        >
+                            <Edit3 size={16} />
+                        </button>
+                        <button 
+                            onClick={() => onViewHistory?.(titular.id)}
+                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Histórico"
+                        >
+                            <History size={16} />
+                        </button>
+                      </div>
+
+                      {/* Action for Approval */}
+                      {titular.nomeacao_pendente_id && (
+                        <button
+                          onClick={() => handleApprove(titular)}
+                          className="mt-1 w-full px-2 py-1 bg-blue-600 text-white text-[10px] font-bold rounded hover:bg-blue-700 transition-colors shadow-sm"
+                        >
+                          Analisar Portaria
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

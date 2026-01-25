@@ -22,6 +22,7 @@ interface GestorHeaderProps {
   gestorMode: GestorMode
   onModeChange: (mode: GestorMode) => void
   pendingCount?: number
+  extraActions?: React.ReactNode
 }
 
 interface NavItem {
@@ -40,7 +41,8 @@ export function GestorHeader({
   onNavigate,
   gestorMode,
   onModeChange,
-  pendingCount = 0
+  pendingCount = 0,
+  extraActions
 }: GestorHeaderProps) {
   
   const navItems: NavItem[] = [
@@ -167,6 +169,13 @@ export function GestorHeader({
             </span>
           )}
         </div>
+
+        {/* Extra Actions */}
+        {extraActions && (
+          <div className="pl-4 border-l border-slate-200">
+            {extraActions}
+          </div>
+        )}
       </div>
     </header>
   )
