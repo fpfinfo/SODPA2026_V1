@@ -658,7 +658,7 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
     createPC,
     submitPC,
     atestarPC,
-    devolvPC,
+    devolverPC: devolvPC,
     approvePC,
     baixaSiafe,
     decidirTCE,

@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, BadgeCheck, FileText, DollarSign, Calendar, User, 
   CheckCircle2, AlertTriangle, RefreshCw, Eye, Download,
-  QrCode, ShieldCheck, FileWarning 
+  QrCode, ShieldCheck, FileWarning, Activity, TrendingUp, AlertOctagon
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { usePrestacaoContas } from '../../hooks/usePrestacaoContas';
 import { useToast } from '../ui/ToastProvider';
 import { useDossierData } from '../ProcessDetails/hooks/useDossierData';
 import { SignatureModal } from '../ui/SignatureModal';
+import { useSupridoCRM, fetchSupridoStats } from '../../hooks/useSupridoCRM';
+import { calculateRisk, RiskAnalysis } from '../../lib/riskEngine';
 import { ConciliacaoPanel } from '../Suprido/ConciliacaoPanel';
+import { PendenciaModal } from './PendenciaModal'; // Import Modal
 
 interface PrestacaoAtestoTabProps {
   processId: string;
@@ -25,29 +28,38 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
   onSuccess
 }) => {
   const { showToast } = useToast();
-  const { pc, comprovantes, atestarPC, isLoading: isLoadingPC } = usePrestacaoContas({ solicitacaoId: processId });
-  const { dossierDocs, refreshDocs } = useDossierData({ processId, currentUserId: '' }); // Fetch docs for review
+  const { pc, comprovantes, atestarPC, devolverPC, isLoading: isLoadingPC } = usePrestacaoContas({ solicitacaoId: processId });
+  const { dossierDocs, refreshDocs } = useDossierData({ processId, currentUserId: '' });
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const [generatedPdfBlob, setGeneratedPdfBlob] = useState<Blob | null>(null);
+  const [showPendenciaModal, setShowPendenciaModal] = useState(false); // State for Glosa Modal
+  
+  // Intelligence Hooks
+  const [supridoStats, setSupridoStats] = useState<any>(null);
+  const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysis | null>(null);
 
   // Totals
   const totalConcedido = pc?.valor_concedido || 0;
   const totalGasto = pc?.valor_gasto || 0;
   const totalDevolvido = pc?.valor_devolvido || 0;
   const totalINSS = pc?.total_inss_retido || 0;
-  
   const contaFecha = Math.abs(totalConcedido - (totalGasto + totalDevolvido)) < 0.05;
+
+  useEffect(() => {
+    if (pc?.submitted_by) {
+       fetchSupridoStats(pc.submitted_by).then(stats => {
+           setSupridoStats(stats);
+           const risk = calculateRisk(pc, comprovantes, stats);
+           setRiskAnalysis(risk);
+       }).catch(err => console.error("Failed to fetch CRM stats", err));
+    }
+  }, [pc?.submitted_by, comprovantes, pc]);
 
   const handleGenerateAtesto = async () => {
     setIsGenerating(true);
     try {
-      // Here usually we would call an Edge Function or PDF Generator
-      // For now, we simulate the PDF generation
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Allow signing
       setShowSignatureModal(true);
     } catch (err) {
       console.error(err);
@@ -59,20 +71,13 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
 
   const handleSignAndSend = async (pin: string) => {
     try {
-      // 1. Validate PIN (In real app, verify against user profile)
-      // Assuming PIN check passed in SignatureModal before callback or doing it here
-      
-      // 2. Get user info for signature
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // Fetch user profile for signer info
       const { data: profile } = await supabase
         .from('profiles')
         .select('nome, cargo')
         .eq('id', user?.id)
         .single();
       
-      // 3. Create Document Record with comprehensive PC data
       await supabase.from('documentos').insert({
         solicitacao_id: processId,
         nome: `Certidão de Atesto PC - ${processData.nup}.pdf`,
@@ -82,12 +87,10 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
         conteudo: `Certificamos que a Prestação de Contas do processo ${processData.nup} foi analisada e encontra-se regular. Total gasto: ${totalGasto}. Total de comprovantes: ${comprovantes.length}.`,
         created_by: user?.id,
         metadata: {
-          // Signature info
           signed_by: user?.id,
           signed_by_name: profile?.nome || 'Gestor',
           signer_role: profile?.cargo || 'Chefia Imediata',
           signed_at: new Date().toISOString(),
-          // PC Financial Summary
           valor_concedido: totalConcedido,
           total_gasto: totalGasto,
           total_inss_retido: totalINSS,
@@ -100,7 +103,6 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
         }
       });
 
-      // 4. Move Workflow
       const result = await atestarPC();
       if (result.success) {
         showToast({ type: 'success', title: 'PC Atestada!', message: 'Certidão emitida e processo enviado à SOSFU.' });
@@ -113,6 +115,23 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
       showToast({ type: 'error', title: 'Erro', message: err.message });
       return { success: false, error: err.message };
     }
+      return { success: false, error: err.message };
+    }
+  };
+
+  const handleDevolucao = async (motivo: string) => {
+     try {
+       const result = await devolverPC(motivo);
+       if (result.success) {
+          showToast({ type: 'info', title: 'PC Devolvida', message: 'O suprido será notificado para realizar correções.' });
+          onSuccess(); // Sai da tela
+       } else {
+          showToast({ type: 'error', title: 'Erro', message: 'Falha ao devolver PC.' });
+       }
+     } catch (err: any) {
+        console.error(err);
+        showToast({ type: 'error', title: 'Erro', message: err.message });
+     }
   };
 
   if (isLoadingPC) {
@@ -137,6 +156,76 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* INTELLIGENCE SCORECARD */}
+      {riskAnalysis && supridoStats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-4 duration-500 delay-150">
+           {/* RISK SCORE */}
+           <div className={`rounded-3xl p-6 border-l-8 shadow-sm flex items-center justify-between
+              ${riskAnalysis.level === 'CRITICO' ? 'bg-red-50 border-red-500' : 
+                riskAnalysis.level === 'ALTO' ? 'bg-orange-50 border-orange-500' :
+                riskAnalysis.level === 'MEDIO' ? 'bg-amber-50 border-amber-500' :
+                'bg-emerald-50 border-emerald-500'}
+           `}>
+              <div>
+                 <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Análise de Risco Automática</p>
+                 <h3 className={`text-3xl font-black mb-1
+                    ${riskAnalysis.level === 'CRITICO' ? 'text-red-700' : 
+                      riskAnalysis.level === 'ALTO' ? 'text-orange-700' :
+                      riskAnalysis.level === 'MEDIO' ? 'text-amber-700' :
+                      'text-emerald-700'}
+                 `}>
+                    {riskAnalysis.score}/100
+                 </h3>
+                 <p className="text-sm font-bold text-slate-600 flex items-center gap-2">
+                    Nível: {riskAnalysis.level}
+                    {riskAnalysis.level === 'BAIXO' ? <CheckCircle2 size={16} className="text-emerald-500"/> : <AlertOctagon size={16} className="text-red-500"/>}
+                 </p>
+              </div>
+              <div className="flex flex-col gap-1 items-end">
+                 {riskAnalysis.flags.map((flag, idx) => (
+                    <span key={idx} className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider
+                       ${flag.type === 'DANGER' ? 'bg-red-200 text-red-800' : 
+                         flag.type === 'WARNING' ? 'bg-amber-200 text-amber-800' : 
+                         'bg-blue-200 text-blue-800'}
+                    `}>
+                       {flag.message}
+                    </span>
+                 )).slice(0, 3)}
+              </div>
+           </div>
+
+           {/* CRM SUPRIDO */}
+           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                 <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Perfil do Suprido</p>
+                 <div className="flex items-center gap-3">
+                    <User className="text-blue-500" />
+                    <div>
+                       <p className="text-sm font-bold text-slate-800">Histórico ({supridoStats.total_processos} PCs)</p>
+                       <p className={`text-xs font-bold px-2 py-0.5 rounded-full inline-block mt-1
+                          ${supridoStats.reputacao === 'EXCELENTE' ? 'bg-emerald-100 text-emerald-700' :
+                            supridoStats.reputacao === 'ATENCAO' ? 'bg-red-100 text-red-700' :
+                            'bg-slate-100 text-slate-600'}
+                       `}>
+                          Reputação: {supridoStats.reputacao}
+                       </p>
+                    </div>
+                 </div>
+              </div>
+              <div className="text-right space-y-1">
+                 <p className="text-xs text-slate-500">
+                    <TrendingUp size={12} className="inline mr-1"/>
+                    Média Aprovação: <strong className="text-slate-800">{Math.round((supridoStats.total_aprovados / (supridoStats.total_processos || 1)) * 100)}%</strong>
+                 </p>
+                 <p className="text-xs text-slate-500">
+                    <Activity size={12} className="inline mr-1"/>
+                    Devoluções: <strong className="text-red-600">{supridoStats.total_devolucoes}</strong>
+                 </p>
+              </div>
+           </div>
+        </div>
+      )}
 
       {/* Financial Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -181,6 +270,14 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
             {isGenerating ? <RefreshCw className="animate-spin"/> : <BadgeCheck />}
             Atestar e Enviar
           </button>
+          
+          <button
+             onClick={() => setShowPendenciaModal(true)}
+             className="w-full mt-3 py-3 text-red-300 hover:text-red-100 hover:bg-red-500/20 rounded-xl font-bold uppercase tracking-widest transition-all text-sm flex items-center justify-center gap-2"
+          >
+             <AlertTriangle size={16} />
+             Solicitar Correção
+          </button>
         </div>
       </div>
 
@@ -205,7 +302,6 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
                 <div>
                   <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     {comp.emitente}
-                    {/* Badges de Confiança */}
                     {(comp.tipo === 'PASSAGEM' || comp.tipo === 'CUPOM_FISCAL') && (
                        <span className="flex items-center gap-1 text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                          <QrCode size={10} /> Validado SEFAZ
@@ -250,6 +346,13 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
           description="Confirme sua identidade para assinar digitalmente a Certidão de Atesto e encaminhar o processo."
         />
       )}
+
+      {/* Pendencia Modal (Glosa) */}
+      <PendenciaModal 
+        isOpen={showPendenciaModal}
+        onClose={() => setShowPendenciaModal(false)}
+        onConfirm={handleDevolucao}
+      />
     </div>
   );
 };

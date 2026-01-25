@@ -9,6 +9,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { useGestorProcesses, useGestorKPIs } from '../../../hooks/useGestorProcesses'
+import { TimelineRadar } from '../TimelineRadar'
 
 export function GestorDashboardView() {
   const { data: pendingProcesses = [], isLoading, refetch } = useGestorProcesses()
@@ -42,6 +43,9 @@ export function GestorDashboardView() {
           Atualizar
         </button>
       </div>
+
+      {/* Radar de Prazos */}
+      <TimelineRadar />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
