@@ -19,6 +19,7 @@ const GestorCockpit = React.lazy(() => import('./components/Gestor/GestorCockpit
 const SefinCockpit = React.lazy(() => import('./components/SEFIN/SefinCockpit').then(m => ({ default: m.SefinCockpit })));
 const AjsefinDashboard = React.lazy(() => import('./components/AjsefinDashboard').then(m => ({ default: m.AjsefinDashboard })));
 const SgpDashboard = React.lazy(() => import('./components/SgpDashboard').then(m => ({ default: m.SgpDashboard })));
+const ProcessDetailsPage = React.lazy(() => import('./components/ProcessDetails/UniversalProcessDetailsPage').then(m => ({ default: m.ProcessDetailsPage })));
 
 // React Query client configuration
 const queryClient = new QueryClient({
@@ -43,6 +44,10 @@ const AppContent: React.FC = () => {
   // Shared processes state for cross-module integration (e.g., SOSFU -> SEFIN)
   const [sharedProcesses, setSharedProcesses] = useState<Process[]>([]);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  
+  // Process details page navigation state
+  const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
+  const [returnToRole, setReturnToRole] = useState<AppRole | null>(null);
 
   // Custom Hook for Profile Data
   const { userProfile, refetchUser, initialRole } = useUserProfile(user);
@@ -86,12 +91,31 @@ const AppContent: React.FC = () => {
   };
 
   const handleNavigateHome = () => {
+    // If viewing process details, close it first
+    if (selectedProcessId) {
+      setSelectedProcessId(null);
+      return;
+    }
     // If we came from another module, restore it
     if (previousActiveRole && previousActiveRole !== AppRole.SUPRIDO) {
        setActiveRole(previousActiveRole);
        setPreviousActiveRole(null);
     }
     setSupridoViewOverride('DASHBOARD');
+  };
+
+  // Process details navigation handlers
+  const handleOpenProcess = (processId: string) => {
+    setReturnToRole(activeRole);
+    setSelectedProcessId(processId);
+  };
+
+  const handleCloseProcess = () => {
+    setSelectedProcessId(null);
+    if (returnToRole) {
+      setActiveRole(returnToRole);
+      setReturnToRole(null);
+    }
   };
 
   return (
@@ -124,6 +148,14 @@ const AppContent: React.FC = () => {
             </div>
           </div>
         }>
+        {/* Process Details Page - Full Screen Navigation */}
+        {selectedProcessId ? (
+          <ProcessDetailsPage
+            processId={selectedProcessId}
+            onClose={handleCloseProcess}
+          />
+        ) : (
+        <>
         {activeRole === AppRole.SUPRIDO && (
           <SupridoDashboard 
             forceView={supridoViewOverride} 
@@ -146,6 +178,7 @@ const AppContent: React.FC = () => {
             forceTab={sosfuForceSettings ? 'SETTINGS' : null} 
             onInternalTabChange={() => setSosfuForceSettings(false)}
             onProcessesChange={setSharedProcesses}
+            onOpenProcess={handleOpenProcess}
           />
         )}
         {activeRole === AppRole.SEFIN && (
@@ -156,6 +189,8 @@ const AppContent: React.FC = () => {
         )}
         {activeRole === AppRole.SGP && (
           <SgpDashboard />
+        )}
+        </>
         )}
         </Suspense>
       </main>

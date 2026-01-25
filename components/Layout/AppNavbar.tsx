@@ -41,11 +41,29 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
           alt="Brasão TJPA"
         />
         <div>
-          <span className="font-extrabold text-lg tracking-tight text-slate-800">SCS <span className="text-blue-600">TJPA</span></span>
-          <div className="flex items-center gap-1.5 -mt-1">
-             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema de Concessão de Suprimentos</span>
-          </div>
+          {(() => {
+            // Configuração de identificação por módulo
+            const moduleConfig: Record<AppRole, { sigla: string; cor: string; subtitulo: string; corPulse: string }> = {
+              [AppRole.SUPRIDO]: { sigla: 'SCS', cor: 'text-emerald-600', subtitulo: 'Portal do Suprido', corPulse: 'bg-emerald-500' },
+              [AppRole.GESTOR]: { sigla: 'GESTOR', cor: 'text-indigo-600', subtitulo: 'Gestão de Suprimentos', corPulse: 'bg-indigo-500' },
+              [AppRole.SOSFU]: { sigla: 'SOSFU', cor: 'text-blue-600', subtitulo: 'Suprimento de Fundos', corPulse: 'bg-blue-500' },
+              [AppRole.SEFIN]: { sigla: 'SEFIN', cor: 'text-amber-600', subtitulo: 'Secretaria de Planejamento, Coordenação e Finanças', corPulse: 'bg-amber-500' },
+              [AppRole.AJSEFIN]: { sigla: 'AJSEFIN', cor: 'text-purple-600', subtitulo: 'Assessoria Jurídica SEFIN', corPulse: 'bg-purple-500' },
+              [AppRole.SGP]: { sigla: 'SGP', cor: 'text-teal-600', subtitulo: 'Secretaria de Gestão de Pessoas', corPulse: 'bg-teal-500' },
+            };
+            const config = moduleConfig[activeRole] || moduleConfig[AppRole.SUPRIDO];
+            return (
+              <>
+                <span className="font-extrabold text-lg tracking-tight text-slate-800">
+                  <span className={config.cor}>{config.sigla}</span> <span className="text-blue-600">TJPA</span>
+                </span>
+                <div className="flex items-center gap-1.5 -mt-1">
+                  <div className={`w-1.5 h-1.5 rounded-full ${config.corPulse} animate-pulse`}></div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{config.subtitulo}</span>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 

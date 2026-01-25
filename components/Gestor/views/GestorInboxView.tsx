@@ -11,7 +11,7 @@ import {
   BadgeCheck
 } from 'lucide-react'
 import { useGestorProcesses } from '../../../hooks/useGestorProcesses'
-import { UniversalProcessDetailsPage } from '../../ProcessDetails'
+import { GestorProcessDetailsPage } from '../../ProcessDetails'
 import { TramitarModal } from '../../TramitarModal'
 import { DocumentCreationWizard } from '../../DocumentCreationWizard'
 import { supabase } from '../../../lib/supabaseClient'
@@ -194,7 +194,7 @@ ${cargo}`
   if (selectedProcess) {
     return (
       <>
-        <UniversalProcessDetailsPage
+        <GestorProcessDetailsPage
           processId={selectedProcess.id}
           currentUserId={currentUserId}
           onClose={() => setSelectedProcess(null)}

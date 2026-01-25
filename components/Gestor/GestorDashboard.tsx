@@ -43,7 +43,7 @@ import { TramitarModal } from '../TramitarModal';
 import { DocumentCreationWizard } from '../DocumentCreationWizard';
 import { useToast } from '../ui/ToastProvider';
 import { TimelineHistory } from '../TimelineHistory';
-import { UniversalProcessDetailsPage } from '../ProcessDetails';
+import { GestorProcessDetailsPage } from '../ProcessDetails';
 import { useGestorProcesses, useGestorKPIs } from '../../hooks/useGestorProcesses';
 import PortariaManagement from './PortariaManagement';
 import { PrestacaoAtestoTab } from './PrestacaoAtestoTab';
@@ -511,21 +511,20 @@ export const GestorDashboard: React.FC = () => {
 
     return (
       <>
-        <UniversalProcessDetailsPage
+        <GestorProcessDetailsPage
           processId={selectedProcess.id}
           currentUserId={currentUserId}
           onClose={() => {
             setSelectedProcess(null);
             setView('LIST');
           }}
-          canTramitar={canTramitarToSOSFU && !isPCJob} // Disable generic tramitar if doing PC stuff
+          canTramitar={canTramitarToSOSFU && !isPCJob}
           canGenerateAtesto={needsAtesto}
           canCreateDocument={true}
           isLoadingAtesto={isGeneratingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
           onGenerateAtesto={handleGenerateAtestoClick}
           onCreateDocument={() => setShowDocumentWizard(true)}
-          // Inject PC Analysis Action
           customActionLabel={isPCJob ? "Analisar Prestação de Contas" : undefined}
           onCustomAction={isPCJob ? handlePCAnalysis : undefined}
         />

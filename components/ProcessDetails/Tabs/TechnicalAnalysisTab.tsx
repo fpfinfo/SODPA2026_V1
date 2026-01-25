@@ -79,6 +79,8 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
     const allSigned = ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'].every(tipo => 
       documents.find(d => d.tipo === tipo)?.status === 'ASSINADO'
     );
+    const dlGenerated = documents.find(d => d.tipo === 'NOTA_LIQUIDACAO')?.status === 'GERADO' ||
+                        documents.find(d => d.tipo === 'NOTA_LIQUIDACAO')?.status === 'ASSINADO';
     const obGenerated = documents.find(d => d.tipo === 'ORDEM_BANCARIA')?.status === 'GERADO';
     
     return [
@@ -89,6 +91,14 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         icon: FileCheck,
         isAutomatic: true,
         isComplete: allSigned
+      },
+      {
+        id: 'dl_generated',
+        label: 'Documento de Liquidação (DL)',
+        description: 'DL gerado para liquidação da despesa',
+        icon: FileCheck,
+        isAutomatic: true,
+        isComplete: dlGenerated
       },
       {
         id: 'ob_emitted',

@@ -1,44 +1,41 @@
+/**
+ * GestorProcessDetailsPage
+ * 
+ * Componente específico para visualização de detalhes de processo pelo Gestor.
+ * O Gestor só pode ver: Visão Geral e Dossiê Digital.
+ * NÃO tem acesso a: Execução da Despesa, Análise Técnica (são funções do SOSFU).
+ */
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Eye,
   FolderOpen,
-  Receipt,
-  Search,
   BadgeCheck,
   Plus,
   Loader2,
   Send,
-  RefreshCw
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import { useProcessDetails } from '../../hooks/useProcessDetails';
 import { DetailsTab } from './Tabs/DetailsTab';
-import { ExecutionTab } from './Tabs/ExecutionTab';
-import { TechnicalAnalysisTab } from './Tabs/TechnicalAnalysisTab';
 import { UniversalDossierPanel } from './UniversalDossierPanel';
 import { supabase } from '../../lib/supabaseClient';
 
-type TabType = 'overview' | 'dossier' | 'execution' | 'analysis';
+type TabType = 'overview' | 'dossier';
 
-interface ProcessDetailsPageProps {
+interface GestorProcessDetailsPageProps {
   processId: string;
   onClose: () => void;
-  initialTab?: TabType;
-  
-  // Control which tabs are visible (for role-based UI)
-  // Defaults to all tabs if not specified
-  visibleTabs?: TabType[];
-  
-  // Optional: Pass current user ID (will fetch if not provided)
   currentUserId?: string;
   
-  // Action capabilities (role-dependent)
+  // Action capabilities
   canTramitar?: boolean;
   canGenerateAtesto?: boolean;
   canCreateDocument?: boolean;
   isLoadingAtesto?: boolean;
   
-  // Optional action callbacks
+  // Action callbacks
   onTramitar?: () => void;
   onGenerateAtesto?: () => void;
   onCreateDocument?: () => void;
@@ -48,11 +45,9 @@ interface ProcessDetailsPageProps {
   onCustomAction?: () => void;
 }
 
-export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
+export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> = ({
   processId,
   onClose,
-  initialTab = 'overview',
-  visibleTabs,
   currentUserId: passedUserId,
   canTramitar,
   canGenerateAtesto,
@@ -64,7 +59,7 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
   customActionLabel,
   onCustomAction,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [currentUserId, setCurrentUserId] = useState<string | null>(passedUserId || null);
   const { processData, isLoading, error } = useProcessDetails(processId);
 
@@ -108,20 +103,12 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
     );
   }
 
-  // All possible tabs
-  const allTabs = [
+  // GESTOR TABS: Apenas Visão Geral e Dossiê Digital
+  const tabs = [
     { id: 'overview' as TabType, label: 'Visão Geral', icon: Eye },
     { id: 'dossier' as TabType, label: 'Dossiê Digital', icon: FolderOpen },
-    { id: 'execution' as TabType, label: 'Execução da Despesa', icon: Receipt },
-    { id: 'analysis' as TabType, label: 'Análise Técnica', icon: Search },
   ];
 
-  // Filter tabs based on visibleTabs prop (default: show all)
-  const tabs = visibleTabs 
-    ? allTabs.filter(tab => visibleTabs.includes(tab.id))
-    : allTabs;
-
-  // Format currency helper
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
@@ -216,7 +203,7 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
         </div>
       </header>
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation - APENAS 2 TABS PARA GESTOR */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-1 overflow-x-auto">
@@ -264,24 +251,10 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
               currentUserId={currentUserId}
             />
           )}
-          
-          {activeTab === 'execution' && (
-            <ExecutionTab 
-              processData={processData}
-              enrichedProcessData={processData}
-            />
-          )}
-          
-          {activeTab === 'analysis' && (
-            <TechnicalAnalysisTab 
-              processData={processData}
-              enrichedProcessData={processData}
-            />
-          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default ProcessDetailsPage;
+export default GestorProcessDetailsPage;

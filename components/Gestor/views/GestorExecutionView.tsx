@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabaseClient'
 import { useToast } from '../../ui/ToastProvider'
-import { UniversalProcessDetailsPage } from '../../ProcessDetails'
+import { GestorProcessDetailsPage } from '../../ProcessDetails'
 
 interface GestorExecutionViewProps {
   searchQuery: string
@@ -297,10 +297,10 @@ export function GestorExecutionView({ searchQuery }: GestorExecutionViewProps) {
     }
   }
 
-  // Ver Detalhes - render UniversalProcessDetailsPage
+  // Ver Detalhes - render GestorProcessDetailsPage
   if (selectedRequest) {
     return (
-      <UniversalProcessDetailsPage
+      <GestorProcessDetailsPage
         processId={selectedRequest.id}
         currentUserId={currentUser?.id}
         onClose={() => setSelectedRequest(null)}

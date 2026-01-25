@@ -382,10 +382,10 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
-      // First, get the task to find documento_id and solicitacao_id
+      // First, get the task to find documento_id, solicitacao_id, and tipo
       const { data: task, error: taskError } = await supabase
         .from('sefin_tasks')
-        .select('documento_id, solicitacao_id')
+        .select('documento_id, solicitacao_id, tipo')
         .eq('id', taskId)
         .single()
 
@@ -403,15 +403,15 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
 
       if (error) throw error
 
+      // Get signer profile for metadata
+      const { data: signerProfile } = await supabase
+        .from('profiles')
+        .select('nome, cargo')
+        .eq('id', user.id)
+        .single()
+
       // Update documento status to ASSINADO with signer info
       if (task?.documento_id) {
-        // First, get the user's profile for signer name
-        const { data: signerProfile } = await supabase
-          .from('profiles')
-          .select('nome, cargo')
-          .eq('id', user.id)
-          .single()
-        
         await supabase
           .from('documentos')
           .update({ 
@@ -425,7 +425,7 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           })
           .eq('id', task.documento_id)
         
-        // Also sync execution_documents to show correct status in SOSFU
+        // Sync execution_documents via documento
         const { data: docData } = await supabase
           .from('documentos')
           .select('tipo, solicitacao_id')
@@ -439,6 +439,17 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
             .eq('solicitacao_id', docData.solicitacao_id)
             .eq('tipo', docData.tipo)
         }
+      }
+      
+      // ALWAYS sync execution_documents directly using solicitacao_id + tipo
+      // This handles cases where sefin_tasks was created without documento_id
+      if (task?.solicitacao_id && task?.tipo) {
+        console.log(`🔄 [SEFIN] Syncing execution_documents: solicitacao=${task.solicitacao_id}, tipo=${task.tipo}`)
+        await supabase
+          .from('execution_documents')
+          .update({ status: 'ASSINADO' })
+          .eq('solicitacao_id', task.solicitacao_id)
+          .eq('tipo', task.tipo)
       }
 
       // Check if all documents for this solicitacao are signed
@@ -481,10 +492,10 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
-      // Get task details for updating related tables
+      // Get task details for updating related tables (include tipo for direct sync)
       const { data: tasks, error: fetchError } = await supabase
         .from('sefin_tasks')
-        .select('id, documento_id, solicitacao_id')
+        .select('id, documento_id, solicitacao_id, tipo')
         .in('id', taskIds)
 
       if (fetchError) throw fetchError
@@ -524,13 +535,12 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           })
           .in('id', documentoIds)
         
-        // Also sync execution_documents to show correct status in SOSFU
+        // Sync execution_documents via documento
         const { data: signedDocs } = await supabase
           .from('documentos')
           .select('tipo, solicitacao_id')
           .in('id', documentoIds)
         
-        // Update each matching execution_document
         for (const doc of signedDocs || []) {
           if (doc.solicitacao_id) {
             await supabase
@@ -539,6 +549,19 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
               .eq('solicitacao_id', doc.solicitacao_id)
               .eq('tipo', doc.tipo)
           }
+        }
+      }
+      
+      // ALWAYS sync execution_documents directly using solicitacao_id + tipo
+      // This handles cases where sefin_tasks was created without documento_id
+      console.log(`🔄 [SEFIN] Batch syncing execution_documents for ${(tasks || []).length} tasks`)
+      for (const task of tasks || []) {
+        if (task.solicitacao_id && task.tipo) {
+          await supabase
+            .from('execution_documents')
+            .update({ status: 'ASSINADO' })
+            .eq('solicitacao_id', task.solicitacao_id)
+            .eq('tipo', task.tipo)
         }
       }
 
