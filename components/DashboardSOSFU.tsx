@@ -582,8 +582,10 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
                 mode={cardMode}
                 isLoading={isProcessesLoading}
                 onInboxClick={() => { setListFilter('INBOX'); setViewMode('LIST'); }}
-                onMyTasksClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
+                onMyTasksSolicitacoesClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
+                onMyTasksPrestacoesClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
                 onAwaitingSignClick={() => { setListFilter('AWAITING_SIGN'); setViewMode('LIST'); }}
+                onMyTasksClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
                 onFinanceClick={() => { setListFilter('FINANCE'); setViewMode('LIST'); }}
               />
               <RoleApprovalQueue

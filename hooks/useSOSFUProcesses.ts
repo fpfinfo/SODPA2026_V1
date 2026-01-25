@@ -10,8 +10,10 @@ export interface SOSFUStats {
     prestacoes: number;
   };
   myTasks: number;
+  myTasksSolicitacoes: number;  // NEW: Solicitações atribuídas ao usuário
+  myTasksPrestacoes: number;    // NEW: Prestações atribuídas ao usuário
   awaitingSignature: number;
-  signed: number; // NEW: Processes signed but not yet in PC phase
+  signed: number;
   awaitingPC: number;
   solicitacoesAnalysis: number;
   prestacoesAudit: number;
@@ -214,6 +216,8 @@ export const useSOSFUProcesses = () => {
       prestacoes: getCaixaEntrada().filter(p => getCategory(p) === 'PRESTACAO').length,
     },
     myTasks: getMinhaMesa().length,
+    myTasksSolicitacoes: getMinhaMesa().filter(p => getCategory(p) === 'SOLICITACAO').length,
+    myTasksPrestacoes: getMinhaMesa().filter(p => getCategory(p) === 'PRESTACAO').length,
     awaitingSignature: getFluxoSefin().filter(p => 
       (p.status as string)?.toUpperCase().includes('AGUARDANDO')
     ).length,
