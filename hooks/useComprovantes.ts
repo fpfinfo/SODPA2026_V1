@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient'
 // TYPES
 // =============================================================================
 
-export type TipoComprovante = 'NOTA_FISCAL' | 'CUPOM_FISCAL' | 'RECIBO' | 'FATURA' | 'OUTROS'
+export type TipoComprovante = 'NOTA_FISCAL' | 'CUPOM_FISCAL' | 'RECIBO' | 'FATURA' | 'PASSAGEM' | 'OUTROS'
 export type ElementoDespesa = '3.3.90.30' | '3.3.90.33' | '3.3.90.36' | '3.3.90.39'
 export type SentinelaRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 
@@ -65,6 +65,7 @@ export interface ComprovantePC {
   storage_url?: string
   file_size_bytes?: number
   mime_type?: string
+  file_hash?: string // SHA-256
   ocr_data?: any
   ocr_confidence?: number
   sentinela_risk?: SentinelaRisk
@@ -108,6 +109,7 @@ export const TIPOS_COMPROVANTE = [
   { code: 'CUPOM_FISCAL', label: 'Cupom Fiscal' },
   { code: 'RECIBO', label: 'Recibo' },
   { code: 'FATURA', label: 'Fatura' },
+  { code: 'PASSAGEM', label: 'Bilhete de Passagem (BP-e)' },
   { code: 'OUTROS', label: 'Outros' }
 ] as const
 
@@ -159,7 +161,39 @@ export function useComprovantes({ prestacaoId }: UseComprovantesOptions) {
   ) => {
     if (!prestacaoId) throw new Error('Prestação não encontrada')
 
-    // Validações
+    // Calcular Hash SHA-256 para verificar duplicidade antes de subir
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Checagem Otimista (Verificar se já existe hash no banco)
+    // Isso evita upload desnecessário se já for duplicado
+    const { data: existing } = await supabase
+       .from('comprovantes_pc')
+       .select('id, prestacao_id')
+       .eq('file_hash', fileHash)
+       .maybeSingle();
+
+    if (existing) {
+       throw new Error('DUPLICATA DETECTADA: Este arquivo já foi anexado nesta ou em outra prestação de contas.');
+    }
+
+    // Checagem de Metadados Fiscais (CNPJ + Numero)
+    if (metadata.tipo !== 'RECIBO' && metadata.cnpj_cpf && metadata.numero) {
+       const { data: fiscalDupe } = await supabase
+         .from('comprovantes_pc')
+         .select('id')
+         .eq('cnpj_cpf', metadata.cnpj_cpf)
+         .eq('numero', metadata.numero)
+         .maybeSingle();
+       
+       if (fiscalDupe) {
+         throw new Error(`DUPLICATA FISCAL: O documento ${metadata.numero} deste emissor já consta no sistema.`);
+       }
+    }
+
+    // Validações Básicas
     if (!ALLOWED_TYPES.includes(file.type)) {
       throw new Error('Tipo de arquivo não permitido. Use PDF, JPEG ou PNG.')
     }
@@ -219,7 +253,8 @@ export function useComprovantes({ prestacaoId }: UseComprovantesOptions) {
           file_name: file.name,
           storage_url: urlData.publicUrl,
           file_size_bytes: file.size,
-          mime_type: file.type
+          mime_type: file.type,
+          file_hash: fileHash
         })
         .select()
         .single()

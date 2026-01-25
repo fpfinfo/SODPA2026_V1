@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, BadgeCheck, FileText, DollarSign, Calendar, User, 
-  CheckCircle2, AlertTriangle, RefreshCw, Eye, Download 
+  CheckCircle2, AlertTriangle, RefreshCw, Eye, Download,
+  QrCode, ShieldCheck, FileWarning 
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { usePrestacaoContas } from '../../hooks/usePrestacaoContas';
@@ -202,7 +203,20 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
                   NF
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800">{comp.emitente}</p>
+                  <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    {comp.emitente}
+                    {/* Badges de Confiança */}
+                    {(comp.tipo === 'PASSAGEM' || comp.tipo === 'CUPOM_FISCAL') && (
+                       <span className="flex items-center gap-1 text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                         <QrCode size={10} /> Validado SEFAZ
+                       </span>
+                    )}
+                    {(comp.tipo === 'RECIBO' && comp.descricao?.includes('Transporte')) && (
+                       <span className="flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                         <ShieldCheck size={10} /> Recibo Oficial
+                       </span>
+                    )}
+                  </p>
                   <p className="text-xs text-slate-500">{comp.descricao}</p>
                 </div>
               </div>

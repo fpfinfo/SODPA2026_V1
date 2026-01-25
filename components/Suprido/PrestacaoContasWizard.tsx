@@ -375,6 +375,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
       {pc && (
         <ComprovantesUploader
           prestacaoId={pc.id}
+          nup={processData.nup}
           valorConcedido={processData.valorConcedido}
           onTotalChange={setTotalGasto}
         />

@@ -18,7 +18,9 @@ import { useComprovantes, ELEMENTOS_DESPESA, TIPOS_COMPROVANTE, ComprovanteMetad
 import { useToast } from '../ui/ToastProvider';
 import { useFornecedoresHistory } from '../../hooks/useFornecedoresHistory';
 import { validateCNPJ, formatCNPJ, validateCPF, formatCPF } from '../../utils/validators';
-import { Search } from 'lucide-react';
+import { Search, Printer, FilePlus, QrCode } from 'lucide-react';
+import { ReciboTransporteModal } from '../Documents/ReciboTransporteModal';
+import { BpeScanner } from '../Documents/BpeScanner';
 
 // =============================================================================
 // TYPES
@@ -26,6 +28,7 @@ import { Search } from 'lucide-react';
 
 interface ComprovantesUploaderProps {
   prestacaoId: string;
+  nup?: string; // New prop for doc generation
   valorConcedido: number;
   readOnly?: boolean;
   onTotalChange?: (total: number) => void;
@@ -61,6 +64,7 @@ const initialFormData: FormData = {
 
 export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
   prestacaoId,
+  nup = '0000000-00.0000.0.00.0000',
   valorConcedido,
   readOnly = false,
   onTotalChange
@@ -69,6 +73,8 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
   const { suggestions, searchFornecedores, clearSuggestions } = useFornecedoresHistory();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showReciboModal, setShowReciboModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [cnpjError, setCnpjError] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -244,28 +250,105 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
         })}
       </div>
 
-      {/* Botão de Upload */}
+      {/* Botão de Upload e Novo Documento */}
       {!readOnly && !showForm && (
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-          className="w-full py-6 border-2 border-dashed border-slate-200 rounded-[28px] hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 group"
-        >
-          {isUploading ? (
-            <>
-              <RefreshCw size={32} className="text-blue-500 animate-spin" />
-              <span className="text-sm font-bold text-blue-600">Enviando... {uploadProgress}%</span>
-            </>
-          ) : (
-            <>
-              <Upload size={32} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-              <span className="text-sm font-bold text-slate-500 group-hover:text-blue-600">
-                Clique para anexar Nota Fiscal, Recibo ou Cupom
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="py-6 border-2 border-dashed border-slate-200 rounded-[28px] hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 group"
+            >
+              {isUploading ? (
+                <>
+                  <RefreshCw size={32} className="text-blue-500 animate-spin" />
+                  <span className="text-sm font-bold text-blue-600">Enviando... {uploadProgress}%</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={32} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                  <span className="text-sm font-bold text-slate-500 group-hover:text-blue-600">
+                    Clique para anexar Nota Fiscal, Recibo ou Cupom
+                  </span>
+                  <span className="text-xs text-slate-400">PDF, JPEG ou PNG (máx. 10MB)</span>
+                </>
+              )}
+            </button>
+
+            {/* Gerador de Docs */}
+            <button
+              onClick={() => setShowReciboModal(true)}
+              className="py-6 border-2 border-dashed border-slate-200 rounded-[28px] hover:border-emerald-400 hover:bg-emerald-50/50 transition-all flex flex-col items-center justify-center gap-2 group"
+            >
+              <FilePlus size={32} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
+              <span className="text-sm font-bold text-slate-500 group-hover:text-emerald-600">
+                Emitir Recibo de Transporte
               </span>
-              <span className="text-xs text-slate-400">PDF, JPEG ou PNG (máx. 10MB)</span>
-            </>
-          )}
-        </button>
+              <span className="text-xs text-slate-400">Para Barqueiros e Locação de Veículos (Isento)</span>
+            </button>
+            
+            {/* Leitor BP-e */}
+            <button
+              onClick={() => setShowScanner(true)}
+              className="py-6 border-2 border-dashed border-slate-200 rounded-[28px] hover:border-purple-400 hover:bg-purple-50/50 transition-all flex flex-col items-center justify-center gap-2 group md:col-span-2"
+            >
+              <QrCode size={32} className="text-slate-400 group-hover:text-purple-500 transition-colors" />
+              <span className="text-sm font-bold text-slate-500 group-hover:text-purple-600">
+                Ler QR Code Fiscal
+              </span>
+              <span className="text-xs text-slate-400">Passagens (BP-e) e Cupons (NFC-e)</span>
+            </button>
+        </div>
+      )}
+
+      {/* Recibo Modal */}
+      <ReciboTransporteModal 
+         isOpen={showReciboModal} 
+         onClose={() => setShowReciboModal(false)} 
+         nup={nup} 
+      />
+      
+      {/* Scanner */}
+      {showScanner && (
+        <BpeScanner 
+          onClose={() => setShowScanner(false)}
+          onScanSuccess={(text) => {
+             setShowScanner(false);
+             // Create dummy proof file from QR data
+             const blob = new Blob([`QR CODE CAPTURED DATA:\n${text}`], { type: 'text/plain' });
+             const file = new File([blob], "bpe_qrcode_capture.txt", { type: "text/plain" });
+             
+             setSelectedFile(file);
+             // Detect Type based on URL content (Heuristic)
+             const lowerText = text.toLowerCase();
+             let tipoDetectado: 'PASSAGEM' | 'CUPOM_FISCAL' | 'OUTROS' = 'OUTROS';
+             let elementoDetectado: '3.3.90.33' | '3.3.90.30' | '3.3.90.39' = '3.3.90.39';
+             let desc = 'Documento capturado via QR Code';
+
+             if (lowerText.includes('bpe') || lowerText.includes('bilhete') || lowerText.includes('svrs')) {
+                tipoDetectado = 'PASSAGEM';
+                elementoDetectado = '3.3.90.33';
+                desc = 'Bilhete de Passagem (BP-e)';
+             } else if (lowerText.includes('nfce') || lowerText.includes('nfe') || lowerText.includes('fazenda') || lowerText.includes('sefa')) {
+                tipoDetectado = 'CUPOM_FISCAL';
+                elementoDetectado = '3.3.90.30';
+                desc = 'Cupom Fiscal (NFC-e) - Consumo';
+             }
+
+             setFormData(prev => ({ 
+               ...prev, 
+               tipo: tipoDetectado, 
+               elemento_despesa: elementoDetectado,
+               descricao: desc,
+               numero: text.length > 20 ? text.slice(0, 44) : text
+             }));
+             setShowForm(true);
+             showToast({ 
+               title: 'QR Code Fiscal Lido!', 
+               message: `Identificado: ${tipoDetectado === 'PASSAGEM' ? 'Passagem' : 'Nota Fiscal/Cupom'}. Confirme os dados.`, 
+               type: 'success' 
+             });
+          }}
+        />
       )}
 
       <input
