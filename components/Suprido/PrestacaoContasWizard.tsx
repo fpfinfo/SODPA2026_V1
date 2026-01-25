@@ -18,9 +18,11 @@ import {
   Receipt,
   X,
   Loader2,
-  Eye
+  Eye,
+  Download
 } from 'lucide-react';
 import { usePrestacaoContas, ComprovantePC, PrestadorPFDados } from '../../hooks/usePrestacaoContas';
+import { generatePCPDF } from '../../utils/generatePCPDF';
 import { ComprovantesUploader } from './ComprovantesUploader';
 import { ConciliacaoPanel } from './ConciliacaoPanel';
 import { GDRUploader } from './GDRUploader';
@@ -466,7 +468,36 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
           <ClipboardCheck size={40} className="text-emerald-600" />
         </div>
         <h2 className="text-2xl font-black text-slate-800">Conferência Final</h2>
+        <h2 className="text-2xl font-black text-slate-800">Conferência Final</h2>
         <p className="text-sm text-slate-500 mt-2">Revise os valores e confirme a declaração</p>
+        
+        <button 
+           onClick={() => {
+              generatePCPDF({
+                  nup: processData.nup,
+                  suprido: processData.supridoNome,
+                  valorConcedido: processData.valorConcedido,
+                  unidade: 'Unidade Jurisdicional', // Pode vir de props se disponivel
+                  periodo: processData.prazoPrestacao || new Date().getFullYear().toString()
+              }, comprovantes.map(c => ({
+                  data: c.data_emissao,
+                  fornecedor: c.emitente,
+                  documento: `${c.tipo} ${c.numero || ''}`,
+                  valor: c.valor,
+                  natureza: c.elemento_despesa
+              })), {
+                  gasto: totalGasto,
+                  inss: totalINSSRetido,
+                  iss: totalISSRetido,
+                  devolvido: (gdrSaldoPaga ? saldoDevolver : 0),
+                  saldo: saldoDevolver
+              });
+           }}
+           className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 bg-slate-100 text-slate-600 rounded-full text-xs font-bold hover:bg-slate-200 transition-colors"
+        >
+            <Download size={14} />
+            Baixar Espelho (PDF)
+        </button>
       </div>
 
       {/* Summary Grid */}

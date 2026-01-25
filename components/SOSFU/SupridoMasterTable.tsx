@@ -62,6 +62,14 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
   
   const { approveNomeacao, rejectNomeacao } = useNomeacao()
   const { showToast } = useToast()
+  
+  // Pagination State
+  const [visibleCount, setVisibleCount] = useState(20);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [searchQuery, statusFilter, tipoFilter]);
 
   // Fetch titulares from database
   const fetchTitulares = async () => {
@@ -162,6 +170,11 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
       return true;
     });
   }, [titulares, searchQuery, statusFilter, tipoFilter]);
+
+  // Pagination Logic
+  const paginatedTitulares = useMemo(() => {
+    return filteredTitulares.slice(0, visibleCount);
+  }, [filteredTitulares, visibleCount]);
 
   // Stats
   const stats = useMemo(() => ({
@@ -318,7 +331,7 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredTitulares.map((titular) => (
+              {paginatedTitulares.map((titular) => (
                 <tr key={titular.id} className="hover:bg-slate-50 transition-colors">
                   {/* Comarca */}
                   <td className="px-4 py-3">
@@ -437,6 +450,22 @@ export const SupridoMasterTable: React.FC<SupridoMasterTableProps> = ({
               ))}
             </tbody>
           </table>
+        )}
+        
+        {/* Load More Button */}
+        {filteredTitulares.length > visibleCount && (
+            <div className="p-4 flex flex-col items-center justify-center border-t border-slate-100 bg-slate-50/50">
+                <p className="text-xs text-slate-400 mb-2 font-medium">
+                    Exibindo {visibleCount} de {filteredTitulares.length} registros
+                </p>
+                <button 
+                    onClick={() => setVisibleCount(prev => prev + 20)}
+                    className="flex items-center gap-2 px-6 py-2 bg-white border border-slate-200 text-slate-600 rounded-full text-sm font-bold shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all hover:shadow-md"
+                >
+                    <ChevronDown size={16} />
+                    Carregar Mais
+                </button>
+            </div>
         )}
       </div>
     </div>

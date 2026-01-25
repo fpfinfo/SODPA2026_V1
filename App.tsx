@@ -9,6 +9,7 @@ import { AppRole, Process } from './types';
 import { Loader2 } from 'lucide-react';
 import { AlertBanner } from './components/ui/AlertBanner';
 import { useUserProfile } from './hooks/useUserProfile';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { AppNavbar } from './components/Layout/AppNavbar';
 import { CommandPalette } from './components/CommandPalette';
 
@@ -25,9 +26,11 @@ const ProcessDetailsPage = React.lazy(() => import('./components/ProcessDetails/
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30 * 1000, // 30 seconds
+      staleTime: 60 * 1000, // 1 minute (increased from 30s)
+      gcTime: 10 * 60 * 1000, // 10 minutes cache retention
       retry: 1,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     },
   },
 });
@@ -246,7 +249,11 @@ const AuthenticatedApp: React.FC = () => {
   }
 
   // Show main app content when authenticated
-  return <AppContent />;
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
 };
 
 export default App;

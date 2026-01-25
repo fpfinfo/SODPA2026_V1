@@ -15,6 +15,10 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { useComprovantes, ELEMENTOS_DESPESA, TIPOS_COMPROVANTE, ComprovanteMetadata, TipoComprovante, ElementoDespesa } from '../../hooks/useComprovantes';
+import { useToast } from '../ui/ToastProvider';
+import { useFornecedoresHistory } from '../../hooks/useFornecedoresHistory';
+import { validateCNPJ, formatCNPJ, validateCPF, formatCPF } from '../../utils/validators';
+import { Search } from 'lucide-react';
 
 // =============================================================================
 // TYPES
@@ -61,8 +65,12 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
   readOnly = false,
   onTotalChange
 }) => {
+  const { showToast } = useToast();
+  const { suggestions, searchFornecedores, clearSuggestions } = useFornecedoresHistory();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showForm, setShowForm] = useState(false);
+  const [cnpjError, setCnpjError] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -142,9 +150,13 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
       setFormData(initialFormData);
       setShowForm(false);
       setPreviewUrl(null);
+      setCnpjError(false);
+      clearSuggestions();
       if (fileInputRef.current) fileInputRef.current.value = '';
+      
+      showToast({ type: 'success', title: 'Comprovante anexado!', message: 'O documento foi salvo com sucesso.' });
     } else {
-      alert(result.error || 'Erro ao enviar comprovante');
+      showToast({ type: 'error', title: 'Erro', message: result.error || 'Erro ao enviar comprovante' });
     }
   }, [selectedFile, formData, uploadComprovante]);
 
@@ -352,31 +364,81 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
               />
             </div>
 
-            {/* Emitente */}
-            <div className="space-y-2 col-span-2">
+            {/* Emitente com Autocomplete */}
+            <div className="space-y-2 col-span-2 relative">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
                 <Building2 size={12} /> Fornecedor/Prestador *
               </label>
-              <input
-                type="text"
-                value={formData.emitente}
-                onChange={e => setFormData(prev => ({ ...prev, emitente: e.target.value }))}
-                placeholder="Nome do estabelecimento ou prestador"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                required
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.emitente}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, emitente: val }));
+                    searchFornecedores(val);
+                    setShowSuggestions(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  placeholder="Nome do estabelecimento ou prestador"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                  autoComplete="off"
+                />
+                <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
+                
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-50">
+                     {suggestions.map((s, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex flex-col"
+                          onClick={() => {
+                             setFormData(prev => ({ ...prev, emitente: s.emitente, cnpj_cpf: s.cnpj_cpf }));
+                             setCnpjError(!validateCNPJ(s.cnpj_cpf));
+                             clearSuggestions();
+                             setShowSuggestions(false);
+                          }}
+                        >
+                           <span className="text-sm font-bold text-slate-700">{s.emitente}</span>
+                           {s.cnpj_cpf && <span className="text-xs text-slate-400">{s.cnpj_cpf}</span>}
+                        </button>
+                     ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* CNPJ/CPF */}
+            {/* CNPJ/CPF com Format e Validacao */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">CNPJ/CPF</label>
               <input
                 type="text"
                 value={formData.cnpj_cpf}
-                onChange={e => setFormData(prev => ({ ...prev, cnpj_cpf: e.target.value }))}
+                onChange={e => {
+                   let val = e.target.value;
+                   // Simple Formatting logic
+                   if (val.length <= 14) val = formatCPF(val);
+                   else val = formatCNPJ(val);
+                   
+                   setFormData(prev => ({ ...prev, cnpj_cpf: val }));
+                   if (val.length >= 11) {
+                      const isValid = val.length > 14 ? validateCNPJ(val) : validateCPF(val);
+                      setCnpjError(!isValid);
+                   } else {
+                      setCnpjError(false);
+                   }
+                }}
                 placeholder="00.000.000/0000-00"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 transition-all ${cnpjError ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-blue-500/20'}`}
               />
+              {cnpjError && (
+                 <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 animate-in slide-in-from-top-1">
+                    <AlertTriangle size={10} /> Documento inválido
+                 </p>
+              )}
             </div>
 
             {/* Valor */}
