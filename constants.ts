@@ -114,6 +114,57 @@ export const INSS_TABLE_2025: INSSTable = {
   ]
 };
 
+// ============================================================================
+// PRAZOS LEGAIS - Portaria SEFIN/TJPA (Art. 4° e correlatos)
+// ============================================================================
+export const SLA_DEADLINES = {
+  // Art. 4°, I - Prazo para aplicação dos recursos
+  // NOTA: Prazo de aplicação = Data emissão Portaria até data final do evento
+  // Não é um prazo fixo, depende da data do evento informada na solicitação
+  
+  // Art. 4°, II - Prazo para prestação de contas (após fim da aplicação)
+  ACCOUNTABILITY_DAYS: 7, // 7 dias após o prazo de aplicação
+  
+  // CNJ 169/2013 - Limite de valor para suprimento
+  MAX_CONCESSION_VALUE: 15000.00,
+  
+  // Prazo de análise SOSFU (interno - SLA operacional)
+  SOSFU_ANALYSIS_DAYS: 10,
+  
+  // Prazo para assinatura SEFIN (interno)
+  SEFIN_SIGNATURE_DAYS: 5,
+  
+  // Prazo recursal TCE (Art. 28)
+  TCE_RECURSAL_DAYS: 10,
+  
+  // Prazo para diligências/pendências
+  PENDENCY_RESPONSE_DAYS: 10,
+  
+  // Prazo para baixa SIAFE após aprovação
+  SIAFE_WRITEOFF_DAYS: 5,
+} as const;
+
+// Helper para calcular prazos baseado na data do evento
+// Art. 4°, I - Prazo de aplicação = até a data final do evento
+// Art. 4°, II - Prazo de PC = prazo de aplicação + 7 dias
+export const calculateDeadlines = (portariaDate: string, eventEndDate: string) => {
+  const portaria = new Date(portariaDate);
+  const eventEnd = new Date(eventEndDate);
+  
+  // Prazo de aplicação = data final do evento
+  const applicationDeadline = eventEnd;
+  
+  // Prazo de prestação de contas = aplicação + 7 dias
+  const accountabilityDeadline = new Date(applicationDeadline);
+  accountabilityDeadline.setDate(accountabilityDeadline.getDate() + SLA_DEADLINES.ACCOUNTABILITY_DAYS);
+  
+  return {
+    portariaDate: portaria.toISOString().split('T')[0],
+    applicationDeadline: applicationDeadline.toISOString().split('T')[0],
+    accountabilityDeadline: accountabilityDeadline.toISOString().split('T')[0],
+  };
+};
+
 // Mock data removed - usage migrated to Supabase (servidores_tj) via useTeamMembers hook
 
 const generateDate = (daysOffset: number) => {

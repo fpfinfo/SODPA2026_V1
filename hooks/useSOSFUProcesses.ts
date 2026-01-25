@@ -135,6 +135,10 @@ export const useSOSFUProcesses = () => {
         prioridade_usuario: p.prioridade_usuario,
         notas_planejamento: p.notas_planejamento,
         supplyCategory: (p.tipo === 'ORDINARIO' || p.tipo === 'ORDINÁRIO') ? 'ORDINARY' : 'EXTRAORDINARY',
+        // SLA deadline for alerts (use prazo_prestacao for PC, prazo_aplicacao for concession)
+        slaDeadline: p.prazo_prestacao || p.prazo_aplicacao || null,
+        applicationDeadline: p.prazo_aplicacao,
+        accountabilityDeadline: p.prazo_prestacao,
         bankData: p.dados_bancarios || (p.profiles?.banco ? { 
           bankName: p.profiles.banco, 
           agency: p.profiles.agencia, 
