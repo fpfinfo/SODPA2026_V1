@@ -75,7 +75,7 @@ interface DashboardSOSFUProps {
 }
 
 type SosfuViewMode = 'DASHBOARD' | 'LIST';
-type ListFilterType = 'INBOX' | 'MY_TASKS' | 'ANALYSIS' | 'FINANCE' | 'TEAM_MEMBER' | 'AWAITING_SIGN';
+type ListFilterType = 'INBOX' | 'MY_TASKS' | 'MY_TASKS_SOL' | 'MY_TASKS_PC' | 'ANALYSIS' | 'FINANCE' | 'TEAM_MEMBER' | 'AWAITING_SIGN';
 
 export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInternalTabChange, onProcessesChange }) => {
   // Real data fetched from hook
@@ -323,6 +323,16 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
         (!categoryFilter || categoryFilter === 'ALL' || p.supplyCategory === categoryFilter) &&
         (!searchQuery || p.protocolNumber.toLowerCase().includes(searchQuery.toLowerCase()) || p.interestedParty?.toLowerCase().includes(searchQuery.toLowerCase()))
       );
+      case 'MY_TASKS_SOL': return getMinhaMesa().filter(p => 
+        getCategory(p) === 'SOLICITACAO' &&
+        (!categoryFilter || categoryFilter === 'ALL' || p.supplyCategory === categoryFilter) &&
+        (!searchQuery || p.protocolNumber.toLowerCase().includes(searchQuery.toLowerCase()) || p.interestedParty?.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+      case 'MY_TASKS_PC': return getMinhaMesa().filter(p => 
+        getCategory(p) === 'PRESTACAO' &&
+        (!categoryFilter || categoryFilter === 'ALL' || p.supplyCategory === categoryFilter) &&
+        (!searchQuery || p.protocolNumber.toLowerCase().includes(searchQuery.toLowerCase()) || p.interestedParty?.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
       case 'ANALYSIS': return result.filter(p => p.status === ConcessionStatus.ANALYSIS || p.status === AccountStatus.AUDIT);
       case 'FINANCE': return result.filter(p => p.status === ConcessionStatus.FINANCE);
       case 'AWAITING_SIGN': return getFluxoSefin().filter(p => 
@@ -367,6 +377,8 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     const listData = getFilteredList();
     let config = { title: 'Caixa de Entrada', desc: 'Processos aguardando distribuição e triagem.', color: 'text-blue-600', bg: 'bg-blue-50', icon: Inbox };
     if (listFilter === 'MY_TASKS') config = { title: 'Minha Mesa de Trabalho', desc: 'Processos sob sua responsabilidade.', color: 'text-purple-600', bg: 'bg-purple-50', icon: UserCog };
+    else if (listFilter === 'MY_TASKS_SOL') config = { title: 'Minha Mesa: Solicitações', desc: 'Concessões de suprimento atribuídas a você.', color: 'text-purple-600', bg: 'bg-purple-50', icon: FileText };
+    else if (listFilter === 'MY_TASKS_PC') config = { title: 'Minha Mesa: Prestações de Contas', desc: 'Prestações de contas atribuídas a você.', color: 'text-orange-600', bg: 'bg-orange-50', icon: UserCog };
     else if (listFilter === 'ANALYSIS') config = { title: 'Em Análise Técnica', desc: 'Processos em fase de instrução e análise.', color: 'text-amber-600', bg: 'bg-amber-50', icon: FileText };
     else if (listFilter === 'FINANCE') config = { title: 'Fase Financeira', desc: 'Processos em empenho ou pagamento.', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Wallet };
     else if (listFilter === 'TEAM_MEMBER' && selectedMemberId) { const member = realTeamMembers.find(m => m.id === selectedMemberId); config = { title: `Fila: ${member?.nome.split(' ')[0]}`, desc: `Processos atribuídos a ${member?.nome}.`, color: 'text-slate-600', bg: 'bg-slate-100', icon: Users }; }
@@ -407,8 +419,8 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
       }
     };
 
-    // Use TaskSchedulerPanel for MY_TASKS view
-    if (listFilter === 'MY_TASKS') {
+    // Use TaskSchedulerPanel for MY_TASKS, MY_TASKS_SOL, MY_TASKS_PC views
+    if (listFilter === 'MY_TASKS' || listFilter === 'MY_TASKS_SOL' || listFilter === 'MY_TASKS_PC') {
       return (
         <div className="p-8 max-w-[1400px] mx-auto animate-in slide-in-from-right-4">
           <div className="flex justify-between items-center mb-8">
@@ -582,8 +594,8 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
                 mode={cardMode}
                 isLoading={isProcessesLoading}
                 onInboxClick={() => { setListFilter('INBOX'); setViewMode('LIST'); }}
-                onMyTasksSolicitacoesClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
-                onMyTasksPrestacoesClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
+                onMyTasksSolicitacoesClick={() => { setListFilter('MY_TASKS_SOL'); setViewMode('LIST'); }}
+                onMyTasksPrestacoesClick={() => { setListFilter('MY_TASKS_PC'); setViewMode('LIST'); }}
                 onAwaitingSignClick={() => { setListFilter('AWAITING_SIGN'); setViewMode('LIST'); }}
                 onMyTasksClick={() => { setListFilter('MY_TASKS'); setViewMode('LIST'); }}
                 onFinanceClick={() => { setListFilter('FINANCE'); setViewMode('LIST'); }}
