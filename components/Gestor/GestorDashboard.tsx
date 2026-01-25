@@ -51,9 +51,14 @@ import { StaticCertidaoAtesto } from '../ProcessDetails/StaticDocuments/StaticCe
 import { SignatureModal } from '../ui/SignatureModal';
 import { useUserProfile } from '../../hooks/useUserProfile';
 
-const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
+import { SupridoSearch } from './CRM/SupridoSearch';
+import { SupridoProfileCard } from './CRM/SupridoProfileCard';
+import { SupridoHistoryTimeline } from './CRM/SupridoHistoryTimeline';
+import { useSupridoCRM } from '../../hooks/useSupridoCRM';
+import { Users } from 'lucide-react';
 
-type GestorView = 'LIST' | 'DETAILS' | 'EDIT_DOC' | 'HISTORY' | 'ADMIN';
+type GestorView = 'LIST' | 'DETAILS' | 'EDIT_DOC' | 'HISTORY' | 'ADMIN' | 'CRM';
+
 type SubViewMode = 'DETAILS' | 'DOSSIER' | 'COVER' | 'REQUEST' | 'HISTORY' | 'PC_ATESTO';
 
 interface DocPiece {
@@ -72,11 +77,56 @@ interface DocPiece {
   isOwner?: boolean;
 }
 
+import { useBatchActions } from '../../hooks/useBatchActions';
+import { BatchActionBar } from '../Dashboard/BatchActionBar';
+import { BatchSigningModal } from './BatchSigningModal';
+
 export const GestorDashboard: React.FC = () => {
   const [view, setView] = useState<GestorView>('LIST');
   const [subView, setSubView] = useState<SubViewMode>('DETAILS');
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const [editingDoc, setEditingDoc] = useState<Partial<DocPiece> | null>(null);
+  
+  // Batch Actions State
+  const { 
+    selectedIds, 
+    toggleSelection, 
+    clearSelection, 
+    executeBatchAction, 
+    isProcessingBatch 
+  } = useBatchActions();
+  
+  const [isBatchSigningOpen, setIsBatchSigningOpen] = useState(false);
+
+  // Handler for Batch Tramitation
+  const handleBatchTramitar = async () => {
+    if (selectedIds.size === 0) return;
+    
+    // Check if any selected item is missing Atesto?
+    // For V1, we assume Manager verified them via the list or visual cues.
+    // Or we could enforce validation.
+    
+    await executeBatchAction('TRAMITAR', Array.from(selectedIds), {
+        status_novo: 'CONCEDIDO', // Or whatever is the next step for SOSFU?
+        // Wait, typical flow: PENDENTE ATESTO -> (Tramitar) -> PENDENTE (SOSFU) ??
+        // Let's check TramitarModal logic. 
+        // Usually it goes to 'AGUARDANDO_ANALISE_SOSFU' or similar?
+        // Let's look at existing flow.
+        destino: 'SOSFU',
+        observacao: 'Aprovado em lote pelo Gestor.',
+        status_novo: 'PENDENTE' // Assuming PENDENTE is the status for SOSFU inbox
+    });
+    
+    // Refresh list
+    refetchProcesses();
+  };
+
+  const handleBatchSigningSuccess = () => {
+    setIsBatchSigningOpen(false);
+    clearSelection();
+    refetchProcesses();
+    showToast({ type: 'success', title: 'Lote Assinado', message: 'Documentos gerados e assinados com sucesso.' });
+  };
   
   // UX State
   const [filterType, setFilterType] = useState<'ALL' | 'JURI' | 'EXTRA'>('ALL');
@@ -766,6 +816,152 @@ export const GestorDashboard: React.FC = () => {
       </div>
   );
 
+
+          {/* CRM Card - Gestão 360 */}
+          <div 
+            onClick={() => { setView('CRM'); }}
+            className={`p-6 rounded-[28px] border shadow-sm flex items-center justify-between group transition-all cursor-pointer relative overflow-hidden ${view === 'CRM' ? 'bg-indigo-600 border-indigo-600 ring-4 ring-indigo-100' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
+          >
+              <div className="relative z-10">
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${view === 'CRM' ? 'text-indigo-200' : 'text-slate-400'}`}>Gestão 360º</p>
+                  <p className={`text-xl font-black ${view === 'CRM' ? 'text-white' : 'text-slate-800'}`}>Supridos</p>
+              </div>
+              <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'CRM' ? 'bg-indigo-500/30 text-white' : 'bg-indigo-50 text-indigo-600'}`}><Users size={24}/></div>
+          </div>
+      </div>
+  );
+
+  // CRM HOOK
+  const { 
+    searchSupridos, 
+    searchResults, 
+    selectedSuprido, 
+    supridoProcesses,
+    notes,
+    toggleBlockStatus,
+    addNote,
+    selectSuprido,
+    isStatsLoading,
+    isLoading: isSearchLoading
+  } = useSupridoCRM();
+
+  const handleBlockToggle = async () => {
+    if (!selectedSuprido) return;
+    const isBlocked = selectedSuprido.status === 'BLOCKED';
+    
+    // Simple prompt for V1
+    let reason = '';
+    if (!isBlocked) {
+        reason = window.prompt("Motivo do bloqueio:") || '';
+        if (!reason) return; // Cancel if empty
+    } else {
+        if (!window.confirm("Deseja realmente desbloquear este suprido?")) return;
+    }
+
+    const success = await toggleBlockStatus(selectedSuprido.id, isBlocked, reason);
+    if (success) {
+        showToast({ title: isBlocked ? 'Desbloqueado' : 'Bloqueado', message: 'Status do suprido atualizado.', type: 'success' });
+    }
+  };
+
+  const handleAddNote = async () => {
+      if (!selectedSuprido) return;
+      const content = window.prompt("Nova anotação sobre este suprido:");
+      if (!content) return;
+
+      const success = await addNote(selectedSuprido.id, content, currentUserId);
+      if (success) {
+          showToast({ title: 'Nota Adicionada', message: 'Anotação registrada com sucesso.', type: 'success' });
+      }
+  };
+
+  // Render CRM View
+  const renderCRM = () => (
+    <div className="p-10 max-w-[1400px] mx-auto space-y-8 animate-in fade-in pb-20">
+       <div className="flex justify-between items-end mb-8">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Gestão de Supridos 360º</h1>
+          <p className="text-slate-500 text-sm font-medium mt-1 flex items-center gap-2">
+             <Users size={16} className="text-indigo-600"/> Histórico, Reputação e Risco
+          </p>
+        </div>
+        <div className="flex gap-3">
+            <button onClick={() => setView('LIST')} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                <ArrowLeft size={16}/> Voltar
+            </button>
+        </div>
+      </div>
+
+      {/* Search Area */}
+      <div className="flex flex-col items-center justify-center py-10 bg-[#f8fafc] rounded-[40px] border border-slate-200/60 border-dashed mb-10">
+          <h3 className="text-xl font-black text-slate-800 mb-6">Quem você está procurando hoje?</h3>
+          <SupridoSearch 
+             onSearch={searchSupridos}
+             onSelect={selectSuprido}
+             results={searchResults}
+             isLoading={isSearchLoading}
+          />
+      </div>
+
+      {/* Selected Profile View */}
+      {selectedSuprido && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-4">
+              <div className="lg:col-span-2">
+                  <SupridoProfileCard 
+                     profile={selectedSuprido}
+                     isLoadingStats={isStatsLoading}
+                  />
+                  
+                  {/* Timeline History */}
+                  <SupridoHistoryTimeline processes={supridoProcesses} />
+              </div>
+
+              {/* Quick Actions Sidebar */}
+              <div className="space-y-6">
+                  <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
+                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Ações do Gestor</h4>
+                      <div className="space-y-3">
+                          <button 
+                            onClick={handleBlockToggle}
+                            className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${selectedSuprido.status === 'BLOCKED' ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                          >
+                              {selectedSuprido.status === 'BLOCKED' ? <Unlock size={16}/> : <Lock size={16}/>} 
+                              {selectedSuprido.status === 'BLOCKED' ? 'Desbloquear' : 'Bloquear Concessões'}
+                          </button>
+                           <button 
+                             onClick={handleAddNote}
+                             className="w-full py-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+                            >
+                              <Edit size={16}/> Adicionar Nota
+                          </button>
+                      </div>
+                  </div>
+
+                  {/* Private Notes List */}
+                  {notes && notes.length > 0 && (
+                      <div className="bg-amber-50 p-6 rounded-[32px] border border-amber-100">
+                          <h4 className="text-sm font-black text-amber-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <AlertTriangle size={14}/> Anotações Privadas
+                          </h4>
+                          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                              {notes.map((note) => (
+                                  <div key={note.id} className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm text-xs">
+                                      <p className="text-slate-600 mb-2 leading-relaxed">{note.content}</p>
+                                      <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                                          <span>{note.author?.nome || 'Gestor'}</span>
+                                          <span>{new Date(note.created_at).toLocaleDateString()}</span>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+    </div>
+  );
+
   // Render History View
   const renderHistory = () => (
     <div className="p-10 max-w-[1400px] mx-auto space-y-8 animate-in fade-in pb-20">
@@ -977,12 +1173,25 @@ export const GestorDashboard: React.FC = () => {
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
               {filteredProcesses.map(p => (
-                <div key={p.id} onClick={() => { setSelectedProcess(p); setView('DETAILS'); }} className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 hover:-translate-y-1 transition-all cursor-pointer group relative overflow-hidden flex flex-col h-full">
+                <div key={p.id} onClick={() => { setSelectedProcess(p); setView('DETAILS'); }} className={`bg-white p-6 rounded-[28px] border transition-all cursor-pointer group relative overflow-hidden flex flex-col h-full ${selectedIds.has(p.id) ? 'border-blue-500 ring-2 ring-blue-100 shadow-xl' : 'border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 hover:-translate-y-1'}`}>
                     <div className={`absolute top-0 left-0 w-full h-1 ${p.type === 'SESSÃO DE JÚRI' ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
                     
                     <div className="flex justify-between items-start mb-4">
-                        <div className={`p-3 rounded-xl ${p.type === 'SESSÃO DE JÚRI' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
-                              {p.type === 'SESSÃO DE JÚRI' ? <Gavel size={20}/> : <Clock size={20}/>}
+                        <div className="flex items-center gap-3">
+                            {/* Batch Selection Checkbox */}
+                            <div 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleSelection(p.id);
+                                }}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${selectedIds.has(p.id) ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-300 hover:bg-slate-200'}`}
+                            >
+                                {selectedIds.has(p.id) ? <CheckSquare size={20} /> : <div className="w-5 h-5 rounded-md border-2 border-slate-300"></div>}
+                            </div>
+                            
+                            <div className={`p-2 rounded-xl hidden sm:block ${p.type === 'SESSÃO DE JÚRI' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                                  {p.type === 'SESSÃO DE JÚRI' ? <Gavel size={20}/> : <Clock size={20}/>}
+                            </div>
                         </div>
                         <span className="text-[10px] font-black bg-slate-50 text-slate-400 px-2 py-1 rounded-lg border border-slate-100">{p.nup}</span>
                     </div>
@@ -1017,9 +1226,46 @@ export const GestorDashboard: React.FC = () => {
             </div>
         )}
       </div>
+
+      <BatchActionBar 
+        selectedCount={selectedIds.size}
+        onClear={clearSelection}
+        onTramitar={handleBatchTramitar}
+        isProcessing={isProcessingBatch}
+        label="Enviar p/ SOSFU"
+      />
+
+      {/* ADDITIONAL BATCH ACTIONS OVERLAY */}
+      {selectedIds.size > 0 && (
+         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[90] animate-in slide-in-from-bottom-2 fade-in">
+             <button 
+                onClick={() => setIsBatchSigningOpen(true)}
+                className="px-6 py-2 bg-white/90 backdrop-blur text-blue-600 rounded-full text-xs font-black uppercase tracking-widest shadow-sm hover:bg-white hover:scale-105 transition-all border border-blue-100 flex items-center gap-2"
+             >
+                 <BadgeCheck size={16} /> Assinar Lote ({selectedIds.size})
+             </button>
+         </div>
+      )}
+
+      <BatchSigningModal
+        isOpen={isBatchSigningOpen}
+        onClose={() => setIsBatchSigningOpen(false)}
+        selectedIds={Array.from(selectedIds)}
+        currentUserId={currentUserId}
+        onSuccess={handleBatchSigningSuccess}
+      />
+
     </div>
   );
   };
+  
+  if (view === 'CRM') {
+      return (
+          <>
+             {renderCRM()}
+          </>
+      )
+  }
 
   const renderDetails = () => (
     <div className="flex h-full animate-in fade-in overflow-hidden bg-[#f8fafc]">

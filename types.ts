@@ -242,8 +242,11 @@ export interface Process {
   
   // Controle Financeiro (Concessão)
   neNumber?: string; // Nota de Empenho
+  neValue?: number;  // [TRIPLE CHECK]
   dlNumber?: string; // Documento de Liquidação
+  dlValue?: number;  // [TRIPLE CHECK]
   obNumber?: string; // Ordem Bancária
+  obValue?: number;  // [TRIPLE CHECK]
   generatedDocuments?: ProcessDocument[];
 
   assignedToId?: string | null;

@@ -9,6 +9,8 @@ import { useWorkflowStatus } from '../../../hooks/useWorkflowStatus';
 import { useProcessExecution } from '../../../hooks/useProcessExecution';
 import { useToast } from '../../ui/ToastProvider';
 
+import { useTripleCheck } from '../../../hooks/useTripleCheck';
+
 interface TechnicalAnalysisTabProps {
   processData: any;
   enrichedProcessData?: any;
@@ -74,6 +76,12 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
     titularNome: enrichedProcessData?.suprido_nome || processData.suprido_nome || 'Suprido',
   }), [enrichedProcessData, processData]);
 
+
+  // ========================================
+  // TRIPLE CHECK (Phase 1)
+  // ========================================
+  const tripleCheck = useTripleCheck(processData);
+
   // Checklist items
   const checklist: ChecklistItem[] = useMemo(() => {
     const allSigned = ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'].every(tipo => 
@@ -83,30 +91,35 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
                         documents.find(d => d.tipo === 'NOTA_LIQUIDACAO')?.status === 'ASSINADO';
     const obGenerated = documents.find(d => d.tipo === 'ORDEM_BANCARIA')?.status === 'GERADO';
     
+    // Triple Check Override: documents must be strictly valid
+    const isNeValid = tripleCheck.neStatus === 'VALID';
+    const isDlValid = tripleCheck.dlStatus === 'VALID';
+    const isObValid = tripleCheck.obStatus === 'VALID';
+
     return [
       {
         id: 'docs_signed',
-        label: 'Documentos Assinados pela SEFIN',
-        description: 'Portaria, Certidão e Nota de Empenho',
+        label: 'Conformidade Documental (NE)',
+        description: isNeValid ? 'NE Assinada e Valor Conferido' : 'Pendente de Assinatura ou Divergência',
         icon: FileCheck,
         isAutomatic: true,
-        isComplete: allSigned
+        isComplete: allSigned && isNeValid
       },
       {
         id: 'dl_generated',
-        label: 'Documento de Liquidação (DL)',
-        description: 'DL gerado para liquidação da despesa',
+        label: 'Liquidação da Despesa (DL)',
+        description: isDlValid ? 'DL Gerado e Valor Conferido' : 'Pendente ou Divergência',
         icon: FileCheck,
         isAutomatic: true,
-        isComplete: dlGenerated
+        isComplete: dlGenerated && isDlValid
       },
       {
         id: 'ob_emitted',
-        label: 'Ordem Bancária Emitida',
-        description: 'OB gerada e registrada no sistema',
+        label: 'Pagamento (OB)',
+        description: isObValid ? 'OB Emitida e Valor Conferido (Triple Check OK)' : 'Pendente ou Divergência',
         icon: CreditCard,
         isAutomatic: true,
-        isComplete: obGenerated
+        isComplete: obGenerated && isObValid
       },
       {
         id: 'credit_confirmed',
@@ -117,10 +130,10 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         isComplete: creditConfirmed
       }
     ];
-  }, [documents, creditConfirmed]);
+  }, [documents, creditConfirmed, tripleCheck]);
 
   const allChecklistComplete = checklist.every(item => item.isComplete);
-  const canRelease = status === 'PAYMENT_PROCESSING' && allChecklistComplete;
+  const canRelease = status === 'PAYMENT_PROCESSING' && allChecklistComplete && tripleCheck.isValid;
 
   // ========================================
   // HANDLERS
@@ -260,6 +273,55 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
     );
   }
 
+
+
+  // Render Triple Check Validation Card if needed
+  const renderTripleCheckCard = () => {
+    if (tripleCheck.isValid) return null;
+    return (
+      <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden mb-6">
+        <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center gap-3">
+          <Shield className="text-red-600" size={20}/>
+          <h4 className="font-bold text-red-800">Bloqueio de Segurança (Triple Check)</h4>
+        </div>
+        <div className="p-6">
+          <p className="text-sm text-slate-600 mb-4">
+            A liberação do recurso está bloqueada devido a inconsistências na trilha financeira.
+          </p>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className={`p-3 rounded-lg border ${tripleCheck.neStatus === 'VALID' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Nota de Empenho</p>
+              <p className={`font-mono font-bold ${tripleCheck.neStatus === 'VALID' ? 'text-emerald-700' : 'text-red-700'}`}>
+                {formatCurrency(tripleCheck.financials.ne)}
+              </p>
+            </div>
+            <div className={`p-3 rounded-lg border ${tripleCheck.dlStatus === 'VALID' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Liquidação</p>
+              <p className={`font-mono font-bold ${tripleCheck.dlStatus === 'VALID' ? 'text-emerald-700' : 'text-red-700'}`}>
+                {formatCurrency(tripleCheck.financials.dl)}
+              </p>
+            </div>
+            <div className={`p-3 rounded-lg border ${tripleCheck.obStatus === 'VALID' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Ordem Bancária</p>
+              <p className={`font-mono font-bold ${tripleCheck.obStatus === 'VALID' ? 'text-emerald-700' : 'text-red-700'}`}>
+                {formatCurrency(tripleCheck.financials.ob)}
+              </p>
+            </div>
+          </div>
+          {tripleCheck.errors.length > 0 && (
+            <div className="space-y-1">
+              {tripleCheck.errors.map((err, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-red-600 font-medium">
+                  <AlertTriangle size={12}/> {err}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -274,6 +336,9 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Triple Check Card */}
+      {renderTripleCheckCard()}
 
       {/* Checklist */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">

@@ -284,9 +284,22 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
   // SAVE HANDLERS (Refactored for External ERP Upload)
   // ==========================================================================
 
+  // Triple Check States
+  const [neValor, setNeValor] = useState(process.valor_total || 0); // Default to total
+  const [dlValor, setDlValor] = useState(process.valor_total || 0);
+  const [obValor, setObValor] = useState(process.valor_total || 0);
+
+  // Helper format
+  const formatCurrencyInput = (value: number) => 
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
   const handleSaveNE = async () => {
     if (!neFilePath || !neFile) {
       showToast({ type: 'warning', title: 'Upload obrigatório', message: 'Faça upload do PDF da Nota de Empenho (SIAFE).' });
+      return;
+    }
+    if (neValor <= 0) {
+      showToast({ type: 'warning', title: 'Valor inválido', message: 'Informe o valor da Nota de Empenho.' });
       return;
     }
 
@@ -295,11 +308,12 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
       // Get public URL
       const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(neFilePath);
 
-      // Update solicitacao
+      // Update solicitacao with Triple Check value
       await supabase
         .from('solicitacoes')
         .update({
           ne_numero: neFile.name.replace('.pdf', ''),
+          ne_valor: neValor, // [TRIPLE CHECK]
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);
@@ -317,11 +331,12 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         file_url: urlData.publicUrl,
         original_filename: neFile.name,
         file_size_bytes: neFile.size,
-        created_by: user?.id
+        created_by: user?.id,
+        metadata: { value: neValor } // Save value in metadata too
       });
 
       setGeneratedDocs(prev => ({ ...prev, NE: true }));
-      showToast({ type: 'success', title: 'NE anexada!', message: 'PDF do SIAFE registrado com sucesso.' });
+      showToast({ type: 'success', title: 'NE anexada!', message: `PDF registrado. Valor: ${formatCurrencyInput(neValor)}` });
       goNext();
     } catch (error) {
       console.error('Error saving NE:', error);
@@ -336,6 +351,12 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
       showToast({ type: 'warning', title: 'Upload obrigatório', message: 'Faça upload do PDF do Documento de Liquidação (SIAFE).' });
       return;
     }
+    // Validation: DL value cannot exceed NE value (logical check, though strictly it could if partials, but for full flow usually matches)
+    // For now allow any positive value
+    if (dlValor <= 0) {
+      showToast({ type: 'warning', title: 'Valor inválido', message: 'Informe o valor do Documento de Liquidação.' });
+      return;
+    }
 
     setIsProcessing(true);
     try {
@@ -346,6 +367,7 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         .from('solicitacoes')
         .update({
           dl_numero: dlFile.name.replace('.pdf', ''),
+          dl_valor: dlValor, // [TRIPLE CHECK]
           updated_at: new Date().toISOString()
         })
         .eq('id', process.id);
@@ -363,10 +385,11 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         original_filename: dlFile.name,
         file_size_bytes: dlFile.size,
         created_by: user?.id,
+        metadata: { value: dlValor }
       });
 
       setGeneratedDocs(prev => ({ ...prev, DL: true }));
-      showToast({ type: 'success', title: 'DL anexado!', message: 'PDF do SIAFE registrado com sucesso.' });
+      showToast({ type: 'success', title: 'DL anexado!', message: `PDF registrado. Valor: ${formatCurrencyInput(dlValor)}` });
       goNext();
     } catch (error) {
       console.error('Error saving DL:', error);
@@ -381,6 +404,10 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
       showToast({ type: 'warning', title: 'Upload obrigatório', message: 'Faça upload do PDF da Ordem Bancária (SIAFE).' });
       return;
     }
+    if (obValor <= 0) {
+      showToast({ type: 'warning', title: 'Valor inválido', message: 'Informe o valor da Ordem Bancária.' });
+      return;
+    }
 
     setIsProcessing(true);
     try {
@@ -391,7 +418,8 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         .from('solicitacoes')
         .update({
           ob_numero: obFile.name.replace('.pdf', ''),
-          status: 'PAYMENT_PROCESSING', // SCS 4.0: Move to payment processing
+          ob_valor: obValor, // [TRIPLE CHECK]
+          status: 'PAYMENT_PROCESSING', 
           status_workflow: 'PAYMENT_PROCESSING',
           updated_at: new Date().toISOString()
         })
@@ -410,10 +438,11 @@ export const ExpenseExecutionWizard: React.FC<ExpenseExecutionWizardProps> = ({
         original_filename: obFile.name,
         file_size_bytes: obFile.size,
         created_by: user?.id,
+        metadata: { value: obValor }
       });
 
       setGeneratedDocs(prev => ({ ...prev, OB: true }));
-      showToast({ type: 'success', title: 'OB anexada!', message: 'PDF do SIAFE registrado com sucesso.' });
+      showToast({ type: 'success', title: 'OB anexada!', message: `PDF registrado. Valor: ${formatCurrencyInput(obValor)}` });
       goNext();
     } catch (error) {
       console.error('Error saving OB:', error);
@@ -745,8 +774,27 @@ Seção de Suprimento de Fundos`;
               <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
                 <h3 className="text-lg font-black text-slate-800 mb-4">3. Nota de Empenho (NE)</h3>
                 <p className="text-sm text-slate-600 mb-6">
-                  Faça upload do PDF da Nota de Empenho exportada do <strong>SIAFE</strong>.
+                  Faça upload do PDF da Nota de Empenho exportada do <strong>SIAFE</strong> e informe o valor constante no documento.
                 </p>
+
+                {/* TRIPLE CHECK INPUT */}
+                <div className="mb-6">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
+                    Valor da Nota de Empenho (R$)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={neValor}
+                      onChange={(e) => setNeValor(Number(e.target.value))}
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 text-lg"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Este valor será validado contra o DL e a OB (Triple Check).</p>
+                </div>
 
                 {/* Upload Area */}
                 <div 
@@ -817,8 +865,31 @@ Seção de Suprimento de Fundos`;
               <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100">
                 <h3 className="text-lg font-black text-slate-800 mb-4">4. Documento de Liquidação (DL)</h3>
                 <p className="text-sm text-slate-600 mb-6">
-                  Faça upload do PDF do Documento de Liquidação exportado do <strong>SIAFE</strong>.
+                  Faça upload do PDF do Documento de Liquidação exportado do <strong>SIAFE</strong> e informe o valor liquidado.
                 </p>
+
+                {/* TRIPLE CHECK INPUT */}
+                <div className="mb-6">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
+                    Valor da Liquidação (R$)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={dlValor}
+                      onChange={(e) => setDlValor(Number(e.target.value))}
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 text-lg"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  {dlValor !== neValor && dlValor > 0 && (
+                     <p className="text-xs text-amber-600 font-bold mt-1 flex items-center gap-1">
+                       <AlertTriangle size={12}/> Atenção: Valor diferente da Nota de Empenho ({formatCurrencyInput(neValor)})
+                     </p>
+                  )}
+                </div>
 
                 {/* Upload Area */}
                 <div 
@@ -889,8 +960,31 @@ Seção de Suprimento de Fundos`;
               <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
                 <h3 className="text-lg font-black text-slate-800 mb-4">5. Ordem Bancária (OB)</h3>
                 <p className="text-sm text-slate-600 mb-6">
-                  Faça upload do PDF da Ordem Bancária exportada do <strong>SIAFE</strong>.
+                  Faça upload do PDF da Ordem Bancária exportada do <strong>SIAFE</strong> e informe o valor pago.
                 </p>
+
+                {/* TRIPLE CHECK INPUT */}
+                <div className="mb-6">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
+                    Valor da Ordem Bancária (R$)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={obValor}
+                      onChange={(e) => setObValor(Number(e.target.value))}
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 text-lg"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  {obValor !== dlValor && obValor > 0 && (
+                     <p className="text-xs text-red-600 font-bold mt-1 flex items-center gap-1">
+                       <AlertTriangle size={12}/> Erro: Valor diferente da Liquidação ({formatCurrencyInput(dlValor)})
+                     </p>
+                  )}
+                </div>
 
                 {/* Upload Area */}
                 <div 

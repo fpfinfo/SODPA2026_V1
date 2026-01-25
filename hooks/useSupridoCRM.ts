@@ -1,90 +1,219 @@
-import { supabase } from '../lib/supabaseClient';
-import { useState, useEffect } from 'react';
 
-export interface SupridoStats {
-  total_processos: number;
-  total_aprovados: number;
-  total_devolucoes: number;
-  valor_total_concedido: number;
-  reputacao: 'EXCELENTE' | 'BOM' | 'REGULAR' | 'ATENCAO';
-  avg_dias_prestacao: number; // Média de dias para prestar contas
+import { useState, useCallback } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { RiskScore, calculateRiskScore } from '../utils/riskScoring';
+
+export interface SupridoProfile {
+  id: string;
+  nome: string;
+  cpf?: string;
+  email?: string;
+  cargo?: string;
+  lotacao?: string;
+  avatar_url?: string;
+  status: 'ACTIVE' | 'BLOCKED';
+  stats?: {
+    total_processes: number;
+    total_value: number;
+    avg_pc_days: number;
+    open_processes: number;
+    risk?: RiskScore;
+  }
 }
 
-export async function fetchSupridoStats(supridoId: string): Promise<SupridoStats> {
-  if (!supridoId) throw new Error('ID do suprido é obrigatório');
+export const useSupridoCRM = () => {
+  const [searchResults, setSearchResults] = useState<SupridoProfile[]>([]);
+  const [selectedSuprido, setSelectedSuprido] = useState<SupridoProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
 
-  // 1. Buscas Contagens de PC
-  const { data: pcs, error } = await supabase
-    .from('prestacao_contas')
-    .select('status, valor_concedido, created_at, submitted_at, motivo_pendencia')
-    .eq('submitted_by', supridoId);
+  // Search by name, cpf, or email
+  const searchSupridos = useCallback(async (query: string) => {
+    if (!query || query.length < 3) return;
+    setIsLoading(true);
 
-  if (error) throw error;
-  if (!pcs || pcs.length === 0) {
-    return {
-      total_processos: 0,
-      total_aprovados: 0,
-      total_devolucoes: 0,
-      valor_total_concedido: 0,
-      reputacao: 'BOM', // Neutro
-      avg_dias_prestacao: 0
-    };
+    try {
+      // Use ILIKE for case-insensitive search
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, cpf, email, cargo, lotacao:lotacoes(nome)')
+        .or(`nome.ilike.%${query}%,cpf.ilike.%${query}%,email.ilike.%${query}%`)
+        .limit(10);
+
+      if (error) throw error;
+
+      // Transform data
+      const results: SupridoProfile[] = data.map((p: any) => ({
+        id: p.id,
+        nome: p.nome,
+        cpf: p.cpf,
+        email: p.email,
+        cargo: p.cargo,
+        lotacao: p.lotacao?.nome || 'Não informada',
+        status: 'ACTIVE', // Todo: fetch real status from a blocklist table if exists
+      }));
+
+      setSearchResults(results);
+    } catch (err) {
+      console.error('Error searching supridos:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const [supridoProcesses, setSupridoProcesses] = useState<any[]>([]);
+
+  // Fetch detailed stats for a specific suprido
+  const fetchSupridoStats = useCallback(async (supridoId: string) => {
+    setIsStatsLoading(true);
+    try {
+        // Fetch solicitacoes counts
+        // We need: total count, total value, late PCs, returned, glosas
+        
+        // 1. Fetch raw solicitacoes data (limited columns)
+        const { data: processes, error } = await supabase
+            .from('solicitacoes')
+            .select('id, nup, status, valor_total, created_at, deadline_pc, data_prestacao_contas, status_workflow, type')
+            .eq('user_id', supridoId)
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        setSupridoProcesses(processes || []);
+
+        const total = processes?.length || 0;
+        const totalVal = processes?.reduce((acc, p) => acc + (p.valor_total || 0), 0) || 0;
+        
+        // Calculate Risk Factors
+        let lateCount = 0;
+        let returnedCount = 0;
+        const glosaCount = 0; // Assuming we don't have Glosa flag yet, strictly.
+        
+        // Count open processes
+        const openCount = processes?.filter(p => !['ARQUIVADO', 'CONCLUIDO'].includes(p.status)).length || 0;
+
+        // Analyze history for risk
+        // This calculates stats client-side due to lack of specific aggregate SQL functions currently
+        processes?.forEach(p => {
+             // Late PC Check
+             if (p.deadline_pc && p.status === 'PRESTANDO CONTAS') {
+                 if (new Date(p.deadline_pc) < new Date()) lateCount++;
+             }
+             // Returned Check
+             // Simple heuristic: if status was 'DEVOLVIDO' at some point? 
+             // Without full history scan, we can only check current status.
+             if (p.status === 'DEVOLVIDO') returnedCount++;
+        });
+
+        // Get historic devolutions from history table for better accuracy would be ideal, 
+        // but for V1 we keep it simple.
+
+        const risk = calculateRiskScore({
+            totalProcesses: total,
+            latePCs: lateCount,
+            returnedProcesses: returnedCount,
+            glosas: glosaCount
+        });
+
+        // Update selected suprido with stats
+        setSelectedSuprido(prev => prev ? ({
+            ...prev,
+            stats: {
+                total_processes: total,
+                total_value: totalVal,
+                avg_pc_days: 15, // Mock for now or calculate date diffs
+                open_processes: openCount,
+                risk
+            }
+        }) : null);
+
+    } catch (err) {
+        console.error('Error fetching stats:', err);
+    } finally {
+        setIsStatsLoading(false);
+    }
+  }, []);
+
+  const selectSuprido = (suprido: SupridoProfile) => {
+      setSelectedSuprido(suprido);
+      fetchSupridoStats(suprido.id);
+  };
+
+  const clearSelection = () => {
+    setSelectedSuprido(null);
+    setSupridoProcesses([]);
   }
 
-  const total = pcs.length;
-  const aprovados = pcs.filter(p => p.status === 'APROVADA' || p.status === 'SIAFE_BAIXADA').length;
-  const devolucoes = pcs.filter(p => p.status === 'CORRECAO_SOLICITADA' || (p.motivo_pendencia && p.motivo_pendencia.length > 0)).length;
-  const valorTotal = pcs.reduce((acc, curr) => acc + (curr.valor_concedido || 0), 0);
-  
-  // Calcular média de dias para submissão (usando created_at como inicio aprox)
-  let totalDias = 0;
-  let countDias = 0;
-  pcs.forEach(p => {
-    if (p.submitted_at && p.created_at) {
-      const diff = new Date(p.submitted_at).getTime() - new Date(p.created_at).getTime();
-      const dias = diff / (1000 * 3600 * 24);
-      if (dias > 0) {
-        totalDias += dias;
-        countDias++;
+  // Actions
+  const toggleBlockStatus = async (supridoId: string, isBlocked: boolean, reason?: string) => {
+      try {
+          const { error } = await supabase.from('profiles').update({
+              is_blocked: !isBlocked,
+              blocking_reason: !isBlocked ? reason : null,
+              blocked_at: !isBlocked ? new Date().toISOString() : null
+          }).eq('id', supridoId);
+
+          if (error) throw error;
+
+          // Update local state
+          if (selectedSuprido && selectedSuprido.id === supridoId) {
+              setSelectedSuprido({ ...selectedSuprido, status: !isBlocked ? 'BLOCKED' : 'ACTIVE' });
+          }
+          
+          return true;
+      } catch (err) {
+          console.error('Error toggling block:', err);
+          return false;
       }
-    }
-  });
+  };
+
+  const addNote = async (supridoId: string, content: string, authorId: string) => {
+      try {
+          const { error } = await supabase.from('suprido_notes').insert({
+              suprido_id: supridoId,
+              author_id: authorId,
+              content
+          });
+          
+          if (error) throw error;
+          return true;
+      } catch (err) {
+          console.error('Error adding note:', err);
+          return false;
+      }
+  };
   
-  const avgDias = countDias > 0 ? Math.round(totalDias / countDias) : 0;
+  const [notes, setNotes] = useState<any[]>([]);
+  const fetchNotes = useCallback(async (supridoId: string) => {
+       const { data } = await supabase
+        .from('suprido_notes')
+        .select('id, content, created_at, author:profiles!author_id(nome)')
+        .eq('suprido_id', supridoId)
+        .order('created_at', { ascending: false });
+       
+       setNotes(data || []);
+  }, []);
 
-  // Calcular Reputação
-  // Regra: > 30% de devolução = ATENCAO
-  // Regra: 0 devoluções e > 3 processos = EXCELENTE
-  let rep: SupridoStats['reputacao'] = 'BOM';
-  const taxaDevolucao = total > 0 ? devolucoes / total : 0;
-
-  if (total > 2 && taxaDevolucao === 0) rep = 'EXCELENTE';
-  else if (taxaDevolucao > 0.3) rep = 'ATENCAO';
-  else if (taxaDevolucao > 0.1) rep = 'REGULAR';
+  // Auto fetch notes when selecting
+  useEffect(() => {
+      if (selectedSuprido) {
+          fetchNotes(selectedSuprido.id);
+      } else {
+          setNotes([]);
+      }
+  }, [selectedSuprido, fetchNotes]);
 
   return {
-    total_processos: total,
-    total_aprovados: aprovados,
-    total_devolucoes: devolucoes,
-    valor_total_concedido: valorTotal,
-    reputacao: rep,
-    avg_dias_prestacao: avgDias
+    searchResults,
+    searchSupridos,
+    selectedSuprido,
+    supridoProcesses,
+    notes,
+    selectSuprido,
+    clearSelection,
+    toggleBlockStatus,
+    addNote,
+    isLoading,
+    isStatsLoading
   };
-}
-
-export function useSupridoCRM(supridoId: string) {
-  const [data, setData] = useState<SupridoStats | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (supridoId) {
-      setIsLoading(true);
-      fetchSupridoStats(supridoId)
-        .then(setData)
-        .catch(console.error)
-        .finally(() => setIsLoading(false));
-    }
-  }, [supridoId]);
-
-  return { data, isLoading, fetchSupridoStats };
-}
+};
