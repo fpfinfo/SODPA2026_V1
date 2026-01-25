@@ -46,6 +46,15 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
   const totalINSS = pc?.total_inss_retido || 0;
   const contaFecha = Math.abs(totalConcedido - (totalGasto + totalDevolvido)) < 0.05;
 
+  // Auto-Atesto Check
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  
+  useEffect(() => {
+     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || ''));
+  }, []);
+
+  const isSelfAtesto = pc?.submitted_by === currentUserId;
+
   useEffect(() => {
     if (pc?.submitted_by) {
        fetchSupridoStats(pc.submitted_by).then(stats => {
@@ -56,10 +65,14 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
     }
   }, [pc?.submitted_by, comprovantes, pc]);
 
+  // Check if Atesto exists
+  const certidaoAtesto = dossierDocs.find(d => d.tipo === 'CERTIDAO_ATESTO_PC');
+  const hasCertidao = !!certidaoAtesto;
+
   const handleGenerateAtesto = async () => {
     setIsGenerating(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       setShowSignatureModal(true);
     } catch (err) {
       console.error(err);
@@ -78,18 +91,21 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
         .eq('id', user?.id)
         .single();
       
-      await supabase.from('documentos').insert({
+      const result = await supabase.from('documentos').insert({
         solicitacao_id: processId,
-        nome: `Certidão de Atesto PC - ${processData.nup}.pdf`,
-        titulo: 'Certidão de Atesto de Prestação de Contas',
+        nome: `Certidão de Atesto${isSelfAtesto ? ' (Auto)' : ''} - ${processData.nup}.pdf`,
+        titulo: isSelfAtesto ? 'Certidão de Auto-Atesto de Regularidade' : 'Certidão de Atesto de Prestação de Contas',
         tipo: 'CERTIDAO_ATESTO_PC',
         status: 'ASSINADO',
-        conteudo: `Certificamos que a Prestação de Contas do processo ${processData.nup} foi analisada e encontra-se regular. Total gasto: ${totalGasto}. Total de comprovantes: ${comprovantes.length}.`,
+        conteudo: isSelfAtesto 
+           ? `DECLARAÇÃO DE AUTO-ATESTO: Eu, ${profile?.nome}, na qualidade de Ordenador/Gestor e Suprido, certifico a regularidade desta Prestação de Contas (NUP ${processData.nup}). Total gasto: ${totalGasto}.`
+           : `Certificamos que a Prestação de Contas do processo ${processData.nup} foi analisada e encontra-se regular. Total gasto: ${totalGasto}. Total de comprovantes: ${comprovantes.length}.`,
         created_by: user?.id,
         metadata: {
           signed_by: user?.id,
           signed_by_name: profile?.nome || 'Gestor',
           signer_role: profile?.cargo || 'Chefia Imediata',
+          is_auto_atesto: isSelfAtesto,
           signed_at: new Date().toISOString(),
           valor_concedido: totalConcedido,
           total_gasto: totalGasto,
@@ -103,19 +119,40 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
         }
       });
 
-      const result = await atestarPC();
-      if (result.success) {
-        showToast({ type: 'success', title: 'PC Atestada!', message: 'Certidão emitida e processo enviado à SOSFU.' });
-        onSuccess();
-        return { success: true };
-      }
-      return { success: false, error: 'Falha ao atestar' };
+      if (result.error) throw result.error;
+
+      showToast({ type: 'success', title: 'Certidão Gerada', message: 'Documento assinado e anexado com sucesso.' });
+      refreshDocs(); // Recarregar documentos para habilitar botão de envio
+      return { success: true };
+
     } catch (err: any) {
       console.error(err);
       showToast({ type: 'error', title: 'Erro', message: err.message });
       return { success: false, error: err.message };
     }
-      return { success: false, error: err.message };
+  };
+
+  const handleTramitar = async () => {
+    if (!hasCertidao) {
+      showToast({ type: 'error', title: 'Bloqueado', message: 'É obrigatório gerar e assinar a Certidão de Atesto antes de tramitar.' });
+      return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      const result = await atestarPC(
+         isSelfAtesto ? 'Auto-Atesto realizado pelo Gestor/Suprido.' : undefined
+      );
+      
+      if (result.success) {
+        showToast({ type: 'success', title: 'Sucesso', message: 'Processo tramitado para SOSFU.' });
+        onSuccess();
+      }
+    } catch(err) {
+       console.error(err);
+       showToast({ type: 'error', title: 'Erro', message: 'Falha na tramitação.' });
+    } finally {
+       setIsGenerating(false);
     }
   };
 
@@ -246,10 +283,11 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
         <div className="bg-slate-900 text-white rounded-3xl p-8 flex flex-col justify-between shadow-xl shadow-slate-200">
           <div>
             <BadgeCheck size={48} className="text-emerald-400 mb-6" />
-            <h3 className="text-xl font-black mb-2">Atesto de Regularidade</h3>
+            <h3 className="text-xl font-black mb-2">{isSelfAtesto ? 'Auto-Atesto (Gestor/Suprido)' : 'Atesto de Regularidade'}</h3>
             <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-              Ao atestar, você confirma que as despesas foram realizadas em benefício do serviço público e 
-              dentro dos prazos legais.
+              {isSelfAtesto 
+                ? 'Como você é o Gestor e Suprido deste processo, realize o Auto-Atesto para certificar a regularidade e encaminhar à SOSFU.'
+                : 'Ao atestar, você confirma que as despesas foram realizadas em benefício do serviço público e dentro dos prazos legais.'}
             </p>
             
             <div className={`p-4 rounded-xl border ${contaFecha ? 'bg-emerald-500/20 border-emerald-500/50' : 'bg-red-500/20 border-red-500/50'} mb-6`}>
@@ -262,14 +300,37 @@ export const PrestacaoAtestoTab: React.FC<PrestacaoAtestoTabProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={handleGenerateAtesto}
-            disabled={!contaFecha || isGenerating}
-            className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isGenerating ? <RefreshCw className="animate-spin"/> : <BadgeCheck />}
-            Atestar e Enviar
-          </button>
+          
+          {/* Action Buttons Separated */}
+          <div className="flex flex-col gap-3">
+             {!hasCertidao ? (
+                <button
+                  onClick={handleGenerateAtesto}
+                  disabled={!contaFecha || isGenerating}
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isGenerating ? <RefreshCw className="animate-spin"/> : <FileText />}
+                  1. Gerar Certidão
+                </button>
+             ) : (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 font-bold text-sm">
+                   <CheckCircle2 size={18} /> Certidão Gerada com Sucesso
+                </div>
+             )}
+
+             <button
+               onClick={handleTramitar}
+               disabled={!hasCertidao || isGenerating}
+               className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2
+                  ${hasCertidao 
+                     ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
+                     : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
+               `}
+             >
+               {isGenerating ? <RefreshCw className="animate-spin"/> : <BadgeCheck />}
+               2. Tramitar para SOSFU
+             </button>
+          </div>
           
           <button
              onClick={() => setShowPendenciaModal(true)}

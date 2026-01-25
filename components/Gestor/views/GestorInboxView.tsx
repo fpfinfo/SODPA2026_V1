@@ -190,6 +190,31 @@ ${cargo}`
     return true
   })
 
+  // Check for Atesto document
+  const [hasAtesto, setHasAtesto] = useState(false)
+  const [checkingAtesto, setCheckingAtesto] = useState(false)
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const checkDocs = async () => {
+      if (!selectedProcess) return;
+      setCheckingAtesto(true);
+      const { data } = await supabase
+        .from('documentos')
+        .select('id')
+        .eq('solicitacao_id', selectedProcess.id)
+        .eq('tipo', 'CERTIDAO_ATESTO')
+        .maybeSingle(); // Use maybeSingle for efficiency
+      
+      if (isMounted) {
+        setHasAtesto(!!data);
+        setCheckingAtesto(false);
+      }
+    };
+    checkDocs();
+    return () => { isMounted = false };
+  }, [selectedProcess, isGeneratingAtesto]); // Re-run when process changes or after generating
+
   // If a process is selected, show the Universal Process Details
   if (selectedProcess) {
     return (
@@ -199,9 +224,10 @@ ${cargo}`
           currentUserId={currentUserId}
           onClose={() => setSelectedProcess(null)}
           canTramitar={true}
-          canGenerateAtesto={true}
+          isTramitarDisabled={!hasAtesto} // Block if no atesto
+          canGenerateAtesto={!hasAtesto} // Show generate if no atesto
           canCreateDocument={true}
-          isLoadingAtesto={isGeneratingAtesto}
+          isLoadingAtesto={isGeneratingAtesto || checkingAtesto}
           onTramitar={() => setShowTramitarModal(true)}
           onGenerateAtesto={handleOpenAtestoPreview}
           onCreateDocument={() => setShowDocumentWizard(true)}

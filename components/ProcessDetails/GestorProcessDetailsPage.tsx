@@ -31,6 +31,7 @@ interface GestorProcessDetailsPageProps {
   
   // Action capabilities
   canTramitar?: boolean;
+  isTramitarDisabled?: boolean;
   canGenerateAtesto?: boolean;
   canCreateDocument?: boolean;
   isLoadingAtesto?: boolean;
@@ -50,6 +51,7 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
   onClose,
   currentUserId: passedUserId,
   canTramitar,
+  isTramitarDisabled,
   canGenerateAtesto,
   canCreateDocument,
   isLoadingAtesto,
@@ -171,10 +173,16 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
                   {canTramitar && onTramitar && (
                     <button
                       onClick={onTramitar}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+                      disabled={isTramitarDisabled}
+                      title={isTramitarDisabled ? "Gere a Certidão de Atesto primeiro" : "Enviar para SOSFU"}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg 
+                        ${isTramitarDisabled 
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none border border-slate-400' 
+                          : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'}
+                      `}
                     >
-                      <Send size={16} />
-                      Tramitar
+                      {isTramitarDisabled ? <Search size={16}/> : <Send size={16} />}
+                      {isTramitarDisabled ? 'Aguardando Atesto' : 'Tramitar'}
                     </button>
                   )}
                   
