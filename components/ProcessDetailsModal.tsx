@@ -411,6 +411,9 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
                   valorConcedido: process.value,
                   supridoNome: process.interestedParty,
                   dataFim: (enrichedProcessData as any)?.data_fim,
+                  // Art. 4° - Data da Portaria: usar generated_at/created_at do documento PORTARIA
+                  portariaData: executionDocuments.find(d => d.tipo === 'PORTARIA')?.generated_at 
+                    || executionDocuments.find(d => d.tipo === 'PORTARIA')?.created_at,
                   prazoPrestacao: (enrichedProcessData as any)?.prazo_prestacao
                 }}
                 onBaixaSiafe={() => setShowBaixaSiafeModal(true)}

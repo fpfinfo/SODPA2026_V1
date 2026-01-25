@@ -31,6 +31,13 @@ interface SupridoHomeProps {
     statusGeral: string;
   };
   pendingConfirmations: any[];
+  pcDevolvidas: Array<{
+    id: string;
+    nup: string;
+    motivo: string;
+    data_devolucao?: string;
+    valor?: number;
+  }>;
   isConfirmingReceipt: boolean;
   onConfirmReceipt: (id: string) => void;
   onNewRequest: () => void;
@@ -53,6 +60,7 @@ interface SupridoHomeProps {
 export const SupridoHome: React.FC<SupridoHomeProps> = ({
   kpiData,
   pendingConfirmations,
+  pcDevolvidas,
   isConfirmingReceipt,
   onConfirmReceipt,
   onNewRequest,
@@ -205,6 +213,45 @@ export const SupridoHome: React.FC<SupridoHomeProps> = ({
         </div>
       ))}
 
+      {/* === PC DEVOLVIDAS PARA CORREÇÃO BANNER === */}
+      {pcDevolvidas && pcDevolvidas.length > 0 && pcDevolvidas.map(pc => (
+        <div key={pc.id} className="bg-gradient-to-r from-red-500 to-rose-600 rounded-[32px] p-6 shadow-xl animate-in slide-in-from-top-2 mb-6 border-2 border-red-300">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4 flex-1">
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                <AlertTriangle size={28} className="text-white animate-pulse" />
+              </div>
+              <div className="text-white flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-red-100 mb-1">
+                  ⚠️ Prestação de Contas Devolvida para Correção
+                </p>
+                <h3 className="text-xl font-black mb-2">{pc.nup}</h3>
+                <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+                  <p className="text-[10px] font-bold text-red-200 uppercase tracking-wider mb-1">
+                    Motivo da Devolução pela SOSFU:
+                  </p>
+                  <p className="text-sm text-white font-medium leading-relaxed">
+                    {pc.motivo}
+                  </p>
+                </div>
+                {pc.data_devolucao && (
+                  <p className="text-xs text-red-200 mt-2">
+                    Devolvido em: {new Date(pc.data_devolucao).toLocaleDateString('pt-BR')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => onPrestacaoContas(history.find(h => h.id === pc.id) || { id: pc.id, nup: pc.nup })}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-red-700 rounded-xl font-black text-sm hover:bg-red-50 transition-colors shadow-lg shrink-0"
+            >
+              <Edit size={18} />
+              Corrigir Agora
+            </button>
+          </div>
+        </div>
+      ))}
+
       {/* Histórico de Solicitações */}
       <div className="bg-[#0f172a] rounded-[56px] shadow-2xl overflow-hidden relative group">
         <div className="px-12 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -284,6 +331,7 @@ export const SupridoHome: React.FC<SupridoHomeProps> = ({
                         {/* Status & Action */}
                         <div className="pl-2">
                             <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase transition-colors ${
+                                 p.status_workflow === 'PC_PENDENCY' ? 'bg-red-100 text-red-700 animate-pulse' :
                                  p.status === 'CONCEDIDO' ? 'bg-emerald-100 text-emerald-700' :
                                  p.status === 'PENDENTE' ? 'bg-amber-100 text-amber-700' :
                                  p.status === 'RASCUNHO' ? 'bg-slate-100 text-slate-600' :
@@ -292,12 +340,13 @@ export const SupridoHome: React.FC<SupridoHomeProps> = ({
                                  'bg-blue-50 text-blue-600'
                             }`}>
                                 <div className={`w-1.5 h-1.5 rounded-full ${
+                                    p.status_workflow === 'PC_PENDENCY' ? 'bg-red-500 animate-ping' :
                                     p.status === 'CONCEDIDO' ? 'bg-emerald-500' :
                                     p.status === 'PENDENTE' ? 'bg-amber-500' :
                                     p.status === 'PRESTANDO CONTAS' ? 'bg-purple-500' :
                                     'bg-slate-400'
                                 }`}></div>
-                                {p.status}
+                                {p.status_workflow === 'PC_PENDENCY' ? 'PC EM CORREÇÃO' : p.status}
                             </span>
                         </div>
                         
@@ -331,7 +380,22 @@ export const SupridoHome: React.FC<SupridoHomeProps> = ({
                                </div>
                             )}
                             
-                            {(p.status === 'PRESTANDO CONTAS' || 
+                            {/* PC Devolvida para Correção - Banner Destacado */}
+                            {p.status_workflow === 'PC_PENDENCY' && (
+                               <button 
+                                  onClick={(e) => {
+                                     e.stopPropagation();
+                                     onPrestacaoContas(p);
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 shadow-md transition-all animate-pulse"
+                               >
+                                  <AlertTriangle size={16} />
+                                  Corrigir PC
+                               </button>
+                            )}
+
+                            {/* Prestação de Contas Normal */}
+                            {p.status_workflow !== 'PC_PENDENCY' && (p.status === 'PRESTANDO CONTAS' || 
                               p.status === 'A PRESTAR CONTAS' ||
                               p.status_workflow === 'AWAITING_ACCOUNTABILITY' ||
                               p.status_workflow === 'ACCOUNTABILITY_OPEN') && (

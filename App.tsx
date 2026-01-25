@@ -53,7 +53,7 @@ const AppContent: React.FC = () => {
        const path = window.location.pathname;
        const search = window.location.search;
        
-       if (path.includes('/suprido') || search.includes('action=confirm')) {
+       if (path.includes('/suprido') || search.includes('action=confirm') || search.includes('action=pc_correction')) {
           setActiveRole(AppRole.SUPRIDO);
        } else {
           setActiveRole(initialRole);

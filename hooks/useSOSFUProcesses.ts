@@ -71,15 +71,19 @@ export const useSOSFUProcesses = () => {
   const getCategory = (process: Process): ProcessCategory => {
     const status = (process.status as string)?.toUpperCase() || '';
     const tipo = (process.type as string)?.toLowerCase() || '';
+    const workflow = (process as any).status_workflow?.toUpperCase() || '';
     
-    // Prestação de Contas
+    // Prestação de Contas - includes PC_REVIEW_SOSFU workflow
     if (
       status.includes('PRESTAND') || 
       status.includes('AGUARDANDO PC') ||
       status.includes('PC ') ||
       tipo.includes('prestação') ||
       tipo.includes('prestacao') ||
-      process.type === ProcessType.ACCOUNTABILITY
+      process.type === ProcessType.ACCOUNTABILITY ||
+      workflow === 'PC_REVIEW_SOSFU' ||
+      workflow === 'PC_PENDENCY' ||
+      workflow === 'ACCOUNTABILITY_OPEN'
     ) {
       return 'PRESTACAO';
     }
@@ -101,7 +105,7 @@ export const useSOSFUProcesses = () => {
           *,
           profiles!solicitacoes_user_id_fkey (nome, email, banco, agencia, conta_corrente)
         `)
-        .or('destino_atual.ilike.%SOSFU%,destino_atual.ilike.%ANALISE%,destino_atual.eq.SUPRIDO,status.ilike.%AGUARDANDO%,status.ilike.%PRESTANDO%,status.ilike.%CONCLU%')
+        .or('destino_atual.ilike.%SOSFU%,destino_atual.ilike.%ANALISE%,destino_atual.eq.SUPRIDO,status.ilike.%AGUARDANDO%,status.ilike.%PRESTANDO%,status.ilike.%CONCLU%,status_workflow.eq.PC_REVIEW_SOSFU,status_workflow.eq.PC_PENDENCY')
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -164,18 +168,36 @@ export const useSOSFUProcesses = () => {
            p.destino_atual === 'SUPRIDO';
   };
 
+  // Helper: Check if process has completed SIAFE baixa (finished)
+  const isBaixado = (p: Process) => {
+    const status = (p.status as string)?.toUpperCase() || '';
+    const workflow = ((p as any).status_workflow as string)?.toUpperCase() || '';
+    return status.includes('BAIXADO NO SIAFE') ||
+           status.includes('BAIXADO') ||
+           workflow === 'PC_SIAFE_DONE' ||
+           workflow === 'ARCHIVED';
+  };
+
   // Card Filters
-  const getCaixaEntrada = () => processes.filter(p => 
-    !p.assignedToId && 
-    !isInSefinFlow(p) && 
-    !isAwaitingPC(p) &&
-    (p.destino_atual === 'SOSFU' || p.destino_atual === 'EM ANÁLISE')
-  );
+  const getCaixaEntrada = () => processes.filter(p => {
+    const workflow = (p as any).status_workflow || '';
+    // Include PC_REVIEW_SOSFU in inbox for SOSFU to analyze
+    const isPcReview = workflow === 'PC_REVIEW_SOSFU';
+    
+    return (
+      !p.assignedToId && 
+      !isInSefinFlow(p) && 
+      !isAwaitingPC(p) &&
+      !isBaixado(p) &&  // Exclude finished processes
+      (p.destino_atual === 'SOSFU' || p.destino_atual === 'EM ANÁLISE' || isPcReview)
+    );
+  });
 
   const getMinhaMesa = () => processes.filter(p => 
     p.assignedToId === currentUserId &&
     !isInSefinFlow(p) && 
     !isAwaitingPC(p) &&
+    !isBaixado(p) &&  // Exclude finished processes
     (p.destino_atual === 'SOSFU' || p.destino_atual === 'EM ANÁLISE')
   );
 
@@ -228,10 +250,15 @@ export const useSOSFUProcesses = () => {
 
   const getPCConcluidas = () => processes.filter(p => {
     const status = (p.status as string)?.toUpperCase() || '';
+    const workflow = ((p as any).status_workflow as string)?.toUpperCase() || '';
     return status.includes('PC CONCLUÍDA') || 
            status.includes('PC CONCLUIDA') ||
            status.includes('PRESTAÇÃO CONCLUÍDA') ||
-           status === 'PC_CONCLUÍDA';
+           status === 'PC_CONCLUÍDA' ||
+           status.includes('APROVADO COM RESSALVAS') ||  // For SiafeManager pending filter
+           status.includes('BAIXADO NO SIAFE') ||  // For SiafeManager history filter
+           workflow === 'PC_APPROVED' ||  // PC approved, awaiting SIAFE baixa
+           workflow === 'PC_SIAFE_DONE';  // PC with SIAFE baixa completed
   });
 
   // Assign process to user

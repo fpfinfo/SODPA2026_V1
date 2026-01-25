@@ -474,6 +474,51 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     };
   }, [history]);
 
+  // PC Devolvidas para Correção - Filter history for PC_PENDENCY status
+  const [pcDevolvidasData, setPcDevolvidasData] = useState<Array<{
+    id: string;
+    nup: string;
+    motivo: string;
+    data_devolucao?: string;
+    valor?: number;
+  }>>([]);
+
+  // Fetch PC devolvidas with motivo from prestacao_contas table
+  useEffect(() => {
+    const fetchPcDevolvidas = async () => {
+      // Filter processes with PC_PENDENCY status
+      const pendencyProcesses = history.filter((s: any) => s.status_workflow === 'PC_PENDENCY');
+      
+      if (pendencyProcesses.length === 0) {
+        setPcDevolvidasData([]);
+        return;
+      }
+
+      // Fetch motivo from prestacao_contas for each process
+      const processIds = pendencyProcesses.map((p: any) => p.id);
+      const { data: pcData } = await supabase
+        .from('prestacao_contas')
+        .select('solicitacao_id, motivo_pendencia, updated_at')
+        .in('solicitacao_id', processIds)
+        .eq('status', 'PENDENCIA');
+
+      const result = pendencyProcesses.map((p: any) => {
+        const pcInfo = pcData?.find((pc: any) => pc.solicitacao_id === p.id);
+        return {
+          id: p.id,
+          nup: p.nup,
+          motivo: pcInfo?.motivo_pendencia || 'Correção solicitada pela SOSFU. Verifique os detalhes no processo.',
+          data_devolucao: pcInfo?.updated_at,
+          valor: p.val
+        };
+      });
+
+      setPcDevolvidasData(result);
+    };
+
+    fetchPcDevolvidas();
+  }, [history]);
+
   const handleExportPdf = async () => {
     const container = document.getElementById('pdf-content-container');
     if (!container) {
@@ -872,6 +917,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
                 date: new Date(s.created_at).toLocaleDateString('pt-BR'), 
                 val: s.valor_total || s.valor_solicitado || 0,
                 status: s.status || 'PENDENTE',
+                status_workflow: s.status_workflow,
                 items: s.itens_despesa || []
             }));
             setHistory(mappedHistory);
@@ -917,6 +963,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
               date: new Date(s.created_at).toLocaleDateString('pt-BR'), 
               val: s.valor_total || s.valor_solicitado || 0,
               status: s.status || 'PENDENTE',
+              status_workflow: s.status_workflow,
               items: s.itens_despesa || []
           }));
           setHistory(mappedHistory);
@@ -4367,6 +4414,7 @@ Assinado eletronicamente pelo servidor suprido.`,
         <SupridoHome
           kpiData={kpiData}
           pendingConfirmations={pendingConfirmations}
+          pcDevolvidas={pcDevolvidasData}
           isConfirmingReceipt={isConfirmingReceipt}
           onConfirmReceipt={handleConfirmReceipt}
           onNewRequest={() => setCurrentView('SELECT_TYPE')}

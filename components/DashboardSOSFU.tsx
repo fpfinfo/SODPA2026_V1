@@ -468,7 +468,10 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     const { error } = await supabase
       .from('solicitacoes')
       .update({ 
-        status: 'SIAFE_DONE', // Or AccountStatus.SIAFE_DONE if mapped correctly
+        status: 'Baixado no SIAFE', // AccountStatus.SIAFE_DONE value
+        status_workflow: 'PC_SIAFE_DONE',
+        siafe_nl: nl,
+        siafe_date: date,
         updated_at: new Date().toISOString()
       })
       .eq('id', processId);

@@ -435,6 +435,32 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
           observacao: `Prestação de Contas devolvida para correção. Motivo: ${motivo}`
         })
 
+      // [NOTIFICATION] Notify Suprido about correction request
+      // Buscar NUP para a notificação
+      const { data: solData } = await supabase
+        .from('solicitacoes')
+        .select('nup, user_id')
+        .eq('id', solicitacaoId)
+        .single();
+      
+      if (solData) {
+        await supabase.from('system_notifications').insert({
+          user_id: solData.user_id, // Notificar diretamente o suprido
+          role_target: 'SUPRIDO',
+          type: 'WARNING',
+          category: 'PROCESS',
+          title: '⚠️ Prestação de Contas Devolvida para Correção',
+          message: `Sua PC do processo NUP ${solData.nup} foi devolvida pela SOSFU. Motivo: ${motivo}`,
+          link_action: `/?action=pc_correction&nup=${solData.nup}`,
+          metadata: { 
+            solicitacao_id: solicitacaoId, 
+            nup: solData.nup,
+            motivo_devolucao: motivo,
+            tipo: 'PC_DEVOLVIDA'
+          }
+        });
+      }
+
       setPC(prev => prev ? { ...prev, status: 'PENDENCIA', motivo_pendencia: motivo } : null)
       queryClient.invalidateQueries({ queryKey: ['processes'] })
 

@@ -96,9 +96,17 @@ export const NotificationBell: React.FC = () => {
                              {notif.category}
                            </span>
                            {notif.link_action && (
-                             <a href={notif.link_action} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline">
+                             <button 
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 markAsRead(notif.id);
+                                 setIsOpen(false);
+                                 window.location.href = notif.link_action!;
+                               }}
+                               className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline"
+                             >
                                Ver <ExternalLink size={10} />
-                             </a>
+                             </button>
                            )}
                         </div>
                       </div>
