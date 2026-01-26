@@ -170,7 +170,12 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({ process }) => {
               <>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Participantes</label>
-                  <p className="text-base text-slate-700 mt-1">{process.juri_participantes || 0} pessoas</p>
+                  <p className="text-base text-slate-700 mt-1">
+                    {process.juri_participantes && typeof process.juri_participantes === 'object' 
+                      ? Object.values(process.juri_participantes).reduce((a: any, b: any) => (Number(a) || 0) + (Number(b) || 0), 0)
+                      : (process.juri_participantes || 0)
+                    } pessoas
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Duração</label>
