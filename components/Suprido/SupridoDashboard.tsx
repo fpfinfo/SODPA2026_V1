@@ -1486,7 +1486,7 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
           return element ? `${element.label} (${formatCurrency(itemTotal)})` : `${item.element} (${formatCurrency(itemTotal)})`;
         }).join(', ');
         
-        text = `Solicito a concessão de suprimento de fundos para atendimento de despesas extraordinárias/emergenciais no valor de ${formatCurrency(totalValue)}. Os recursos serão destinados para: ${elementDescriptions || '[NENHUM ELEMENTO SELECIONADO]'}. O período de aplicação compreende de ${sourceData.startDate || '[DATA INÍCIO]'} a ${sourceData.endDate || '[DATA FIM]'}.`;
+        text = `Solicito a concessão de suprimento de fundos para atendimento de despesas extraordinárias/emergenciais no valor de ${formatCurrency(totalValue)}. Os recursos serão destinados para: ${elementDescriptions || '[NENHUM ELEMENTO SELECIONADO]'}. O evento ocorrerá no período de ${sourceData.startDate || '[DATA INÍCIO]'} a ${sourceData.endDate || '[DATA FIM]'}.`;
       }
       
       // Update the correct state based on mode

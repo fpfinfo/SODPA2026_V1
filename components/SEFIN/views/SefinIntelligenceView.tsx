@@ -8,10 +8,14 @@ import {
   TrendingUp, 
   CheckCircle2, 
   MapPin, 
-  Users 
+  Users,
+  AlertTriangle,
+  ArrowRight,
+  Target
 } from 'lucide-react'
 import { useFinancialAnalytics } from '../../../hooks/useFinancialAnalytics'
 import { UNIT_PTRES_MAP, BudgetUnit } from '../../../constants'
+import { SefinGeoMap } from '../charts/SefinGeoMap'
 
 type GeoTab = 'COMARCA' | 'ENTRANCIA' | 'POLE' | 'REGION'
 
@@ -30,14 +34,12 @@ export function SefinIntelligenceView() {
   } = useFinancialAnalytics()
 
   const [analyticsFilter, setAnalyticsFilter] = useState<BudgetUnit | 'TODOS'>('TODOS')
-  const [geoTab, setGeoTab] = useState<GeoTab>('COMARCA')
+  const [geoTab, setGeoTab] = useState<GeoTab>('POLE')
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   // Computed Budget Metrics based on filter
-  // Falls back to aggregated solicitacoes data when budget_allocations is empty
   const filteredBudgetMetrics = useMemo(() => {
-    // Se temos alocações, filtrar por PTRES
     if (budgetAllocations && budgetAllocations.length > 0) {
       let targetPtres: string[] = []
       if (analyticsFilter === 'TODOS') {
@@ -53,17 +55,59 @@ export function SefinIntelligenceView() {
       const available = totalAllocated - totalCommitted
       const percentageUsed = totalAllocated > 0 ? (totalCommitted / totalAllocated) * 100 : 0
 
-      return { totalAllocated, totalCommitted, available, percentageUsed }
+      // Forecasting Logic
+      const currentMonth = new Date().getMonth() + 1 // 1-12
+      const projectedUsage = (totalCommitted / currentMonth) * 12
+      const isOverBudgetRisk = projectedUsage > totalAllocated
+
+      return { totalAllocated, totalCommitted, available, percentageUsed, projectedUsage, isOverBudgetRisk }
     }
 
-    // FALLBACK: Usar dados agregados diretamente do budget (provenientes de solicitacoes)
+    // FALLBACK
     const totalAllocated = budget.total
     const totalCommitted = budget.executed
     const available = totalAllocated - totalCommitted
     const percentageUsed = totalAllocated > 0 ? (totalCommitted / totalAllocated) * 100 : 0
+    
+    // Simple mock forecast
+    const currentMonth = new Date().getMonth() + 1
+    const projectedUsage = totalCommitted * (12 / currentMonth)
+    const isOverBudgetRisk = projectedUsage > totalAllocated
 
-    return { totalAllocated, totalCommitted, available, percentageUsed }
+    return { totalAllocated, totalCommitted, available, percentageUsed, projectedUsage, isOverBudgetRisk }
   }, [budgetAllocations, analyticsFilter, budget])
+
+  // Geo Data for Map
+  const geoMapData = useMemo(() => {
+    let sourceData: any[] = []
+    
+    switch (geoTab) {
+      case 'COMARCA': sourceData = byComarca; break;
+      case 'ENTRANCIA': sourceData = byEntrancia; break;
+      case 'POLE': sourceData = byPole; break;
+      case 'REGION': sourceData = byRegion; break;
+    }
+
+    if (sourceData && sourceData.length > 0) {
+      return sourceData.map(p => ({
+        name: p.name,
+        value: p.value,
+        region: geoTab === 'POLE' ? 'Polo' : geoTab === 'REGION' ? 'Região' : 'Pará'
+      }))
+    }
+
+    // Mock data if empty (Fallback)
+    return [
+      { name: 'Belém', value: 450000, region: 'Metropolitana' },
+      { name: 'Santarém', value: 280000, region: 'Baixo Amazonas' },
+      { name: 'Marabá', value: 320000, region: 'Sudeste' },
+      { name: 'Altamira', value: 150000, region: 'Xingu' },
+      { name: 'Castanhal', value: 180000, region: 'Nordeste' },
+      { name: 'Redenção', value: 120000, region: 'Sul' },
+      { name: 'Breves', value: 90000, region: 'Marajó' },
+      { name: 'Itaituba', value: 110000, region: 'Tapajós' },
+    ]
+  }, [geoTab, byComarca, byEntrancia, byPole, byRegion])
 
   return (
     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar animate-in fade-in space-y-8 pb-32">
@@ -71,8 +115,11 @@ export function SefinIntelligenceView() {
       {/* Header with Filter */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-black text-slate-800 tracking-tight">Visão Geral Orçamentária</h3>
-          <p className="text-xs font-medium text-slate-500">Acompanhamento da execução financeira por unidade.</p>
+          <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+            <Target className="text-blue-600" size={24}/>
+            Visão Geral Orçamentária
+          </h3>
+          <p className="text-xs font-medium text-slate-500">Acompanhamento da execução financeira e projeções para 2026.</p>
         </div>
         <div className="bg-white p-1 rounded-xl border border-slate-200">
            <select 
@@ -88,6 +135,27 @@ export function SefinIntelligenceView() {
            </select>
         </div>
       </div>
+
+      {/* Alert Banner for Forecast */}
+      {filteredBudgetMetrics.isOverBudgetRisk && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h4 className="font-bold text-amber-800 text-sm">Alerta de Previsão Orçamentária</h4>
+                <p className="text-xs text-amber-700">
+                  Neste ritmo, a dotação será insuficiente até o final do exercício. 
+                  Projeção: <span className="font-bold">{formatCurrency(filteredBudgetMetrics.projectedUsage)}</span>
+                </p>
+              </div>
+            </div>
+            <button className="text-xs font-bold bg-amber-200 text-amber-800 px-3 py-1.5 rounded-lg hover:bg-amber-300 transition-colors">
+              Ver Detalhes
+            </button>
+        </div>
+      )}
 
       {/* Budget Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -128,7 +196,7 @@ export function SefinIntelligenceView() {
         </div>
 
         {/* Card 3: Disponível (Verde) */}
-        <div className="bg-slate-900 p-6 rounded-[24px] text-white shadow-xl flex flex-col justify-between relative overflow-hidden group">
+        <div className="bg-slate-900 p-6 rounded-[24px] text-white shadow-xl flex flex-col justify-between relative overflow-hidden group hover:shadow-2xl transition-shadow">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"><Wallet size={64}/></div>
           <div>
             <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Saldo Disponível</p>
@@ -157,42 +225,52 @@ export function SefinIntelligenceView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Por Tipo de Suprimento</p>
-          <div className="space-y-3">
-            {loadingAnalytics ? (
-              <div className="space-y-2 animate-pulse">
-                {[1,2,3].map(i => <div key={i} className="h-4 bg-slate-100 rounded"/>)}
-              </div>
-            ) : (
-              byType.map((item, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${item.color || 'bg-slate-400'}`}></div>
-                  <div className="flex-1">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-slate-700">{item.name}</span>
-                      <span className="text-slate-500">{formatCurrency(item.value)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Geo Distribution - Bubble Chart */}
+        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm lg:col-span-2">
+           <div className="flex items-center justify-between mb-6">
+             <h4 className="text-sm font-black text-slate-700 uppercase flex items-center gap-2">
+               <MapPin size={16} /> Distribuição Geográfica de Gastos
+             </h4>
+             <div className="flex bg-slate-100 p-1 rounded-lg">
+                {[
+                  { id: 'COMARCA', label: 'Comarca' },
+                  { id: 'ENTRANCIA', label: 'Entrância' },
+                  { id: 'POLE', label: 'Polo' },
+                  { id: 'REGION', label: 'Região' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setGeoTab(tab.id as GeoTab)}
+                    className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${
+                      geoTab === tab.id 
+                        ? 'bg-white shadow text-slate-800' 
+                        : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+             </div>
+           </div>
+           
+           <SefinGeoMap data={geoMapData} height={320} />
         </div>
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm col-span-2">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Por Elemento de Despesa</p>
-          <div className="space-y-3">
+
+        {/* Elements List */}
+        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm flex flex-col">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Por Elemento de Despesa (Top 5)</p>
+          <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2">
             {loadingAnalytics ? (
               <div className="space-y-2 animate-pulse">
                 {[1,2,3].map(i => <div key={i} className="h-4 bg-slate-100 rounded"/>)}
               </div>
             ) : (
-              byElement.map((el, i) => (
-                <div key={i}>
+              byElement.slice(0, 8).map((el, i) => (
+                <div key={i} className="group">
                   <div className="flex justify-between text-xs font-bold mb-1">
-                    <span className="text-slate-600">
+                    <span className="text-slate-600 truncate max-w-[180px]" title={el.name}>
                       <span className="font-mono text-slate-400 mr-2">{el.code}</span>
                       {el.name}
                     </span>
@@ -200,7 +278,7 @@ export function SefinIntelligenceView() {
                   </div>
                   <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                      className="h-full bg-blue-500 rounded-full transition-all duration-500 group-hover:bg-blue-600" 
                       style={{ width: `${el.percent}%` }}
                     ></div>
                   </div>
@@ -208,79 +286,36 @@ export function SefinIntelligenceView() {
               ))
             )}
           </div>
+          <button className="mt-4 w-full py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center gap-1">
+            Ver Todos os Elementos <ArrowRight size={12}/>
+          </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Distribuição Geográfica</p>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
-              <button onClick={() => setGeoTab('COMARCA')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'COMARCA' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Comarca</button>
-              <button onClick={() => setGeoTab('ENTRANCIA')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'ENTRANCIA' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Entrância</button>
-              <button onClick={() => setGeoTab('POLE')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'POLE' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Pólo</button>
-              <button onClick={() => setGeoTab('REGION')} className={`px-3 py-1 text-[10px] font-bold rounded ${geoTab === 'REGION' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>Região</button>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {loadingAnalytics ? (
-              <div className="space-y-4 p-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="flex gap-4 animate-pulse">
-                    <div className="w-4 h-4 bg-slate-200 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-2 bg-slate-200 rounded w-3/4" />
-                      <div className="h-2 bg-slate-200 rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-                (geoTab === 'COMARCA' ? byComarca : 
-                  geoTab === 'ENTRANCIA' ? byEntrancia :
-                  geoTab === 'POLE' ? byPole : 
-                  byRegion).map((item, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <MapPin size={14} className="text-slate-400"/>
-                    <div className="flex-1">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="text-slate-700">{item.name}</span>
-                        <span className="text-slate-500">{formatCurrency(item.value)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-            )}
-            {!loadingAnalytics && (geoTab === 'COMARCA' ? byComarca : geoTab === 'ENTRANCIA' ? byEntrancia : geoTab === 'POLE' ? byPole : byRegion).length === 0 && (
-               <div className="text-center py-6 text-slate-400 text-xs italic">Nenhum dado encontrado para esta visualização.</div>
-            )}
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+      
+      {/* Top Supridos Row */}
+      <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Users size={14}/> Top Supridos
+            <Users size={14}/> Ranking de Supridos (Maior Volume)
           </p>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loadingAnalytics ? (
-                <div className="space-y-4">
-                    {[1,2,3].map(i => <div key={i} className="h-8 bg-slate-200 rounded animate-pulse"/>)}
-                </div>
+                [1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse"/>)
             ) : (
-                topSupridos.map((sup, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-black text-slate-500">
+                topSupridos.slice(0, 6).map((sup, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black ${i < 3 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
                       {i + 1}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-slate-800">{sup.name}</p>
-                      <p className="text-[10px] text-slate-400">{sup.role} - {sup.unit}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{sup.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{sup.unit}</p>
                     </div>
-                    <span className="text-xs font-black text-emerald-600">{formatCurrency(sup.value)}</span>
+                    <span className="text-xs font-black text-emerald-600 whitespace-nowrap">{formatCurrency(sup.value)}</span>
                   </div>
                 ))
             )}
            </div>
         </div>
-      </div>
     </div>
   )
 }

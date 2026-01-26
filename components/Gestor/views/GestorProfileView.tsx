@@ -14,9 +14,12 @@ import {
   Loader2,
   Key,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  MapPin
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabaseClient'
+import { useLocations } from '../../../hooks/useLocations'
+import { useToast } from '../../ui/ToastProvider'
 
 interface GestorProfileViewProps {
   onClose: () => void
@@ -48,6 +51,62 @@ export function GestorProfileView({ onClose, onProfileUpdate }: GestorProfileVie
   const [confirmPin, setConfirmPin] = useState('')
   const [pinError, setPinError] = useState('')
   const [pinSuccess, setPinSuccess] = useState(false)
+  
+  // Comarca Assignment
+  const { comarcas } = useLocations()
+  const { showToast } = useToast()
+  const [selectedComarcaId, setSelectedComarcaId] = useState<string>('')
+  const [isAssigningComarca, setIsAssigningComarca] = useState(false)
+
+  // Fetch current assignment
+  useEffect(() => {
+    if (profileData?.id) {
+       const fetchAssignment = async () => {
+         const { data } = await supabase
+           .from('unidade_titulares')
+           .select('comarca_id')
+           .eq('suprido_atual_id', profileData.id)
+           .maybeSingle()
+         
+         if (data) setSelectedComarcaId(data.comarca_id)
+       }
+       fetchAssignment()
+    }
+  }, [profileData?.id])
+
+  const handleUpdateComarca = async () => {
+    if (!profileData?.id) return
+    setIsAssigningComarca(true)
+    try {
+      // 1. Remove previous assignments
+      await supabase
+        .from('unidade_titulares')
+        .update({ suprido_atual_id: null, status: 'SEM_TITULAR' })
+        .eq('suprido_atual_id', profileData.id)
+
+      if (selectedComarcaId) {
+        // 2. Assign new
+        const { error } = await supabase
+          .from('unidade_titulares')
+          .update({ 
+            suprido_atual_id: profileData.id,
+            status: 'REGULAR',
+            updated_at: new Date().toISOString()
+          })
+          .eq('comarca_id', selectedComarcaId)
+        
+        if (error) throw error
+        showToast({ title: 'Sucesso', message: 'Vínculo de comarca atualizado!', type: 'success' })
+      } else {
+        showToast({ title: 'Removido', message: 'Vínculo de comarca removido.', type: 'info' })
+      }
+    } catch (error) {
+      console.error('Error updating comarca:', error)
+      showToast({ title: 'Erro', message: 'Falha ao atualizar vínculo.', type: 'error' })
+    } finally {
+      setIsAssigningComarca(false)
+    }
+  }
 
   // Fetch profile data
   useEffect(() => {
@@ -311,6 +370,34 @@ export function GestorProfileView({ onClose, onProfileUpdate }: GestorProfileVie
                       <Building2 size={16} className="text-slate-400" />
                       <span className="text-sm font-medium text-slate-700">{profileData?.lotacao || '-'}</span>
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 mt-2">
+                    <label className="text-[11px] font-bold text-blue-600 uppercase flex items-center gap-2">
+                       <MapPin size={12} /> Comarca de Atuação (Vínculo SOSFU)
+                    </label>
+                    <div className="flex gap-2">
+                      <select 
+                        value={selectedComarcaId}
+                        onChange={(e) => setSelectedComarcaId(e.target.value)}
+                        className="flex-1 px-4 py-3 bg-white border border-blue-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 outline-none"
+                      >
+                        <option value="">Selecione sua comarca titular...</option>
+                        {comarcas.map(c => (
+                          <option key={c.id} value={c.id}>{c.nome}</option>
+                        ))}
+                      </select>
+                      <button 
+                        onClick={handleUpdateComarca}
+                        disabled={isAssigningComarca}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm shadow-blue-200"
+                      >
+                        {isAssigningComarca ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 pl-1">
+                      Defina onde você atua como titular de suprimento. Isso habilitará a geração de processos para esta unidade.
+                    </p>
                   </div>
                 </div>
 

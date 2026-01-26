@@ -259,7 +259,14 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
             </div>
             <div>
               <span className="text-slate-500">Prazo Prestação:</span>
-              <p className="font-bold">30 dias</p>
+              <p className="font-bold text-emerald-700">
+                {(enrichedProcessData?.data_fim || processData.data_fim) ? (() => {
+                   const d = new Date(enrichedProcessData?.data_fim || processData.data_fim);
+                   d.setDate(d.getDate() + 7);
+                   return `Até ${d.toLocaleDateString('pt-BR')}`;
+                })() : '7 dias após evento'}
+              </p>
+              <p className="text-[10px] text-slate-400">Art. 4°, II</p>
             </div>
             <div>
               <span className="text-slate-500">Status:</span>
