@@ -22,12 +22,14 @@ import {
   Download
 } from 'lucide-react';
 import { usePrestacaoContas, ComprovantePC, PrestadorPFDados } from '../../hooks/usePrestacaoContas';
+import { checkPCDeadlineException } from '../../hooks/useExceptionDetection';
 import { generatePCPDF } from '../../utils/generatePCPDF';
 import { ComprovantesUploader } from './ComprovantesUploader';
 import { ConciliacaoPanel } from './ConciliacaoPanel';
 import { GDRUploader } from './GDRUploader';
 import { PrestadorPFForm } from './PrestadorPFForm';
 import { DossierReviewPanel } from './DossierReviewPanel';
+import { JuriExceptionInlineAlert } from '../ui/JuriExceptionInlineAlert';
 import { useToast } from '../ui/ToastProvider';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -141,14 +143,20 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
     }
   }, [pc]);
 
-  // Calculate days remaining
+  // Calculate days remaining until PC deadline (from Portaria Art. 4°, II)
   const diasRestantes = useMemo(() => {
     if (!processData.prazoPrestacao) return null;
     const prazo = new Date(processData.prazoPrestacao);
     const hoje = new Date();
+    prazo.setHours(0, 0, 0, 0);
+    hoje.setHours(0, 0, 0, 0);
     const diff = Math.ceil((prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
     return diff;
   }, [processData.prazoPrestacao]);
+
+  // PC está fora do prazo se diasRestantes for negativo
+  const pcForaDoPrazo = diasRestantes !== null && diasRestantes < 0;
+  const diasAtraso = pcForaDoPrazo && diasRestantes !== null ? Math.abs(diasRestantes) : null;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -359,6 +367,14 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* PC Fora do Prazo Alert */}
+      {pcForaDoPrazo && diasAtraso !== null && (
+        <JuriExceptionInlineAlert
+          diasAtraso={diasAtraso}
+          userRole="SUPRIDO"
+        />
       )}
 
       {/* Alerta sobre Serviços PF */}

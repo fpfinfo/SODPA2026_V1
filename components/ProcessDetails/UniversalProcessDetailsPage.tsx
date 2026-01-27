@@ -9,16 +9,35 @@ import {
   Plus,
   Loader2,
   Send,
-  RefreshCw
+  RefreshCw,
+  Scale
 } from 'lucide-react';
 import { useProcessDetails } from '../../hooks/useProcessDetails';
 import { DetailsTab } from './Tabs/DetailsTab';
 import { ExecutionTab } from './Tabs/ExecutionTab';
 import { TechnicalAnalysisTab } from './Tabs/TechnicalAnalysisTab';
+import { JuriAdjustmentTab } from './Tabs/JuriAdjustmentTab';
 import { UniversalDossierPanel } from './UniversalDossierPanel';
 import { supabase } from '../../lib/supabaseClient';
 
-type TabType = 'overview' | 'dossier' | 'execution' | 'analysis';
+type TabType = 'overview' | 'dossier' | 'execution' | 'analysis' | 'juriAdjust';
+
+// Helper to detect Júri/Extra-Júri processes
+const isJuriProcess = (processData: any): boolean => {
+  const tipo = (processData?.tipo || '').toLowerCase();
+  const subtipo = (processData?.subtipo || '').toLowerCase();
+  
+  return (
+    tipo.includes('júri') || 
+    tipo.includes('juri') ||
+    subtipo.includes('júri') ||
+    subtipo.includes('juri') ||
+    tipo.includes('extra-júri') ||
+    tipo.includes('extra-juri') ||
+    tipo.includes('sessão de júri') ||
+    tipo.includes('sessao de juri')
+  );
+};
 
 interface ProcessDetailsPageProps {
   processId: string;
@@ -31,6 +50,9 @@ interface ProcessDetailsPageProps {
   
   // Optional: Pass current user ID (will fetch if not provided)
   currentUserId?: string;
+  
+  // Role of the user viewing the process (for contextual banners)
+  viewerRole?: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN';
   
   // Action capabilities (role-dependent)
   canTramitar?: boolean;
@@ -55,6 +77,7 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
   initialTab = 'overview',
   visibleTabs,
   currentUserId: passedUserId,
+  viewerRole = 'SOSFU',
   canTramitar,
   isTramitarDisabled,
   canGenerateAtesto,
@@ -114,6 +137,9 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
   const allTabs = [
     { id: 'overview' as TabType, label: 'Visão Geral', icon: Eye },
     { id: 'dossier' as TabType, label: 'Dossiê Digital', icon: FolderOpen },
+    ...(isJuriProcess(processData) ? [
+      { id: 'juriAdjust' as TabType, label: 'Ajuste Extra-Júri', icon: Scale }
+    ] : []),
     { id: 'execution' as TabType, label: 'Execução da Despesa', icon: Receipt },
     { id: 'analysis' as TabType, label: 'Análise Técnica', icon: Search },
   ];
@@ -128,7 +154,22 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const processValue = processData.valor_total || 0;
+  // Calculate approved value for Juri processes
+  const calculateApprovedValue = () => {
+    // If we have approved projection data, calculate from it
+    const projecaoAprovada = processData.juri_projecao_aprovados;
+    if (projecaoAprovada && Array.isArray(projecaoAprovada) && projecaoAprovada.length > 0) {
+      return projecaoAprovada.reduce((acc: number, item: any) => {
+        const qty = item.approvedQty ?? item.quantity ?? 0;
+        const unitVal = item.approvedUnitValue ?? item.unitValue ?? 0;
+        return acc + (qty * unitVal);
+      }, 0);
+    }
+    // Fallback to original valor_total
+    return processData.valor_total || 0;
+  };
+
+  const processValue = calculateApprovedValue();
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -284,6 +325,13 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
             <TechnicalAnalysisTab 
               processData={processData}
               enrichedProcessData={processData}
+            />
+          )}
+          
+          {activeTab === 'juriAdjust' && isJuriProcess(processData) && (
+            <JuriAdjustmentTab 
+              processData={processData}
+              viewerRole={viewerRole}
             />
           )}
         </div>

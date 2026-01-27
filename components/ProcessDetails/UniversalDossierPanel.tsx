@@ -3,7 +3,7 @@ import { FileText, Eye, FileDown, BookOpen, Loader2 } from 'lucide-react';
 import { useDossierData } from './hooks/useDossierData';
 import { DocumentInventory } from './DocumentInventory';
 import { PrestacaoContasSection } from './PrestacaoContasSection';
-import { StaticCover, StaticRequest, StaticCertidao, StaticCertidaoAtesto, StaticCertidaoAtestoPC } from './StaticDocuments';
+import { StaticCover, StaticRequest, StaticCertidao, StaticCertidaoAtesto, StaticCertidaoAtestoPC, StaticAutorizacaoOrdenador } from './StaticDocuments';
 import { StaticDL } from './StaticDocuments/StaticDL';
 import { StaticOB } from './StaticDocuments/StaticOB';
 import { StaticNE } from './StaticDocuments/StaticNE';
@@ -372,6 +372,8 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                           gdr_saldo_numero: docItem.originalDoc?.metadata?.gdr_saldo_numero
                         }}
                       />
+                    ) : docItem.originalDoc?.tipo === 'AUTORIZACAO_ORDENADOR' ? (
+                      <StaticAutorizacaoOrdenador processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'CERTIDAO_ATESTO' || docItem.originalDoc?.tipo === 'ATESTO' || docItem.originalDoc?.tipo === 'CERTIDAO' ? (
                       <StaticCertidaoAtesto processData={processData} documentData={docItem.originalDoc} />
                     ) : docItem.originalDoc?.tipo === 'COMPROVANTE_DESPESA' && docItem.originalDoc?.file_url ? (

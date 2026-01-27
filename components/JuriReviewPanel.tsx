@@ -13,6 +13,7 @@ import {
   Send
 } from 'lucide-react';
 import { TramitarModal } from './TramitarModal';
+import { useToast } from './ui/ToastProvider';
 
 interface JuriParticipants {
   [key: string]: number;
@@ -48,6 +49,7 @@ export const JuriReviewPanel: React.FC<JuriReviewPanelProps> = ({
   onClose, 
   onSave 
 }) => {
+  const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [solicitacao, setSolicitacao] = useState<any>(null);
@@ -124,17 +126,18 @@ export const JuriReviewPanel: React.FC<JuriReviewPanelProps> = ({
         .update({
           juri_participantes_aprovados: participantesAprovados,
           juri_projecao_aprovados: projecaoAprovada,
+          valor_total: totalAprovado,
           updated_at: new Date().toISOString()
         })
         .eq('id', solicitacaoId);
 
       if (error) throw error;
       
-      alert('Valores aprovados salvos com sucesso!');
+      showToast({ type: 'success', title: 'Quantidades aprovadas salvas com sucesso!' });
       if (onSave) onSave();
     } catch (error) {
       console.error('Error saving approved values:', error);
-      alert('Erro ao salvar valores aprovados: ' + (error as Error).message);
+      showToast({ type: 'error', title: 'Erro ao salvar', message: (error as Error).message });
     } finally {
       setIsSaving(false);
     }
@@ -332,19 +335,38 @@ export const JuriReviewPanel: React.FC<JuriReviewPanelProps> = ({
           </div>
         </div>
 
-        <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+        <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-between items-center gap-3">
           <button 
-            onClick={() => setShowTramitar(true)}
-            className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-colors flex items-center gap-2"
+            onClick={onClose}
+            className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors"
           >
-            <AlertTriangle size={18} /> Diligenciar
+            Cancelar
           </button>
-          <button 
-            onClick={() => setShowTramitar(true)}
-            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center gap-2"
-          >
-            <CheckCircle2 size={18} /> Aprovar e Conceder
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Salvar Ajustes
+            </button>
+            <button 
+              onClick={() => setShowTramitar(true)}
+              className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-colors flex items-center gap-2"
+            >
+              <AlertTriangle size={18} /> Diligenciar
+            </button>
+            <button 
+              onClick={async () => {
+                await handleSave();
+                setShowTramitar(true);
+              }}
+              disabled={isSaving}
+              className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <CheckCircle2 size={18} /> Aprovar e Conceder
+            </button>
+          </div>
         </div>
 
         {/* Tramitar Modal Integration */}

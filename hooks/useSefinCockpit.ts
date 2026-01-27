@@ -52,7 +52,7 @@ export interface SefinKPI {
 
 export interface SefinFilters {
   status: 'all' | 'pending' | 'signed' | 'returned'
-  type: 'all' | 'PORTARIA' | 'CERTIDAO_REGULARIDADE' | 'NOTA_EMPENHO' | 'NOTA_LIQUIDACAO' | 'ORDEM_BANCARIA'
+  type: 'all' | 'PORTARIA' | 'CERTIDAO_REGULARIDADE' | 'NOTA_EMPENHO' | 'NOTA_LIQUIDACAO' | 'ORDEM_BANCARIA' | 'AUTORIZACAO_ORDENADOR'
   priority: 'all' | 'urgent' | 'high-value' | 'normal'
   period: 'today' | 'week' | 'month' | 'all'
   searchQuery: string
@@ -462,15 +462,43 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
 
         // If no more pending tasks for this process, update solicitacao status
         if (!pendingTasks || pendingTasks.length === 0) {
-          await supabase
-            .from('solicitacoes')
-            .update({ 
-              status: 'APROVADO',
-              status_workflow: 'SIGNED_BY_SEFIN', // SCS 4.0: Unlock DL/OB generation
-              destino_atual: 'SOSFU',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', task.solicitacao_id)
+          // Check if this was an exceptional authorization (Júri)
+          // In that case, return to SOSFU instead of marking as APROVADO
+          const isExceptionalAuth = task.tipo === 'AUTORIZACAO_ORDENADOR'
+          
+          if (isExceptionalAuth) {
+            // Exceptional authorization signed - return to SOSFU for normal execution
+            await supabase
+              .from('solicitacoes')
+              .update({ 
+                status: 'EM ANÁLISE SOSFU',
+                destino_atual: 'SOSFU',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', task.solicitacao_id)
+            
+            // Record tramitation
+            await supabase
+              .from('tramitacoes')
+              .insert({
+                solicitacao_id: task.solicitacao_id,
+                origem: 'SEFIN',
+                destino: 'SOSFU',
+                observacao: 'Autorização de Despesa Excepcional assinada pelo Ordenador. Processo retorna ao SOSFU para execução normal.',
+                user_id: user.id
+              })
+          } else {
+            // Regular flow - mark as APROVADO
+            await supabase
+              .from('solicitacoes')
+              .update({ 
+                status: 'APROVADO',
+                status_workflow: 'SIGNED_BY_SEFIN', // SCS 4.0: Unlock DL/OB generation
+                destino_atual: 'SOSFU',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', task.solicitacao_id)
+          }
         }
       }
 

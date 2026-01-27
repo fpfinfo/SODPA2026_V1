@@ -11,7 +11,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  X
+  X,
+  Scale
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -26,9 +27,11 @@ interface TaskSchedulerCardProps {
     data_planejada?: string | null;
     prioridade_usuario?: number;
     notas_planejamento?: string;
+    subtipo?: string;
   };
   onSchedule: (processId: string, date: string | null, priority?: number, notes?: string) => Promise<void>;
   onViewDetails: (processId: string) => void;
+  onAdjustQty?: (processId: string) => void;
 }
 
 const PRIORITY_CONFIG = {
@@ -253,6 +256,7 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
   process,
   onSchedule,
   onViewDetails,
+  onAdjustQty,
 }) => {
   const [isScheduling, setIsScheduling] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -432,6 +436,16 @@ export const TaskSchedulerCard: React.FC<TaskSchedulerCardProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Adjust Qty Button - Only for Extraordinary Processes */}
+          {process.tipo === 'EXTRAORDINARIO' && onAdjustQty && (
+            <button
+              onClick={() => onAdjustQty(process.id)}
+              className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 transition-colors"
+              title="Ajustar Quantidades Aprovadas"
+            >
+              <Scale size={16} />
+            </button>
+          )}
           <button
             onClick={() => onViewDetails(process.id)}
             className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors"

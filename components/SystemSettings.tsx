@@ -3,6 +3,7 @@ import { SettingsSubTab, Role } from '../types';
 import { useLocations } from '../hooks/useLocations';
 import { useTeamMembers, TeamMember } from '../hooks/useTeamMembers';
 import { useAvatarUpload } from '../hooks/useAvatarUpload';
+import { useSystemConfig } from '../hooks/useSystemConfig';
 import { Comarca, Municipio, Lotacao, getComarcaStatusBadge } from '../types/locations';
 import { 
   Users, 
@@ -33,7 +34,8 @@ import {
   Briefcase,
   Loader2,
   Upload,
-  Camera
+  Camera,
+  Sliders
 } from 'lucide-react';
 
 interface SystemSettingsProps {
@@ -85,6 +87,9 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
   const [isComarcaModalOpen, setIsComarcaModalOpen] = useState(false);
   const [editingComarca, setEditingComarca] = useState<Comarca | null>(null);
   const [comarcaFormData, setComarcaFormData] = useState<Partial<Comarca>>({ codigo: '', nome: '', entrancia: '1ª Entrância', varas: 1, teto_anual: 0, status: 'ATIVA' });
+
+  // Use Supabase hook for system config (persisted)
+  const { config: systemConfig, isLoading: isLoadingConfig, isSaving, updateConfig: handleConfigChange, saveConfig } = useSystemConfig();
 
 
   const handleOpenUserModal = (member?: TeamMember) => {
@@ -223,7 +228,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
 
   const renderTabs = () => (
     <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex mb-8 overflow-x-auto">
-      {[{ id: 'USERS', label: 'Equipe Técnica', icon: Users }, { id: 'DEPARTMENTS', label: 'Lotações', icon: Building2 }, { id: 'MUNICIPALITIES', label: 'Municípios', icon: MapPin }, { id: 'DISTRICTS', label: 'Comarcas', icon: University }, { id: 'DOCS', label: 'Docs', icon: BookOpen }].map((tab) => (
+      {[{ id: 'USERS', label: 'Equipe Técnica', icon: Users }, { id: 'DEPARTMENTS', label: 'Lotações', icon: Building2 }, { id: 'MUNICIPALITIES', label: 'Municípios', icon: MapPin }, { id: 'DISTRICTS', label: 'Comarcas', icon: University }, { id: 'DOCS', label: 'Docs', icon: BookOpen }, { id: 'PARAMETERS', label: 'Parâmetros', icon: Sliders }].map((tab) => (
         <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-100 text-slate-900 shadow-inner' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}><tab.icon size={18} className={activeTab === tab.id ? 'text-blue-600' : ''} />{tab.label}</button>
       ))}
     </div>
@@ -674,11 +679,138 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ onBack }) => {
     </div>
   );
 
+  const renderParameters = () => {
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        <div className="flex justify-between items-center mb-4">
+          <div><h3 className="text-lg font-bold text-slate-800">Parâmetros Globais</h3><p className="text-sm text-slate-500">Defina os limites e regras de negócio do sistema</p></div>
+          <button 
+            onClick={async () => { 
+              const success = await saveConfig(); 
+              if (success) alert('Configurações salvas com sucesso!'); 
+            }} 
+            disabled={isSaving}
+            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all disabled:opacity-50"
+          >
+            {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+        </div>
+
+        {isLoadingConfig ? (
+          <div className="flex items-center justify-center py-12"><Loader2 size={32} className="animate-spin text-slate-400" /></div>
+        ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card: Limites Financeiros */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><DollarSign size={24}/></div>
+              <h4 className="text-lg font-bold text-slate-800">Limites Financeiros</h4>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Limite Máximo (Extraordinário)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-400 font-bold">R$</span>
+                  <input type="number" value={systemConfig.limit_value} onChange={e => handleConfigChange('limit_value', parseFloat(e.target.value))} className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"/>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Conforme Resolução nº 169/2013-CNJ</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Limites Refeição */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl"><Briefcase size={24}/></div>
+              <h4 className="text-lg font-bold text-slate-800">Limites de Alimentação (Unitário)</h4>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Almoço</label>
+                <div className="relative"><span className="absolute left-2 top-2 text-xs text-slate-400">R$</span><input type="number" value={systemConfig.meal_lunch} onChange={e => handleConfigChange('meal_lunch', parseFloat(e.target.value))} className="w-full pl-6 p-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800"/></div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Jantar</label>
+                <div className="relative"><span className="absolute left-2 top-2 text-xs text-slate-400">R$</span><input type="number" value={systemConfig.meal_dinner} onChange={e => handleConfigChange('meal_dinner', parseFloat(e.target.value))} className="w-full pl-6 p-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800"/></div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Lanche</label>
+                <div className="relative"><span className="absolute left-2 top-2 text-xs text-slate-400">R$</span><input type="number" value={systemConfig.meal_snack} onChange={e => handleConfigChange('meal_snack', parseFloat(e.target.value))} className="w-full pl-6 p-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800"/></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Limites Pessoal (Júri) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Users size={24}/></div>
+              <div>
+                <h4 className="text-lg font-bold text-slate-800">Limites de Pessoal (Júri)</h4>
+                <p className="text-xs text-slate-500">Defina os tetos máximos por categoria de participante</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Servidores</label>
+                <input type="number" value={systemConfig.juri_servidores} onChange={e => handleConfigChange('juri_servidores', parseInt(e.target.value))} className="w-full p-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 text-center"/>
+                <p className="text-[9px] text-slate-400 mt-1 text-center">Servidor do Fórum</p>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Defensor</label>
+                <input type="number" value={systemConfig.juri_defensor} onChange={e => handleConfigChange('juri_defensor', parseInt(e.target.value))} className="w-full p-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 text-center"/>
+                <p className="text-[9px] text-slate-400 mt-1 text-center">Defensor Público</p>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Promotor</label>
+                <input type="number" value={systemConfig.juri_promotor} onChange={e => handleConfigChange('juri_promotor', parseInt(e.target.value))} className="w-full p-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 text-center"/>
+                <p className="text-[9px] text-slate-400 mt-1 text-center">Ministério Público</p>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Policiais</label>
+                <input type="number" value={systemConfig.juri_policias} onChange={e => handleConfigChange('juri_policias', parseInt(e.target.value))} className="w-full p-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 text-center"/>
+                <p className="text-[9px] text-slate-400 mt-1 text-center">Escolta e Segurança</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Sistema */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-slate-100 text-slate-600 rounded-xl"><Zap size={24}/></div>
+              <h4 className="text-lg font-bold text-slate-800">Controle do Sistema</h4>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+               <div>
+                  <p className="text-sm font-bold text-slate-800">Modo de Manutenção</p>
+                  <p className="text-xs text-slate-500">Bloqueia acesso para usuários não-admin</p>
+               </div>
+               <div onClick={() => handleConfigChange('maintenance_mode', !systemConfig.maintenance_mode)} className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 ${systemConfig.maintenance_mode ? 'bg-red-500' : 'bg-slate-300'}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${systemConfig.maintenance_mode ? 'translate-x-6' : 'translate-x-0'}`}></div>
+               </div>
+            </div>
+            <div className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
+               <p className="text-xs font-bold text-purple-700 uppercase mb-2">Build Info</p>
+               <div className="flex justify-between text-xs text-purple-600">
+                  <span>Versão:</span>
+                  <span className="font-mono">v3.1.0-beta</span>
+               </div>
+               <div className="flex justify-between text-xs text-purple-600 mt-1">
+                  <span>Environment:</span>
+                  <span className="font-mono">Production (Supabase)</span>
+               </div>
+            </div>
+          </div>
+        </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="h-full flex flex-col p-6 max-w-[1920px] mx-auto overflow-hidden">
       {renderHeader()}
       {renderTabs()}
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10"><div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-200/60 shadow-inner min-h-full">{activeTab === 'USERS' && renderUsers()}{activeTab === 'DEPARTMENTS' && renderDepartments()}{activeTab === 'MUNICIPALITIES' && renderMunicipalities()}{activeTab === 'DISTRICTS' && renderDistricts()}{activeTab === 'EXPENSES' && renderExpenses()}{activeTab === 'DOCS' && renderDocs()}{activeTab === 'DATABASE' && renderDatabase()}</div></div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10"><div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-200/60 shadow-inner min-h-full">{activeTab === 'USERS' && renderUsers()}{activeTab === 'DEPARTMENTS' && renderDepartments()}{activeTab === 'MUNICIPALITIES' && renderMunicipalities()}{activeTab === 'DISTRICTS' && renderDistricts()}{activeTab === 'EXPENSES' && renderExpenses()}{activeTab === 'DOCS' && renderDocs()}{activeTab === 'DATABASE' && renderDatabase()}{activeTab === 'PARAMETERS' && renderParameters()}</div></div>
     </div>
   );
 };

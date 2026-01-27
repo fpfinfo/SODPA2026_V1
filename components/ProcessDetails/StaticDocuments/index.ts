@@ -8,4 +8,4 @@ export { StaticDL } from './StaticDL';
 export { StaticOB } from './StaticOB';
 export { StaticPrestacaoContas } from './StaticPrestacaoContas';
 export { StaticCertidaoAtestoPC } from './StaticCertidaoAtestoPC';
-
+export { StaticAutorizacaoOrdenador } from './StaticAutorizacaoOrdenador';

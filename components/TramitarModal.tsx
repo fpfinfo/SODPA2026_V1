@@ -25,14 +25,16 @@ const WORKFLOW_DESTINATIONS: Record<string, { value: string; label: string; stat
   'SOSFU': [
     { value: 'SEFIN', label: 'SEFIN - Ordenador de Despesa', status: 'PENDENTE ASSINATURA' },
     { value: 'GESTOR', label: 'Devolver ao Gestor', status: 'DEVOLVIDO' },
-    { value: 'AJSEFIN', label: 'AJSEFIN - Parecer Jurídico', status: 'AGUARDANDO PARECER' }
+    { value: 'AJSEFIN', label: 'AJSEFIN - Parecer Jurídico', status: 'AGUARDANDO PARECER' },
+    { value: 'AJSEFIN', label: 'AJSEFIN - Autorização Excepcional (Júri)', status: 'AGUARDANDO AUTORIZACAO EXCEPCIONAL' }
   ],
   'SEFIN': [
     { value: 'SOSFU', label: 'SOSFU - Empenho/Financeiro', status: 'APROVADO' },
     { value: 'SOSFU', label: 'Devolver à SOSFU (Correção)', status: 'DEVOLVIDO' }
   ],
   'AJSEFIN': [
-    { value: 'SOSFU', label: 'Retornar à SOSFU', status: 'PARECER EMITIDO' }
+    { value: 'SOSFU', label: 'Retornar à SOSFU', status: 'PARECER EMITIDO' },
+    { value: 'SEFIN', label: 'SEFIN - Assinatura do Ordenador (Autorização Excepcional)', status: 'AGUARDANDO ASSINATURA ORDENADOR' }
   ],
   'SGP': [
     { value: 'SOSFU', label: 'Retornar à SOSFU', status: 'INCLUSÃO EM FOLHA REALIZADA' }

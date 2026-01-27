@@ -73,6 +73,7 @@ import { PrestacaoContasWizard } from './PrestacaoContasWizard';
 import { DocumentSigningModal } from './DocumentSigningModal';
 import { SupridoHome } from './SupridoHome';
 import { PinSettingsModal } from './PinSettingsModal';
+import { JuriExceptionInlineAlert } from '../ui/JuriExceptionInlineAlert';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -2697,15 +2698,8 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
                                        value={formState.juriParticipants[cat.key as keyof JuriParticipants]}
                                        onChange={(e) => {
                                           let newValue = parseInt(e.target.value) || 0;
-                                          // Check if max limit exceeded
-                                          if (cat.max && newValue > cat.max) {
-                                             // Only show notification for policias
-                                             if (cat.key === 'policias') {
-                                                setLimitExceededType('participante');
-                                                setShowLimitExceededAlert(true);
-                                             }
-                                             newValue = cat.max;
-                                          }
+                                          // Allow values above limit - special authorization flow will handle it
+                                          // No longer forcing the value down to cat.max
                                           setFormState({
                                              ...formState,
                                              juriParticipants: { ...formState.juriParticipants, [cat.key]: newValue }
@@ -2729,6 +2723,14 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
                         <p className="text-3xl font-black">{(Object.values(formState.juriParticipants) as number[]).reduce((a, b) => a + b, 0)} <span className="text-xs font-bold">participantes</span></p>
                      </div>
                   </div>
+                  
+                  {/* Alert for values exceeding limits */}
+                  {formState.juriParticipants.policias > 5 && (
+                     <JuriExceptionInlineAlert
+                        policiais={formState.juriParticipants.policias}
+                        userRole="SUPRIDO"
+                     />
+                  )}
                </div>
             )}
 
@@ -2882,33 +2884,18 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
                                              type="number" 
                                              className={`w-full pl-6 p-1 border rounded text-right font-medium ${item.isAuto ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}
                                              value={item.unitValue}
-                                             onChange={(e) => {
+                                              onChange={(e) => {
                                                 const newItems = [...formState.juriProjectionItems];
                                                 let newValue = parseFloat(e.target.value) || 0;
-                                                let exceeded = false;
                                                 
-                                                // Enforce max value for auto items (meals)
-                                                if (item.isAuto && item.id === 'almoco' && newValue > juriLimits.refeicoes.almoco) {
-                                                   newValue = juriLimits.refeicoes.almoco;
-                                                   exceeded = true;
-                                                } else if (item.isAuto && item.id === 'jantar' && newValue > juriLimits.refeicoes.jantar) {
-                                                   newValue = juriLimits.refeicoes.jantar;
-                                                   exceeded = true;
-                                                } else if (item.isAuto && item.id === 'lanche' && newValue > juriLimits.refeicoes.lanche) {
-                                                   newValue = juriLimits.refeicoes.lanche;
-                                                   exceeded = true;
-                                                }
-                                                
-                                                if (exceeded) {
-                                                   setLimitExceededType('refeicao');
-                                                   setShowLimitExceededAlert(true);
-                                                }
+                                                // Allow values above limit - special authorization flow will handle it
+                                                // The inline alert banner will inform the user about the special workflow
                                                 
                                                 newItems[idx].unitValue = newValue;
                                                 newItems[idx].total = newItems[idx].quantity * newItems[idx].unitValue;
                                                 setFormState({...formState, juriProjectionItems: newItems});
-                                             }}
-                                          />
+                                              }}
+                                           />
                                        </div>
                                     </td>
                                     <td className="p-4 text-center">
@@ -2946,6 +2933,48 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
                         <p className="text-3xl font-black">{formatCurrency(Math.round(formState.juriProjectionItems.reduce((acc, item) => acc + item.total, 0)))}</p>
                      </div>
                   </div>
+                  
+                  {/* Alert for values exceeding limits (meals) or deadline */}
+                  {(() => {
+                     const almocoItem = formState.juriProjectionItems.find(i => i.id === 'almoco');
+                     const jantarItem = formState.juriProjectionItems.find(i => i.id === 'jantar');
+                     const lancheItem = formState.juriProjectionItems.find(i => i.id === 'lanche');
+                     
+                     const almocoValue = almocoItem?.unitValue || 0;
+                     const jantarValue = jantarItem?.unitValue || 0;
+                     const lancheValue = lancheItem?.unitValue || 0;
+                     
+                     // Calculate days until event
+                     let diasAteEvento: number | null = null;
+                     if (formState.startDate) {
+                        const eventDate = new Date(formState.startDate);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        eventDate.setHours(0, 0, 0, 0);
+                        diasAteEvento = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                     }
+                     
+                     const hasValueExceptions = 
+                        almocoValue > 30 || 
+                        jantarValue > 30 || 
+                        lancheValue > 11 ||
+                        formState.juriParticipants.policias > 5;
+                     
+                     const hasPrazoException = diasAteEvento !== null && diasAteEvento >= 0 && diasAteEvento < 7;
+                     
+                     if (!hasValueExceptions && !hasPrazoException) return null;
+                     
+                     return (
+                        <JuriExceptionInlineAlert
+                           policiais={formState.juriParticipants.policias}
+                           almocoValue={almocoValue}
+                           jantarValue={jantarValue}
+                           lancheValue={lancheValue}
+                           diasAteEvento={diasAteEvento}
+                           userRole="SUPRIDO"
+                        />
+                     );
+                  })()}
                </div>
             )}
 
@@ -4442,6 +4471,7 @@ Assinado eletronicamente pelo servidor suprido.`,
               <UniversalProcessDetailsPage
                 processId={selectedProcess.id}
                 currentUserId={currentUserId || ''}
+                viewerRole="SUPRIDO"
                 onClose={() => {
                   setSelectedProcess(null);
                   setCurrentView('DASHBOARD');

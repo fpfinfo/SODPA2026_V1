@@ -29,6 +29,7 @@ interface TaskSchedulerPanelProps {
   onSchedule: (processId: string, date: string | null, priority?: number, notes?: string) => Promise<void>;
   onViewDetails: (processId: string) => void;
   onCapacityChange?: (newCapacity: number) => Promise<void>;
+  onAdjustQty?: (processId: string) => void;
 }
 
 interface DateGroup {
@@ -46,6 +47,7 @@ export const TaskSchedulerPanel: React.FC<TaskSchedulerPanelProps> = ({
   onSchedule,
   onViewDetails,
   onCapacityChange,
+  onAdjustQty,
 }) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -253,6 +255,7 @@ export const TaskSchedulerPanel: React.FC<TaskSchedulerPanelProps> = ({
                       process={process}
                       onSchedule={onSchedule}
                       onViewDetails={onViewDetails}
+                      onAdjustQty={onAdjustQty}
                     />
                   ))}
                 </div>

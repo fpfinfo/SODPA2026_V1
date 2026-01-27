@@ -65,6 +65,8 @@ export interface ProcessData {
   juri_dias?: number;
   juri_frequencia_refeicoes?: string;
   juri_projecao_custos?: any[];
+  juri_participantes_aprovados?: Record<string, number>;
+  juri_projecao_aprovados?: any[];
   
   // Budget
   ptres?: string;

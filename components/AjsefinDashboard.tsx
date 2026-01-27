@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { UniversalProcessDetailsPage } from './ProcessDetails';
 import { TramitarModal } from './TramitarModal';
 import { DocumentCreationWizard } from './DocumentCreationWizard';
+import { AutorizacaoExcepcionalView } from './Ajsefin/AutorizacaoExcepcionalView';
 import { 
   Scale, 
   Gavel, 
@@ -43,7 +44,7 @@ import {
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
-type AjsefinView = 'DASHBOARD' | 'KANBAN' | 'EDITOR' | 'INBOX' | 'LIST';
+type AjsefinView = 'DASHBOARD' | 'KANBAN' | 'EDITOR' | 'INBOX' | 'LIST' | 'AUTORIZACAO_JURI';
 type ListFilterType = 'MY_TASKS' | 'DRAFTS' | 'AWAITING_SIG' | 'RETURNED' | 'TEAM_MEMBER';
 type ProcessStatus = 'TRIAGEM' | 'REDACAO' | 'REVISAO' | 'AGUARDANDO_ASSINATURA' | 'DEVOLVIDO' | 'ENVIADO';
 
@@ -192,6 +193,28 @@ export const AjsefinDashboard: React.FC = () => {
         <div onClick={() => handleCardClick('LIST', 'AWAITING_SIG')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform"><CheckSquare size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">SEFIN</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.awaitingSig}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-emerald-600">Aguard. Assinatura</p><p className="text-[10px] text-slate-400 mt-1">Enviados ao Ordenador</p></div></div>
         <div onClick={() => handleCardClick('LIST', 'RETURNED')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-red-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-red-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform"><CornerUpLeft size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Atenção</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.returned}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-red-600">Devolvidos</p><p className="text-[10px] text-slate-400 mt-1">Correções solicitadas</p></div></div>
       </div>
+      
+      {/* Special Card: Autorização Excepcional de Júri */}
+      <div 
+        onClick={() => setViewMode('AUTORIZACAO_JURI')} 
+        className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-2xl shadow-sm border border-purple-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"
+      >
+        <div className="flex items-center gap-6">
+          <div className="p-4 bg-purple-100 text-purple-700 rounded-2xl group-hover:scale-110 transition-transform">
+            <Gavel size={32} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-black text-slate-800 mb-1">Autorizações Excepcionais de Júri</h3>
+            <p className="text-sm text-slate-500">Processos com valores acima dos limites regulamentares aguardando autorização do Ordenador.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-4 py-2 bg-purple-100 text-purple-700 rounded-xl text-sm font-bold border border-purple-200">
+              Acessar →
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-[32px] shadow-lg border border-slate-200 overflow-hidden">
         <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"><h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-3"><Users size={20} className="text-slate-400"/> Gestão de Atribuições</h3><button onClick={() => setViewMode('KANBAN')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-purple-700 hover:border-purple-200 transition-all shadow-sm"><Layout size={16}/> Ver Quadro Kanban</button></div>
         <table className="w-full text-left border-collapse"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 w-1/3">Assessor / Cargo</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Carga de Trabalho</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Alertas</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th></tr></thead>
@@ -250,6 +273,18 @@ export const AjsefinDashboard: React.FC = () => {
         {viewMode === 'LIST' && <div className="h-full overflow-y-auto custom-scrollbar">{renderProcessList()}</div>}
         {viewMode === 'KANBAN' && <><div className="p-6 pb-0 flex justify-end"><button onClick={() => setViewMode('DASHBOARD')} className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase hover:text-purple-700"><BarChart2 size={16}/> Voltar ao Painel</button></div>{renderKanban()}</>}
         {viewMode === 'EDITOR' && <div className="absolute inset-0 z-30">{renderEditor()}</div>}
+        {viewMode === 'AUTORIZACAO_JURI' && (
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <AutorizacaoExcepcionalView
+              onBack={() => setViewMode('DASHBOARD')}
+              onViewProcess={(id) => {
+                const process = processes.find(p => p.id === id);
+                if (process) setSelectedProcessForDetails(process);
+              }}
+              currentUserId={currentUserId || ''}
+            />
+          </div>
+        )}
         {renderRedistributionModal()}
       </div>
 

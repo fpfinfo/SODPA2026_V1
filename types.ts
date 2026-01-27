@@ -289,7 +289,7 @@ export type ViewMode = 'DASHBOARD' | 'NEW_REQUEST' | 'MY_REQUESTS' | 'ACCOUNTABI
 // Removed 'SENTINELA' from FilterTab as it is now merged into ACCOUNTABILITY
 export type FilterTab = 'ALL' | 'CONCESSION' | 'ACCOUNTABILITY' | 'FINANCEIRO' | 'ORCAMENTO' | 'TAX_INSS' | 'GDR_CONTROL' | 'INSS_TABLES' | 'SUPRIDO_MANAGEMENT' | 'ORDINARY_MANAGEMENT' | 'SIAFE' | 'SETTINGS';
 
-export type SettingsSubTab = 'USERS' | 'DEPARTMENTS' | 'MUNICIPALITIES' | 'DISTRICTS' | 'EXPENSES' | 'DOCS';
+export type SettingsSubTab = 'USERS' | 'DEPARTMENTS' | 'MUNICIPALITIES' | 'DISTRICTS' | 'EXPENSES' | 'DOCS' | 'PARAMETERS';
 
 // Added Sentinela Audit related interfaces
 export interface AuditAlert {

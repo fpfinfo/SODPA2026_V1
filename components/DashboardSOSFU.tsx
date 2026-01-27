@@ -24,6 +24,7 @@ import { GestaoDevolucoesTab } from './SOSFU/GestaoDevolucoesTab';
 import { SiafeManager } from './SiafeManager';
 import { ExpenseExecutionWizard } from './Execution/ExpenseExecutionWizard';
 import { BudgetPlanningDashboard } from './BudgetPlanningDashboard';
+import { JuriReviewPanel } from './JuriReviewPanel';
 import { useSOSFUProcesses, SOSFUStats } from '../hooks/useSOSFUProcesses';
 import { useFinancialAnalytics } from '../hooks/useFinancialAnalytics';
 import { useRoleRequests, ROLE_LABELS, RoleRequest } from '../hooks/useRoleRequests';
@@ -135,6 +136,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
   const [assigningProcessId, setAssigningProcessId] = useState<string | null>(null);
   const [redistributionSourceId, setRedistributionSourceId] = useState<string | null>(null);
   const [auditProcess, setAuditProcess] = useState<Process | null>(null);
+  const [reviewingProcessId, setReviewingProcessId] = useState<string | null>(null);
   
   // User capacity for task scheduling
   const [userCapacity, setUserCapacity] = useState<number>(20);
@@ -262,6 +264,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
     if (!p) return;
     if (action === 'assume') setAssigningProcessId(id); 
     else if (action === 'sentinela') setAuditProcess(p);
+    else if (action === 'adjustQty') setReviewingProcessId(id);
     else if (action === 'details') { 
       if (onOpenProcess) {
         onOpenProcess(id);
@@ -470,6 +473,7 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
             onSchedule={handleScheduleProcess}
             onCapacityChange={handleCapacityChange}
             onViewDetails={(processId) => openProcessDetails(processId)}
+            onAdjustQty={(processId) => setReviewingProcessId(processId)}
           />
         </div>
       );
@@ -703,6 +707,18 @@ export const DashboardSOSFU: React.FC<DashboardSOSFUProps> = ({ forceTab, onInte
       {assigningProcessId && <AssignmentModal staffMembers={realTeamMembers} processesCount={{}} onSelect={(staffId) => handleAssignUser(assigningProcessId, staffId)} onClose={() => setAssigningProcessId(null)} />}
       {auditProcess && <SentinelaAudit process={auditProcess} onClose={() => setAuditProcess(null)} />}
       {renderRedistributionModal()}
+      
+      {/* Juri Review Panel - Ajuste de Quantidades Aprovadas */}
+      {reviewingProcessId && (
+        <JuriReviewPanel
+          solicitacaoId={reviewingProcessId}
+          onClose={() => setReviewingProcessId(null)}
+          onSave={() => {
+            setReviewingProcessId(null);
+            refreshProcesses();
+          }}
+        />
+      )}
       
       {/* Expense Execution Wizard */}
       {showExecutionWizard && executionProcess && (
