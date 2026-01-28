@@ -15,8 +15,10 @@ import {
   Loader2,
   Send,
   RefreshCw,
-  Search
+  Search,
+  AlertTriangle
 } from 'lucide-react';
+import { JuriExceptionInlineAlert } from '../ui/JuriExceptionInlineAlert';
 import { useProcessDetails } from '../../hooks/useProcessDetails';
 import { DetailsTab } from './Tabs/DetailsTab';
 import { UniversalDossierPanel } from './UniversalDossierPanel';
@@ -44,6 +46,12 @@ interface GestorProcessDetailsPageProps {
   // Custom action (e.g., "Analisar PC")
   customActionLabel?: string;
   onCustomAction?: () => void;
+
+  // Exceção de Júri (policiais acima do limite)
+  hasExcepcaoPoliciais?: boolean;
+  qtdPoliciais?: number;
+  limitePoliciais?: number;
+  hasOficioJustificativa?: boolean;
 }
 
 export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> = ({
@@ -60,10 +68,17 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
   onCreateDocument,
   customActionLabel,
   onCustomAction,
+  hasExcepcaoPoliciais,
+  qtdPoliciais,
+  limitePoliciais = 5,
+  hasOficioJustificativa: propHasOficioJustificativa,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [currentUserId, setCurrentUserId] = useState<string | null>(passedUserId || null);
-  const { processData, isLoading, error } = useProcessDetails(processId);
+  const { processData, isLoading, error, refetch } = useProcessDetails(processId);
+  
+  // LOCAL: State for dossier documents to check for Ofício
+  const [localHasOficio, setLocalHasOficio] = useState<boolean | null>(null);
 
   // Fetch current user ID if not passed
   useEffect(() => {
@@ -73,6 +88,39 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
       });
     }
   }, [passedUserId]);
+
+  // LOCAL: Fetch dossier documents to check for Ofício de Justificativa
+  useEffect(() => {
+    const fetchAndCheckOficio = async () => {
+      if (!processId) return;
+      
+      const { data: docs } = await supabase
+        .from('documentos')
+        .select('tipo, titulo, nome')
+        .eq('solicitacao_id', processId);
+      
+      if (docs) {
+        const hasOficio = docs.some((doc: any) => {
+          const tipo = (doc.tipo || '').toUpperCase();
+          const titulo = (doc.titulo || '').toUpperCase();
+          const nome = (doc.nome || '').toUpperCase();
+          
+          return (
+            tipo.includes('OFICIO') || tipo.includes('OFÍCIO') ||
+            tipo.includes('JUSTIFICATIVA') ||
+            titulo.includes('OFICIO') || titulo.includes('OFÍCIO') ||
+            titulo.includes('JUSTIFICATIVA') ||
+            nome.includes('OFICIO') || nome.includes('OFÍCIO') ||
+            nome.includes('JUSTIFICATIVA')
+          );
+        });
+        setLocalHasOficio(hasOficio);
+        console.log('[DEBUG] Ofício check:', { processId, docsCount: docs.length, hasOficio, docs: docs.map(d => ({ tipo: d.tipo, titulo: d.titulo })) });
+      }
+    };
+    
+    fetchAndCheckOficio();
+  }, [processId, activeTab]); // Re-check when tab changes (after creating new doc)
 
   if (isLoading) {
     return (
@@ -110,6 +158,66 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
     { id: 'overview' as TabType, label: 'Visão Geral', icon: Eye },
     { id: 'dossier' as TabType, label: 'Dossiê Digital', icon: FolderOpen },
   ];
+
+  // =========================================================================
+  // DETECÇÃO DE EXCEÇÃO JÚRI - Limite de Policiais (LOCAL)
+  // =========================================================================
+  const LIMITE_POLICIAIS = 5;
+  
+  const localJuriParticipantes = (() => {
+    try {
+      const participantes = processData.juri_participantes;
+      if (!participantes) return { policiais: 0, jurados: 0 };
+      
+      // Handle different formats: string JSON, object, or number
+      let parsed: any;
+      if (typeof participantes === 'string') {
+        parsed = JSON.parse(participantes);
+      } else if (typeof participantes === 'object') {
+        parsed = participantes;
+      } else if (typeof participantes === 'number') {
+        return { policiais: participantes, jurados: 0 };
+      } else {
+        return { policiais: 0, jurados: 0 };
+      }
+      
+      // Extract policiais from different possible keys - NOTE: banco usa 'policias' (sem 'i')
+      const policiais = Number(parsed.policias) || Number(parsed.policiais) || Number(parsed.policia) || Number(parsed.qtd_policiais) || 0;
+      const jurados = Number(parsed.jurados) || Number(parsed.qtd_jurados) || 0;
+      
+      return { policiais, jurados };
+    } catch { return { policiais: 0, jurados: 0 }; }
+  })();
+
+  // Case-insensitive comparison for process type
+  const tipoUpperCase = (processData.tipo || '').toUpperCase();
+  const localIsJuriProcess = tipoUpperCase.includes('JÚRI') || tipoUpperCase.includes('JURI');
+  const localHasExcepcaoPoliciais = localIsJuriProcess && localJuriParticipantes.policiais > LIMITE_POLICIAIS;
+  const localQtdPoliciais = localJuriParticipantes.policiais;
+
+  // Use local detection if props are not provided
+  const effectiveHasExcepcao = hasExcepcaoPoliciais ?? localHasExcepcaoPoliciais;
+  const effectiveQtdPoliciais = qtdPoliciais ?? localQtdPoliciais;
+  
+  // Use local ofício detection (prefers local over prop as it's more up-to-date)
+  const effectiveHasOficio = localHasOficio ?? propHasOficioJustificativa ?? false;
+  
+  // Botão Tramitar deve estar HABILITADO quando:
+  // 1. Não há exceção de policiais, OU
+  // 2. Há exceção MAS há ofício anexado
+  const canTramitarByException = !effectiveHasExcepcao || (effectiveHasExcepcao && effectiveHasOficio);
+  
+  console.log('[DEBUG] GestorProcessDetailsPage - Exceção Júri:', {
+    processDataTipo: processData.tipo,
+    tipoUpperCase,
+    localIsJuriProcess,
+    localHasExcepcaoPoliciais,
+    localQtdPoliciais: effectiveQtdPoliciais,
+    effectiveHasExcepcao,
+    localHasOficio,
+    effectiveHasOficio,
+    canTramitarByException
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -170,21 +278,40 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
                     </button>
                   )}
                   
-                  {canTramitar && onTramitar && (
+                  {canTramitar && onTramitar && (() => {
+                    // Combina disabled original com exceção de policiais (considerando ofício)
+                    // Se tem exceção MAS tem ofício, pode tramitar
+                    const hasExceptionWithoutOficio = effectiveHasExcepcao && !effectiveHasOficio;
+                    const isButtonDisabled = isTramitarDisabled || hasExceptionWithoutOficio;
+                    const buttonReason = hasExceptionWithoutOficio 
+                      ? "Anexe Ofício de Justificativa para exceção de policiais" 
+                      : isTramitarDisabled 
+                        ? "Gere a Certidão de Atesto primeiro" 
+                        : "Enviar para SOSFU";
+                    const buttonLabel = hasExceptionWithoutOficio 
+                      ? 'Aguardando Ofício' 
+                      : isTramitarDisabled 
+                        ? 'Aguardando Atesto' 
+                        : 'Tramitar';
+                    
+                    return (
                     <button
                       onClick={onTramitar}
-                      disabled={isTramitarDisabled}
-                      title={isTramitarDisabled ? "Gere a Certidão de Atesto primeiro" : "Enviar para SOSFU"}
+                      disabled={isButtonDisabled}
+                      title={buttonReason}
                       className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg 
-                        ${isTramitarDisabled 
-                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none border border-slate-400' 
+                        ${isButtonDisabled 
+                          ? hasExceptionWithoutOficio 
+                            ? 'bg-amber-100 text-amber-700 cursor-not-allowed shadow-none border-2 border-amber-300'
+                            : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none border border-slate-400' 
                           : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'}
                       `}
                     >
-                      {isTramitarDisabled ? <Search size={16}/> : <Send size={16} />}
-                      {isTramitarDisabled ? 'Aguardando Atesto' : 'Tramitar'}
+                      {isButtonDisabled ? <AlertTriangle size={16}/> : <Send size={16} />}
+                      {buttonLabel}
                     </button>
-                  )}
+                    );
+                  })()}
                   
                   {canCreateDocument && onCreateDocument && (
                     <button
@@ -210,6 +337,16 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
           </div>
         </div>
       </header>
+
+      {/* Banner de Exceção de Júri - Policiais Acima do Limite */}
+      {effectiveHasExcepcao && (
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <JuriExceptionInlineAlert
+            policiais={effectiveQtdPoliciais}
+            userRole="GESTOR"
+          />
+        </div>
+      )}
 
       {/* Tab Navigation - APENAS 2 TABS PARA GESTOR */}
       <div className="bg-white border-b border-slate-200">

@@ -50,6 +50,7 @@ import { PrestacaoAtestoTab } from './PrestacaoAtestoTab';
 import { StaticCertidaoAtesto } from '../ProcessDetails/StaticDocuments/StaticCertidaoAtesto';
 import { SignatureModal } from '../ui/SignatureModal';
 import { useUserProfile } from '../../hooks/useUserProfile';
+import { JuriExceptionInlineAlert } from '../ui/JuriExceptionInlineAlert';
 
 import { SupridoSearch } from './CRM/SupridoSearch';
 import { SupridoProfileCard } from './CRM/SupridoProfileCard';
@@ -459,6 +460,58 @@ export const GestorDashboard: React.FC = () => {
       processSupridoId: selectedProcess?.suprido_id,
       docsCount: dossierDocs.length
   });
+
+  // =========================================================================
+  // DETECÇÃO DE EXCEÇÃO JÚRI - Limite de Policiais
+  // =========================================================================
+  const LIMITE_POLICIAIS = 5; // Limite padrão CNJ/TJPA
+  
+  // Parse juri_participantes do selectedProcess (dados originais estão em rawData)
+  const juriParticipantes = (() => {
+    try {
+      // Os dados vêm do hook useGestorProcesses que coloca os dados originais em rawData
+      const participantes = selectedProcess?.rawData?.juri_participantes || selectedProcess?.juri_participantes;
+      if (!participantes) return { policiais: 0, jurados: 0 };
+      const parsed = typeof participantes === 'string' 
+        ? JSON.parse(participantes) 
+        : participantes;
+      return {
+        policiais: Number(parsed.policiais) || 0,
+        jurados: Number(parsed.jurados) || 0
+      };
+    } catch { return { policiais: 0, jurados: 0 }; }
+  })();
+
+  // Detecta exceção de policiais - verifica tanto type (transformado) quanto rawData.tipo
+  const processType = selectedProcess?.type || selectedProcess?.rawData?.tipo || selectedProcess?.tipo;
+  const isJuriProcess = processType === 'SESSÃO DE JÚRI' || processType === 'JURI';
+  const hasExcepcaoPoliciais = isJuriProcess && juriParticipantes.policiais > LIMITE_POLICIAIS;
+  const qtdPoliciais = juriParticipantes.policiais;
+
+  // Verifica se ofício de justificativa está anexado (necessário para exceções)
+  const hasOficioJustificativa = dossierDocs.some(doc => 
+    doc.tipo?.toUpperCase().includes('OFICIO') || 
+    doc.tipo?.toUpperCase().includes('JUSTIFICATIVA') ||
+    doc.titulo?.toUpperCase().includes('OFÍCIO') ||
+    doc.titulo?.toUpperCase().includes('JUSTIFICATIVA')
+  );
+
+  // Trava: processos com exceção só podem ser tramitados se tiver ofício anexado
+  const canSendToSosfu = !hasExcepcaoPoliciais || (hasExcepcaoPoliciais && hasOficioJustificativa);
+
+  console.log('[DEBUG] Exceção Júri - DADOS COMPLETOS:', {
+    selectedProcessId: selectedProcess?.id,
+    processType,
+    rawDataTipo: selectedProcess?.rawData?.tipo,
+    rawDataJuriParticipantes: selectedProcess?.rawData?.juri_participantes,
+    isJuriProcess,
+    hasExcepcaoPoliciais,
+    qtdPoliciais,
+    limite: LIMITE_POLICIAIS,
+    hasOficioJustificativa,
+    canSendToSosfu,
+    hasAtesto
+  });
   
   // Atesto logic distinction:
   // 1. Initial Atesto (Pre-Empenho) -> Status: PENDENTE ATESTO
@@ -579,7 +632,7 @@ export const GestorDashboard: React.FC = () => {
             setView('LIST');
           }}
           canTramitar={!isPCJob} // Always show Tramitar for initial phase (controlled by disabled state)
-          isTramitarDisabled={!hasAtesto}
+          isTramitarDisabled={!hasAtesto || (hasExcepcaoPoliciais && !hasOficioJustificativa)}
           canGenerateAtesto={needsAtesto}
           canCreateDocument={true}
           isLoadingAtesto={isGeneratingAtesto}
@@ -588,6 +641,10 @@ export const GestorDashboard: React.FC = () => {
           onCreateDocument={() => setShowDocumentWizard(true)}
           customActionLabel={isPCJob ? "Analisar Prestação de Contas" : undefined}
           onCustomAction={isPCJob ? handlePCAnalysis : undefined}
+          hasExcepcaoPoliciais={hasExcepcaoPoliciais}
+          qtdPoliciais={qtdPoliciais}
+          limitePoliciais={LIMITE_POLICIAIS}
+          hasOficioJustificativa={hasOficioJustificativa}
         />
         
         {/* Atesto Preview and Signature Modal */}
@@ -728,6 +785,20 @@ export const GestorDashboard: React.FC = () => {
 
       if (error) throw error;
 
+      // UPDATE STATUS: Change process status to ATESTADO after signing
+      const { error: updateError } = await supabase
+        .from('solicitacoes')
+        .update({ 
+          status: 'ATESTADO', // Processo atestado, pronto para tramitação
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedProcess.id);
+      
+      if (updateError) {
+        console.error('Error updating process status:', updateError);
+        // Continue even if status update fails - document was saved
+      }
+
       // Refresh dossier docs to show the new document
       await fetchDossierDocs(selectedProcess.id);
       
@@ -812,21 +883,6 @@ export const GestorDashboard: React.FC = () => {
                   <p className={`text-xl font-black ${view === 'ADMIN' ? 'text-white' : 'text-slate-800'}`}>Portarias</p>
               </div>
               <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'ADMIN' ? 'bg-violet-500/30 text-white' : 'bg-violet-50 text-violet-600'}`}><Building2 size={24}/></div>
-          </div>
-      </div>
-  );
-
-
-          {/* CRM Card - Gestão 360 */}
-          <div 
-            onClick={() => { setView('CRM'); }}
-            className={`p-6 rounded-[28px] border shadow-sm flex items-center justify-between group transition-all cursor-pointer relative overflow-hidden ${view === 'CRM' ? 'bg-indigo-600 border-indigo-600 ring-4 ring-indigo-100' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
-          >
-              <div className="relative z-10">
-                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${view === 'CRM' ? 'text-indigo-200' : 'text-slate-400'}`}>Gestão 360º</p>
-                  <p className={`text-xl font-black ${view === 'CRM' ? 'text-white' : 'text-slate-800'}`}>Supridos</p>
-              </div>
-              <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${view === 'CRM' ? 'bg-indigo-500/30 text-white' : 'bg-indigo-50 text-indigo-600'}`}><Users size={24}/></div>
           </div>
       </div>
   );
@@ -1367,8 +1423,17 @@ export const GestorDashboard: React.FC = () => {
               </button>
 
               {hasAtesto ? (
-                  <button onClick={handleForwardToSosfu} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
-                      <Send size={16}/> Enviar p/ SOSFU
+                  <button 
+                    onClick={handleForwardToSosfu} 
+                    disabled={!canSendToSosfu}
+                    title={!canSendToSosfu ? 'Anexe Ofício de Justificativa para tramitar processo com exceção' : ''}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg active:scale-95 ${
+                      canSendToSosfu 
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/20' 
+                        : 'bg-amber-100 text-amber-600 border-2 border-amber-300 cursor-not-allowed'
+                    }`}
+                  >
+                      <Send size={16}/> {canSendToSosfu ? 'Enviar p/ SOSFU' : 'Aguardando Ofício'}
                   </button>
               ) : (
                   <button 
@@ -1389,6 +1454,16 @@ export const GestorDashboard: React.FC = () => {
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
            {subView === 'DETAILS' && (
               <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32">
+                 {/* Banner de Exceção para Processos de Júri com Policiais Acima do Limite */}
+                 {hasExcepcaoPoliciais && (
+                   <div className="xl:col-span-3">
+                     <JuriExceptionInlineAlert
+                       policiais={qtdPoliciais}
+                       userRole="GESTOR"
+                     />
+                   </div>
+                 )}
+
                  {/* Left Column: Process Data */}
                  <div className="xl:col-span-2 space-y-8">
                     <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-all">

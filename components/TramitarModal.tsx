@@ -34,6 +34,7 @@ const WORKFLOW_DESTINATIONS: Record<string, { value: string; label: string; stat
   ],
   'AJSEFIN': [
     { value: 'SOSFU', label: 'Retornar à SOSFU', status: 'PARECER EMITIDO' },
+    { value: 'SOSFU', label: 'Retornar à SOSFU (Autorização Concedida)', status: 'AUTORIZAÇÃO CONCEDIDA' },
     { value: 'SEFIN', label: 'SEFIN - Assinatura do Ordenador (Autorização Excepcional)', status: 'AGUARDANDO ASSINATURA ORDENADOR' }
   ],
   'SGP': [

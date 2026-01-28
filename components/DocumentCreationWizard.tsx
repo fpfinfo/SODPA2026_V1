@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from './ui/ToastProvider';
+import { SignatureModal } from './ui/SignatureModal';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 interface DocumentCreationWizardProps {
   isOpen: boolean;
@@ -65,6 +67,13 @@ export const DocumentCreationWizard: React.FC<DocumentCreationWizardProps> = ({
   const [availableSigners, setAvailableSigners] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const { showToast } = useToast();
+  
+  // NEW: Signature modal state
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  
+  // Get user profile for PIN validation
+  const { userProfile } = useUserProfile({ id: resolvedUser?.id });
+
 
   // Auto-fetch current user from Supabase if not provided
   useEffect(() => {
@@ -193,12 +202,53 @@ Assunto: Solicitação de Providências
     if (data) setAvailableSigners(data);
   };
 
-  const handleSave = async () => {
+  // NEW: Handler when user clicks the save button
+  const handleSave = () => {
+    const isSelfSigned = signNow && signatoryId === resolvedUser?.id;
+    
+    console.log('[DocumentCreationWizard] handleSave called:', {
+      signNow,
+      signatoryId,
+      resolvedUserId: resolvedUser?.id,
+      isSelfSigned,
+      willDelegateToSEFIN: !isSelfSigned
+    });
+    
+    if (isSelfSigned) {
+      // Require PIN validation before signing
+      if (!userProfile?.signature_pin) {
+        showToast({
+          type: 'error',
+          title: 'PIN não configurado',
+          message: 'Configure seu PIN de assinatura no perfil para assinar documentos.'
+        });
+        return;
+      }
+      setIsSignatureModalOpen(true);
+    } else {
+      // Save as minuta without signature - will trigger sefin_task creation
+      console.log('[DocumentCreationWizard] Saving as MINUTA, delegating signature...');
+      handleSaveDocument(false);
+    }
+  };
+
+  // NEW: Handler after PIN validation
+  const handleConfirmWithPin = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    // Validate PIN
+    if (pin !== userProfile?.signature_pin) {
+      return { success: false, error: 'PIN incorreto.' };
+    }
+    
+    await handleSaveDocument(true);
+    return { success: true };
+  };
+
+  // REFACTORED: Actual save logic
+  const handleSaveDocument = async (isSigned: boolean) => {
     setIsSaving(true);
     try {
-        const isSelfSigned = signNow && signatoryId === resolvedUser?.id;
-        const status = isSelfSigned ? 'ASSINADO' : 'MINUTA';
-        const signature_status = isSelfSigned ? 'signed' : 'pending_signature';
+        const status = isSigned ? 'ASSINADO' : 'MINUTA';
+        const signature_status = isSigned ? 'signed' : 'pending_signature';
         
         // Prepare insert data with signature workflow fields
         const insertData: Record<string, any> = {
@@ -210,11 +260,19 @@ Assunto: Solicitação de Providências
             signature_status: signature_status,
             conteudo: content,
             created_by: resolvedUser?.id,
-            url_storage: `mock://documents/${processId}/${Date.now()}.pdf`
+            url_storage: `mock://documents/${processId}/${Date.now()}.pdf`,
+            // Add signature metadata if signed
+            ...(isSigned && {
+              metadata: {
+                signed_at: new Date().toISOString(),
+                signer_id: resolvedUser?.id,
+                signer_role: resolvedUser?.role
+              }
+            })
         };
 
         // Only include assigned_signer_id if delegating to another person
-        if (!isSelfSigned && signatoryId) {
+        if (!isSigned && signatoryId && signatoryId !== resolvedUser?.id) {
             insertData.assigned_signer_id = signatoryId;
         }
         
@@ -222,8 +280,74 @@ Assunto: Solicitação de Providências
 
         if (error) throw error;
 
+        // If delegating signature to another user, create sefin_task for their inbox
+        const signerProfile = availableSigners.find(s => s.id === signatoryId);
+        console.log('[DocumentCreationWizard] Checking sefin_task creation:', {
+          isSigned,
+          signatoryId,
+          resolvedUserId: resolvedUser?.id,
+          signerRole: signerProfile?.role,
+          signerName: signerProfile?.nome,
+          isDelegating: !isSigned && signatoryId && signatoryId !== resolvedUser?.id
+        });
+        
+        // Create sefin_task when delegating to ANY user (SEFIN, ORDENADOR, or even others)
+        // The sefin_tasks table is used for all signature requests to the Ordenador
+        if (!isSigned && signatoryId && signatoryId !== resolvedUser?.id) {
+          
+          console.log('[DocumentCreationWizard] Creating sefin_task for delegated signature');
+          
+          // 1. Create sefin_task - SIMPLIFIED following SOSFU pattern (ExpenseExecutionWizard)
+          const { error: taskError } = await supabase.from('sefin_tasks').insert({
+            solicitacao_id: processId,
+            tipo: selectedType,
+            titulo: title,
+            origem: 'AJSEFIN',
+            valor: 0,
+            status: 'PENDING',
+          });
+          
+          if (taskError) {
+            console.error('[DocumentCreationWizard] Error creating sefin_task:', taskError);
+          } else {
+            console.log('[DocumentCreationWizard] ✅ sefin_task created successfully for SEFIN inbox');
+          }
+          
+          // 2. Record tramitation history - following SOSFU pattern (ConcessionManager)
+          const { error: tramitError } = await supabase.from('historico_tramitacao').insert({
+            solicitacao_id: processId,
+            origem: 'AJSEFIN',
+            destino: 'SEFIN',
+            status_anterior: 'EM ANÁLISE AJSEFIN',
+            status_novo: 'AGUARDANDO ASSINATURA ORDENADOR',
+            observacao: `Documento ${selectedType} delegado para assinatura do Ordenador`,
+            created_at: new Date().toISOString()
+          });
+          
+          if (tramitError) {
+            console.error('[DocumentCreationWizard] Error recording tramitation:', tramitError);
+          } else {
+            console.log('[DocumentCreationWizard] ✅ Tramitation recorded');
+          }
+          
+          // 3. Update process status AND destino_atual - following SOSFU pattern
+          const { error: statusError } = await supabase
+            .from('solicitacoes')
+            .update({ 
+              status: 'AGUARDANDO ASSINATURA ORDENADOR',
+              destino_atual: 'SEFIN'
+            })
+            .eq('id', processId);
+          
+          if (statusError) {
+            console.error('[DocumentCreationWizard] Error updating process status:', statusError);
+          } else {
+            console.log('[DocumentCreationWizard] ✅ Process status updated to AGUARDANDO ASSINATURA ORDENADOR, destino_atual=SEFIN');
+          }
+        }
+
         // Provide context-aware feedback
-        if (!isSelfSigned) {
+        if (!isSigned) {
             const signerName = availableSigners.find(s => s.id === signatoryId)?.nome;
             showToast({ 
                 type: 'success', 
@@ -385,8 +509,17 @@ Assunto: Solicitação de Providências
                     </div>
                  </div>
              )}
-          </div>
+           </div>
        </div>
+       
+       {/* Signature PIN Modal */}
+       <SignatureModal
+         isOpen={isSignatureModalOpen}
+         onClose={() => setIsSignatureModalOpen(false)}
+         onConfirm={handleConfirmWithPin}
+         title="Assinar Documento"
+         description="Digite seu PIN para assinar digitalmente este documento."
+       />
     </div>
   );
 };

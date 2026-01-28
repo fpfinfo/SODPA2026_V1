@@ -146,8 +146,8 @@ const FALLBACK_EXPENSE_ELEMENTS = [
 ];
 
 const DEFAULT_JURI_ITEMS: ProjectionItem[] = [
-  { id: 'almoco', description: 'Refeição - Almoço', element: '3.3.90.39.01', unitValue: 30, quantity: 0, total: 0, isAuto: true, freqType: 'almocos' },
-  { id: 'jantar', description: 'Refeição - Jantar', element: '3.3.90.39.01', unitValue: 25, quantity: 0, total: 0, isAuto: true, freqType: 'jantares' },
+  { id: 'almoco', description: 'Refeição - Almoço', element: '3.3.90.30.01', unitValue: 30, quantity: 0, total: 0, isAuto: true, freqType: 'almocos' },
+  { id: 'jantar', description: 'Refeição - Jantar', element: '3.3.90.30.01', unitValue: 25, quantity: 0, total: 0, isAuto: true, freqType: 'jantares' },
   { id: 'lanche', description: 'Lanches', element: '3.3.90.30.01', unitValue: 10, quantity: 0, total: 0, isAuto: true, freqType: 'lanches' },
   { id: 'agua', description: 'Água Mineral 20L', element: '3.3.90.30.01', unitValue: 0, quantity: 0, total: 0, isAuto: false },
   { id: 'biscoito', description: 'Biscoito / Bolacha', element: '3.3.90.30.01', unitValue: 0, quantity: 0, total: 0, isAuto: false },
@@ -1226,7 +1226,7 @@ const INITIAL_FORM_STATE: FormState = {
         if (item.freqType === 'jantares') freq = formState.juriMealFreq.jantares;
         if (item.freqType === 'lanches') freq = formState.juriMealFreq.lanches;
         
-        const qty = totalParticipants * freq * safeDays;
+        const qty = totalParticipants * freq;
         return { ...item, quantity: qty, total: qty * item.unitValue };
       });
 
@@ -2785,7 +2785,7 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
                                  <button onClick={() => setFormState(prev => ({...prev, juriMealFreq: {...prev.juriMealFreq, [meal.key]: prev.juriMealFreq[meal.key as keyof typeof prev.juriMealFreq] + 1}}))} className="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm text-slate-500 hover:text-slate-800 font-bold">+</button>
                               </div>
                               <div className="mt-2 text-[9px] font-medium text-slate-400 text-center bg-slate-100 rounded px-2 py-1">
-                                 Total: {formState.juriMealFreq[meal.key as keyof typeof formState.juriMealFreq] * (Object.values(formState.juriParticipants) as number[]).reduce((a, b) => a + b, 0) * formState.juriDays} unid.
+                                 Total: {formState.juriMealFreq[meal.key as keyof typeof formState.juriMealFreq] * (Object.values(formState.juriParticipants) as number[]).reduce((a, b) => a + b, 0)} unid.
                               </div>
                            </div>
                         ))}

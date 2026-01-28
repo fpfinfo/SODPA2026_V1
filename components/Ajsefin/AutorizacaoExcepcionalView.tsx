@@ -26,13 +26,23 @@ interface ExceptionalProcess {
   nup: string;
   tipo: string;
   status: string;
-  valor_total: number;
-  suprido_nome: string;
-  unidade: string;
+  valor_solicitado: number;
+  suprido_nome?: string;
+  comarca_destino: string;
   created_at: string;
   data_inicio?: string;
-  juri_participants?: any;
-  juri_items_projection?: any;
+  juri_participantes?: {
+    policias?: number;
+    jurados?: number;
+    servidores?: number;
+    testemunhas?: number;
+    defensor?: number;
+    promotor?: number;
+    reus?: number;
+  };
+  juri_projecao_custos?: any[];
+  juri_dias?: number;
+  profiles?: { nome: string };
 }
 
 interface AutorizacaoExcepcionalViewProps {
@@ -71,12 +81,33 @@ export const AutorizacaoExcepcionalView: React.FC<AutorizacaoExcepcionalViewProp
       try {
         const { data, error } = await supabase
           .from('solicitacoes')
-          .select('*')
-          .eq('status', 'AGUARDANDO AUTORIZACAO EXCEPCIONAL')
+          .select(`
+            id,
+            nup,
+            tipo,
+            status,
+            valor_solicitado,
+            comarca_destino,
+            created_at,
+            data_inicio,
+            juri_participantes,
+            juri_projecao_custos,
+            juri_dias,
+            user_id,
+            profiles:user_id(nome)
+          `)
+          .eq('destino_atual', 'AJSEFIN')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setProcesses(data || []);
+        
+        // Map processes with profile names
+        const mappedProcesses = (data || []).map((p: any) => ({
+          ...p,
+          suprido_nome: p.profiles?.nome || 'Suprido'
+        }));
+        
+        setProcesses(mappedProcesses);
       } catch (err) {
         console.error('Error fetching exceptional processes:', err);
         showToast({
@@ -96,19 +127,20 @@ export const AutorizacaoExcepcionalView: React.FC<AutorizacaoExcepcionalViewProp
   const detectExceptions = (process: ExceptionalProcess): JuriException[] => {
     const exceptions: JuriException[] = [];
     
-    // Check policiais from juri_participants
-    if (process.juri_participants?.policias > LIMITS.policiais) {
+    // Check policiais from juri_participantes (correct field name)
+    const policias = process.juri_participantes?.policias || 0;
+    if (policias > LIMITS.policiais) {
       exceptions.push({
         tipo: 'POLICIAIS',
-        solicitado: process.juri_participants.policias,
+        solicitado: policias,
         limite: LIMITS.policiais,
-        excedente: process.juri_participants.policias - LIMITS.policiais
+        excedente: policias - LIMITS.policiais
       });
     }
 
-    // Check meal values from juri_items_projection
-    if (Array.isArray(process.juri_items_projection)) {
-      process.juri_items_projection.forEach((item: any) => {
+    // Check meal values from juri_projecao_custos (correct field name)
+    if (Array.isArray(process.juri_projecao_custos)) {
+      process.juri_projecao_custos.forEach((item: any) => {
         const unitValue = item.approvedUnitValue || item.unitValue || 0;
         const id = item.id?.toLowerCase() || '';
         
@@ -378,12 +410,12 @@ export const AutorizacaoExcepcionalView: React.FC<AutorizacaoExcepcionalViewProp
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-xs font-medium text-slate-600 max-w-xs truncate">
-                        {process.unidade}
+                        {process.comarca_destino || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm font-bold text-slate-800">
-                        {formatCurrency(process.valor_total || 0)}
+                        {formatCurrency(Number(process.valor_solicitado) || 0)}
                       </span>
                     </td>
                     <td className="px-6 py-4">

@@ -171,8 +171,13 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
         throw tasksError
       }
 
-      // Debug: log count of tasks
+      // Debug: log count of tasks and status breakdown
       console.log('sefin_tasks loaded:', tasksData?.length || 0)
+      const statusBreakdown = (tasksData || []).reduce((acc: Record<string, number>, t: any) => {
+        acc[t.status] = (acc[t.status] || 0) + 1
+        return acc
+      }, {})
+      console.log('sefin_tasks status breakdown:', statusBreakdown)
 
       // Get unique emails to fetch lotacao from servidores_tj
       const emails = [...new Set((tasksData || [])
@@ -466,12 +471,15 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           // In that case, return to SOSFU instead of marking as APROVADO
           const isExceptionalAuth = task.tipo === 'AUTORIZACAO_ORDENADOR'
           
+          // Check if this is a legal document created by AJSEFIN
+          const isAjsefinDocument = ['PARECER', 'DECISAO', 'DESPACHO', 'CERTIDAO'].includes(task.tipo)
+          
           if (isExceptionalAuth) {
-            // Exceptional authorization signed - return to SOSFU for normal execution
+            // Exceptional authorization signed - return to SOSFU for execution with special status
             await supabase
               .from('solicitacoes')
               .update({ 
-                status: 'EM ANÁLISE SOSFU',
+                status: 'AUTORIZADO ORDENADOR',
                 destino_atual: 'SOSFU',
                 updated_at: new Date().toISOString()
               })
@@ -485,6 +493,27 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
                 origem: 'SEFIN',
                 destino: 'SOSFU',
                 observacao: 'Autorização de Despesa Excepcional assinada pelo Ordenador. Processo retorna ao SOSFU para execução normal.',
+                user_id: user.id
+              })
+          } else if (isAjsefinDocument) {
+            // Legal document from AJSEFIN signed - return to AJSEFIN for tramitation
+            await supabase
+              .from('solicitacoes')
+              .update({ 
+                status: 'DOCUMENTO ASSINADO',
+                destino_atual: 'AJSEFIN',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', task.solicitacao_id)
+            
+            // Record tramitation
+            await supabase
+              .from('tramitacoes')
+              .insert({
+                solicitacao_id: task.solicitacao_id,
+                origem: 'SEFIN',
+                destino: 'AJSEFIN',
+                observacao: `${task.tipo} assinado pelo Ordenador. Processo retorna à AJSEFIN para tramitação.`,
                 user_id: user.id
               })
           } else {

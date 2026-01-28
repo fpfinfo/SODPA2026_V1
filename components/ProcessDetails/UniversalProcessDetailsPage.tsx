@@ -10,7 +10,9 @@ import {
   Loader2,
   Send,
   RefreshCw,
-  Scale
+  Scale,
+  AlertTriangle,
+  FileText
 } from 'lucide-react';
 import { useProcessDetails } from '../../hooks/useProcessDetails';
 import { DetailsTab } from './Tabs/DetailsTab';
@@ -19,6 +21,11 @@ import { TechnicalAnalysisTab } from './Tabs/TechnicalAnalysisTab';
 import { JuriAdjustmentTab } from './Tabs/JuriAdjustmentTab';
 import { UniversalDossierPanel } from './UniversalDossierPanel';
 import { supabase } from '../../lib/supabaseClient';
+import { JuriExceptionInlineAlert } from '../ui/JuriExceptionInlineAlert';
+import { DocumentCreationWizard } from '../DocumentCreationWizard';
+import { TramitarModal } from '../TramitarModal';
+import { useToast } from '../ui/ToastProvider';
+
 
 type TabType = 'overview' | 'dossier' | 'execution' | 'analysis' | 'juriAdjust';
 
@@ -91,7 +98,14 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [currentUserId, setCurrentUserId] = useState<string | null>(passedUserId || null);
-  const { processData, isLoading, error } = useProcessDetails(processId);
+  const { processData, isLoading, error, refetch } = useProcessDetails(processId);
+  const { showToast } = useToast();
+  
+  // States for exception workflow modals
+  const [showDocumentWizard, setShowDocumentWizard] = useState(false);
+  const [showTramitarModal, setShowTramitarModal] = useState(false);
+  const [hasDespacho, setHasDespacho] = useState(false);
+  const [isTramiting, setIsTramiting] = useState(false);
 
   // Fetch current user ID if not passed
   useEffect(() => {
@@ -101,6 +115,22 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
       });
     }
   }, [passedUserId]);
+  
+  // Check if DESPACHO exists for exception workflow
+  useEffect(() => {
+    const checkDespacho = async () => {
+      if (!processId) return;
+      const { data } = await supabase
+        .from('documentos')
+        .select('id')
+        .eq('solicitacao_id', processId)
+        .ilike('tipo', '%despacho%')
+        .limit(1);
+      setHasDespacho(!!data && data.length > 0);
+    };
+    checkDespacho();
+  }, [processId, showDocumentWizard]); // Refresh after creating document
+
 
   if (isLoading) {
     return (
@@ -170,6 +200,95 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
   };
 
   const processValue = calculateApprovedValue();
+
+  // =========================================================================
+  // DETECÇÃO DE EXCEÇÃO JÚRI - Limite de Policiais para SOSFU
+  // =========================================================================
+  const LIMITE_POLICIAIS = 5;
+  
+  const localJuriParticipantes = (() => {
+    // Check both possible field names
+    const rawData = processData.juri_participantes || processData.juri_participants;
+    if (!rawData) return { policiais: 0, jurados: 0 };
+    try {
+      const parsed = typeof rawData === 'string' 
+        ? JSON.parse(rawData) 
+        : rawData;
+      
+      // Handle different key names for policiais
+      const policiais = Number(parsed.policias) || Number(parsed.policiais) || Number(parsed.policia) || Number(parsed.qtd_policiais) || 0;
+      const jurados = Number(parsed.jurados) || Number(parsed.qtd_jurados) || 0;
+      
+      return { policiais, jurados };
+    } catch { return { policiais: 0, jurados: 0 }; }
+  })();
+
+  const localIsJuriProcess = isJuriProcess(processData);
+  const hasExcepcaoPoliciais = localIsJuriProcess && localJuriParticipantes.policiais > LIMITE_POLICIAIS;
+  const qtdPoliciais = localJuriParticipantes.policiais;
+  
+  // SOSFU Exception Workflow - show buttons when SOSFU and has exception
+  // Normalize status: remove accents and use uppercase for matching
+  const statusUpper = (processData.status || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .toUpperCase();
+  const isAwaitingException = statusUpper.includes('ANALISE SOSFU') || statusUpper.includes('AGUARDANDO AUTORIZACAO');
+  const showExceptionButtons = viewerRole === 'SOSFU' && hasExcepcaoPoliciais && isAwaitingException;
+  
+  // DEBUG: Log exception detection
+  console.log('[SOSFU Exception Flow]', {
+    viewerRole,
+    hasExcepcaoPoliciais,
+    localIsJuriProcess,
+    policiais: localJuriParticipantes.policiais,
+    statusUpper,
+    isAwaitingException,
+    showExceptionButtons
+  });
+  
+  // Handler to tramitar process to AJSEFIN
+  const handleTramitarToAJSEFIN = async () => {
+    if (!hasDespacho) {
+      showToast({
+        type: 'warning',
+        title: 'Despacho Necessário',
+        message: 'Crie um Despacho antes de tramitar para AJSEFIN.'
+      });
+      return;
+    }
+    
+    setIsTramiting(true);
+    try {
+      const { error } = await supabase
+        .from('solicitacoes')
+        .update({
+          status: 'EM ANALISE AJSEFIN',
+          destino_atual: 'AJSEFIN',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', processId);
+      
+      if (error) throw error;
+      
+      showToast({
+        type: 'success',
+        title: 'Processo Tramitado',
+        message: 'Processo enviado para AJSEFIN para análise.'
+      });
+      
+      refetch?.();
+    } catch (e) {
+      console.error('Error tramiting to AJSEFIN:', e);
+      showToast({
+        type: 'error',
+        title: 'Erro ao Tramitar',
+        message: 'Não foi possível tramitar o processo.'
+      });
+    } finally {
+      setIsTramiting(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -260,6 +379,33 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
                   )}
                 </div>
               )}
+              
+              {/* SOSFU Exception Workflow Buttons */}
+              {showExceptionButtons && (
+                <div className="flex items-center gap-2 ml-2 pl-4 border-l border-amber-300">
+                  <button
+                    onClick={() => setShowDocumentWizard(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+                  >
+                    <Plus size={16} />
+                    Novo Doc
+                  </button>
+                  
+                  <button
+                    onClick={handleTramitarToAJSEFIN}
+                    disabled={isTramiting || !hasDespacho}
+                    title={!hasDespacho ? 'Crie um Despacho primeiro' : 'Enviar para AJSEFIN'}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg 
+                      ${!hasDespacho 
+                        ? 'bg-amber-100 text-amber-600 cursor-not-allowed shadow-none border border-amber-300' 
+                        : 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-200'}
+                    `}
+                  >
+                    {isTramiting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {!hasDespacho ? 'Aguardando Despacho' : 'Tramitar para AJSEFIN'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -302,6 +448,14 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
       {/* Tab Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6">
+          {/* Banner de Exceção de Policiais para Júri */}
+          {hasExcepcaoPoliciais && (
+            <JuriExceptionInlineAlert
+              policiais={qtdPoliciais}
+              userRole={viewerRole}
+            />
+          )}
+          
           {activeTab === 'overview' && (
             <DetailsTab process={processData} />
           )}
@@ -336,6 +490,21 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
           )}
         </div>
       </div>
+      
+      {/* SOSFU Exception - Document Creation Wizard */}
+      {showDocumentWizard && (
+        <DocumentCreationWizard
+          isOpen={true}
+          processId={processId}
+          nup={processData.nup || ''}
+          currentUser={null}
+          onClose={() => setShowDocumentWizard(false)}
+          onSuccess={() => {
+            setShowDocumentWizard(false);
+            refetch?.();
+          }}
+        />
+      )}
     </div>
   );
 };

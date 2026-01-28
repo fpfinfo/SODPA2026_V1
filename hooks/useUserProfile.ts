@@ -99,8 +99,13 @@ export function useUserProfile(user: { id?: string; email?: string } | null): Us
 
         // Determine Initial Role
         const dbRole = (profileData?.role || servidorData?.role)?.toUpperCase() as AppRole;
+        console.log('[useUserProfile] DB Role:', profileData?.role, '-> Parsed:', dbRole, '-> Valid:', Object.values(AppRole).includes(dbRole));
         if (dbRole && Object.values(AppRole).includes(dbRole)) {
             setInitialRole(dbRole);
+        } else {
+            // Fallback: se o role do banco não é válido, usa SUPRIDO
+            console.warn('[useUserProfile] Invalid or missing role, defaulting to SUPRIDO');
+            setInitialRole(AppRole.SUPRIDO);
         }
 
       } else {

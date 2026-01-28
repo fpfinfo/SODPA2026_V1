@@ -61,10 +61,23 @@ const AppContent: React.FC = () => {
        const path = window.location.pathname;
        const search = window.location.search;
        
-       if (path.includes('/suprido') || search.includes('action=confirm') || search.includes('action=pc_correction')) {
+       console.log('[App] Initial Role from hook:', initialRole, '| Path:', path, '| Search:', search);
+       
+       // Só força SUPRIDO se o role do usuário for SUPRIDO ou se for uma ação específica de confirmação
+       const isSupridoAction = search.includes('action=confirm') || search.includes('action=pc_correction');
+       const shouldForceSuprido = path.includes('/suprido') && (initialRole === AppRole.SUPRIDO || isSupridoAction);
+       
+       if (shouldForceSuprido && initialRole === AppRole.SUPRIDO) {
+          console.log('[App] Forcing SUPRIDO due to URL path/search for SUPRIDO user');
           setActiveRole(AppRole.SUPRIDO);
        } else {
+          // Respeitar o role do banco de dados
+          console.log('[App] Setting active role to:', initialRole);
           setActiveRole(initialRole);
+          // Limpar a URL se o usuário não é SUPRIDO
+          if (path.includes('/suprido') && initialRole !== AppRole.SUPRIDO) {
+            window.history.replaceState({}, '', '/');
+          }
        }
     }
   }, [initialRole]);
@@ -156,6 +169,11 @@ const AppContent: React.FC = () => {
           <ProcessDetailsPage
             processId={selectedProcessId}
             onClose={handleCloseProcess}
+            viewerRole={returnToRole === AppRole.SOSFU ? 'SOSFU' : 
+                        returnToRole === AppRole.GESTOR ? 'GESTOR' : 
+                        returnToRole === AppRole.SEFIN ? 'SEFIN' :
+                        returnToRole === AppRole.AJSEFIN ? 'AJSEFIN' : 
+                        returnToRole === AppRole.SUPRIDO ? 'SUPRIDO' : 'SOSFU'}
           />
         ) : (
         <>

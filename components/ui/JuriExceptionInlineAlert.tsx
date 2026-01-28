@@ -138,6 +138,13 @@ export const JuriExceptionInlineAlert: React.FC<JuriExceptionInlineAlertProps> =
           color: 'purple',
           icon: AlertTriangle
         };
+      case 'SOSFU':
+        return {
+          title: 'Limite de Policiais Excedido',
+          message: 'Este processo contém mais policiais que o permitido. Gere um Despacho solicitando análise à AJSEFIN e tramite o processo para obter autorização do Ordenador.',
+          color: 'amber',
+          icon: Shield
+        };
       default:
         return {
           title: 'Autorização Especial Necessária',

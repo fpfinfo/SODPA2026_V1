@@ -37,7 +37,7 @@ export function useGestorProcesses() {
           )
         `)
         .eq('destino_atual', 'GESTOR')
-        .or('status.eq.PENDENTE ATESTO,status_workflow.eq.PC_SUBMITTED,status_workflow.eq.AGUARDANDO_ATESTO_GESTOR') // Atesto concessão OU Atesto PC
+        .or('status.eq.PENDENTE ATESTO,status.eq.ATESTADO,status_workflow.eq.PC_SUBMITTED,status_workflow.eq.AGUARDANDO_ATESTO_GESTOR') // Atesto concessão, Atestado pronto para tramitar, OU Atesto PC
         .order('created_at', { ascending: false });
 
       if (error) throw error;

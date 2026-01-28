@@ -63,28 +63,19 @@ interface LegalProcess {
   isLate?: boolean;
 }
 
-const AJSEFIN_TEAM = [
-  { id: '1', name: 'Dr. Carlos Mendes', role: 'Assessor Chefe', avatar: 'https://i.pravatar.cc/150?u=carlos', capacity: 10 },
-  { id: '2', name: 'Dra. Ana Paula', role: 'Assessora Sênior', avatar: 'https://i.pravatar.cc/150?u=ana', capacity: 15 },
-  { id: '3', name: 'Dr. Pedro Santos', role: 'Assessor', avatar: 'https://i.pravatar.cc/150?u=pedro', capacity: 12 },
-  { id: '4', name: 'Dra. Mariana Costa', role: 'Assessora', avatar: 'https://i.pravatar.cc/150?u=mariana', capacity: 12 },
-  { id: '5', name: 'Dr. Roberto Lima', role: 'Assessor Júnior', avatar: 'https://i.pravatar.cc/150?u=roberto', capacity: 8 },
-];
-
-const CURRENT_USER_ID = '1';
-
-const MOCK_LEGAL_PROCESSES: LegalProcess[] = [
-  { id: '1', protocol: 'TJPA-PROC-2026-0001', interested: 'Ademário Silva', subject: 'Solicitação de Suprimento - Sessão de Júri', origin: 'SOSFU', value: 1400.00, entryDate: '10/01/2026', deadline: '12/01/2026', status: 'REDACAO', assignedTo: '1', draftType: 'DECISAO' },
-  { id: '2', protocol: 'TJPA-PROC-2026-0045', interested: 'Sec. Informática', subject: 'Aquisição Emergencial de Nobreaks', origin: 'SEFIN', value: 15000.00, entryDate: '09/01/2026', deadline: '11/01/2026', status: 'TRIAGEM', assignedTo: null },
-  { id: '3', protocol: 'TJPA-PROC-2026-0089', interested: 'Comarca Santarém', subject: 'Reembolso de Despesas', origin: 'GESTOR', value: 850.00, entryDate: '08/01/2026', deadline: '13/01/2026', status: 'AGUARDANDO_ASSINATURA', assignedTo: '1', draftType: 'DESPACHO' },
-  { id: '4', protocol: 'TJPA-PROC-2026-0102', interested: 'SGP', subject: 'Folha de Pagamento Suplementar', origin: 'SGP', value: 125000.00, entryDate: '12/01/2026', deadline: '14/01/2026', status: 'DEVOLVIDO', assignedTo: '1' },
-  { id: '5', protocol: 'TJPA-PROC-2026-0115', interested: 'Comarca Marabá', subject: 'Manutenção Predial Urgente', origin: 'SOSFU', value: 5400.00, entryDate: '11/01/2026', deadline: '15/01/2026', status: 'REDACAO', assignedTo: '2' },
-  { id: '6', protocol: 'TJPA-PROC-2026-0120', interested: 'Engenharia', subject: 'Laudo Técnico - Reforma', origin: 'SEFIN', value: 0, entryDate: '05/01/2026', deadline: '10/01/2026', status: 'REDACAO', assignedTo: '3', isLate: true },
-  { id: '7', protocol: 'TJPA-PROC-2026-0133', interested: 'Presidência', subject: 'Ajuste Orçamentário', origin: 'SEFIN', value: 500000.00, entryDate: '12/01/2026', deadline: '12/01/2026', status: 'TRIAGEM', assignedTo: null },
-];
+// Tipo para membro da equipe AJSEFIN
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  capacity: number;
+}
 
 export const AjsefinDashboard: React.FC = () => {
-  const [processes, setProcesses] = useState<LegalProcess[]>(MOCK_LEGAL_PROCESSES);
+  const [processes, setProcesses] = useState<LegalProcess[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<AjsefinView>('DASHBOARD');
   const [listFilter, setListFilter] = useState<ListFilterType>('MY_TASKS');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -100,31 +91,135 @@ export const AjsefinDashboard: React.FC = () => {
   const [showDocumentWizard, setShowDocumentWizard] = useState(false);
   const [selectedProcessForDetails, setSelectedProcessForDetails] = useState<LegalProcess | null>(null);
   
-  // Fetch current user ID on mount
+  // Fetch current user ID and data on mount
   useEffect(() => {
-    const fetchUserId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) setCurrentUserId(user.id);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // 1. Fetch current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) setCurrentUserId(user.id);
+
+        // 2. Fetch AJSEFIN team members from profiles
+        const { data: ajsefinProfiles, error: teamError } = await supabase
+          .from('profiles')
+          .select('id, nome, cargo, avatar_url')
+          .eq('role', 'AJSEFIN');
+        
+        if (teamError) console.error('Error fetching AJSEFIN team:', teamError);
+        else if (ajsefinProfiles) {
+          const team: TeamMember[] = ajsefinProfiles.map((p, index) => ({
+            id: p.id,
+            name: p.nome || `Assessor ${index + 1}`,
+            role: p.cargo || 'Assessor Jurídico',
+            avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.nome || 'user'}`,
+            capacity: 10 // Capacidade padrão
+          }));
+          setTeamMembers(team);
+          console.log('[AJSEFIN] Team members loaded:', team.length, team.map(t => t.name));
+        }
+
+        // 3. Fetch real processes destined to AJSEFIN
+        // Simplified query for debugging - just use destino_atual
+        const { data: solicitacoes, error: processError } = await supabase
+          .from('solicitacoes')
+          .select(`
+            id,
+            nup,
+            user_id,
+            descricao,
+            tipo,
+            valor_solicitado,
+            created_at,
+            sla_internal,
+            status,
+            destino_atual,
+            ajsefin_responsavel_id,
+            profiles:user_id(nome)
+          `)
+          .eq('destino_atual', 'AJSEFIN')
+          .order('created_at', { ascending: false });
+
+        console.log('[AJSEFIN] Query result - solicitacoes:', solicitacoes, 'error:', processError);
+
+        if (processError) console.error('Error fetching processes:', processError);
+        else if (solicitacoes) {
+          const mappedProcesses: LegalProcess[] = solicitacoes.map((s: any) => {
+            // Determine status based on solicitacao status and assignment
+            let mappedStatus: ProcessStatus = 'TRIAGEM';
+            const statusUpper = (s.status || '').toUpperCase();
+            const hasResponsavel = !!s.ajsefin_responsavel_id;
+            
+            // If has responsible, it's in REDACAO (drafting)
+            // If no responsible, it's in TRIAGEM (new inbox)
+            if (statusUpper.includes('ANALISE AJSEFIN')) {
+              mappedStatus = hasResponsavel ? 'REDACAO' : 'TRIAGEM';
+            } else if (statusUpper.includes('DOCUMENTO ASSINADO')) {
+              // Returned from SEFIN after Ordenador signature - ready for tramitation
+              mappedStatus = 'AGUARDANDO_ASSINATURA'; // Reuse existing status for signed docs
+            } else if (statusUpper.includes('ASSINATURA')) {
+              mappedStatus = 'AGUARDANDO_ASSINATURA';
+            } else if (statusUpper.includes('DEVOLVIDO')) {
+              mappedStatus = 'DEVOLVIDO';
+            }
+
+            // Get suprido name from joined profiles
+            const supridoName = s.profiles?.nome || 'Suprido';
+
+            return {
+              id: s.id,
+              protocol: s.nup || `TJPA-${s.id.substring(0,8)}`,
+              interested: supridoName,
+              subject: s.descricao || s.tipo || 'N/A',
+              origin: 'SOSFU' as const,
+              value: s.valor_solicitado || 0,
+              entryDate: s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : '-',
+              deadline: s.sla_internal ? new Date(s.sla_internal).toLocaleDateString('pt-BR') : '-',
+              status: mappedStatus,
+              assignedTo: s.ajsefin_responsavel_id || null,
+              draftType: 'DECISAO' as const,
+              isLate: s.sla_internal ? new Date(s.sla_internal) < new Date() : false
+            };
+          });
+          setProcesses(mappedProcesses);
+          console.log('[AJSEFIN] Loaded processes:', mappedProcesses.length, mappedProcesses.map(p => ({ 
+            id: p.id.substring(0,8), 
+            status: p.status, 
+            assignedTo: p.assignedTo ? p.assignedTo.substring(0,8) : null 
+          })));
+        }
+      } catch (err) {
+        console.error('Error loading AJSEFIN data:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    fetchUserId();
+    fetchData();
   }, []);
 
   const stats = useMemo(() => ({
     newInbox: processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo).length,
-    myTasks: processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status !== 'AGUARDANDO_ASSINATURA').length,
-    drafting: processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status === 'REDACAO').length,
-    awaitingSig: processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status === 'AGUARDANDO_ASSINATURA').length,
-    returned: processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status === 'DEVOLVIDO').length,
-  }), [processes]);
+    myTasks: processes.filter(p => p.assignedTo === currentUserId && p.status !== 'AGUARDANDO_ASSINATURA').length,
+    drafting: processes.filter(p => p.assignedTo === currentUserId && p.status === 'REDACAO').length,
+    awaitingSig: processes.filter(p => p.assignedTo === currentUserId && p.status === 'AGUARDANDO_ASSINATURA').length,
+    returned: processes.filter(p => p.assignedTo === currentUserId && p.status === 'DEVOLVIDO').length,
+  }), [processes, currentUserId]);
 
-  const teamLoad = useMemo(() => AJSEFIN_TEAM.map(member => {
+  const teamLoad = useMemo(() => teamMembers.map(member => {
     const memberProcesses = processes.filter(p => p.assignedTo === member.id);
     return { ...member, activeCount: memberProcesses.length, lateCount: memberProcesses.filter(p => p.isLate).length, utilization: (memberProcesses.length / member.capacity) * 100 };
-  }), [processes]);
+  }), [processes, teamMembers]);
 
-  const getAssignee = (id: string | null) => AJSEFIN_TEAM.find(m => m.id === id);
+  const getAssignee = (id: string | null) => teamMembers.find(m => m.id === id);
 
   const handleOpenEditor = (process: LegalProcess) => {
+    console.log('[AJSEFIN] handleOpenEditor called with process:', process?.id, process?.protocol, process?.subject);
+    if (!process) {
+      console.error('[AJSEFIN] handleOpenEditor: process is undefined!');
+      return;
+    }
+    // CRITICAL: Clear any open details modal first
+    setSelectedProcessForDetails(null);
     setActiveProcess(process);
     setDraftContent(process.draftType === 'DECISAO' ? `DECISÃO ADMINISTRATIVA Nº ___/2026\n\nProcesso: ${process.protocol}\nInteressado: ${process.interested}\nAssunto: ${process.subject}\n\n1. RELATÓRIO\nTrata-se de solicitação de concessão de suprimento de fundos...\n\n2. FUNDAMENTAÇÃO\nConsiderando a manifestação técnica da SOSFU...` : '');
     setViewMode('EDITOR');
@@ -135,9 +230,32 @@ export const AjsefinDashboard: React.FC = () => {
     setTimeout(() => { setDraftContent(prev => prev + "\n\n[SUGESTÃO IA]:\nDiante do exposto, e considerando a regularidade formal atestada pela unidade técnica (SOSFU), DEFIRO o pedido de concessão, condicionando a liberação do numerário à existência de saldo na dotação orçamentária, conforme art. 68 da Lei 4.320/64."); setIsAiGenerating(false); }, 1500);
   };
 
-  const handleAssign = (processId: string, memberId: string) => {
-    setProcesses(prev => prev.map(p => p.id === processId ? { ...p, assignedTo: memberId, status: 'REDACAO' } : p));
-    setAssigningId(null);
+  const handleAssign = async (processId: string, memberId: string) => {
+    console.log('[AJSEFIN] handleAssign called:', { processId, memberId, teamMembersCount: teamMembers.length });
+    try {
+      // Persist assignment to database
+      const { error, data } = await supabase
+        .from('solicitacoes')
+        .update({ ajsefin_responsavel_id: memberId })
+        .eq('id', processId)
+        .select();
+      
+      console.log('[AJSEFIN] Assignment result:', { error, data });
+      
+      if (error) {
+        console.error('Error assigning process:', error);
+        alert('Erro ao atribuir processo. Tente novamente.');
+        return;
+      }
+      
+      // Update local state
+      setProcesses(prev => prev.map(p => p.id === processId ? { ...p, assignedTo: memberId, status: 'REDACAO' } : p));
+      setAssigningId(null);
+      alert('Processo atribuído com sucesso!');
+    } catch (err) {
+      console.error('Error in handleAssign:', err);
+      alert('Erro ao atribuir processo.');
+    }
   };
 
   const handleBulkRedistribute = (targetMemberId: string) => {
@@ -152,7 +270,7 @@ export const AjsefinDashboard: React.FC = () => {
 
   const renderRedistributionModal = () => {
     if (!redistributionSourceId) return null;
-    const sourceMember = AJSEFIN_TEAM.find(m => m.id === redistributionSourceId);
+    const sourceMember = teamMembers.find(m => m.id === redistributionSourceId);
     const taskCount = processes.filter(p => p.assignedTo === redistributionSourceId).length;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
@@ -168,7 +286,7 @@ export const AjsefinDashboard: React.FC = () => {
             </div>
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Selecione o Destino</p>
             <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-              {AJSEFIN_TEAM.filter(m => m.id !== redistributionSourceId).map(member => {
+              {teamMembers.filter(m => m.id !== redistributionSourceId).map(member => {
                 const load = teamLoad.find(t => t.id === member.id);
                 return (
                   <button key={member.id} onClick={() => handleBulkRedistribute(member.id)} className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50 transition-all group text-left">
@@ -195,25 +313,32 @@ export const AjsefinDashboard: React.FC = () => {
       </div>
       
       {/* Special Card: Autorização Excepcional de Júri */}
-      <div 
-        onClick={() => setViewMode('AUTORIZACAO_JURI')} 
-        className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-2xl shadow-sm border border-purple-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"
-      >
-        <div className="flex items-center gap-6">
-          <div className="p-4 bg-purple-100 text-purple-700 rounded-2xl group-hover:scale-110 transition-transform">
-            <Gavel size={32} />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-black text-slate-800 mb-1">Autorizações Excepcionais de Júri</h3>
-            <p className="text-sm text-slate-500">Processos com valores acima dos limites regulamentares aguardando autorização do Ordenador.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="px-4 py-2 bg-purple-100 text-purple-700 rounded-xl text-sm font-bold border border-purple-200">
-              Acessar →
-            </span>
+      {processes.length > 0 && (
+        <div 
+          onClick={() => setViewMode('AUTORIZACAO_JURI')} 
+          className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-2xl shadow-sm border border-purple-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"
+        >
+          <div className="flex items-center gap-6">
+            <div className="p-4 bg-purple-100 text-purple-700 rounded-2xl group-hover:scale-110 transition-transform">
+              <Gavel size={32} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-black text-slate-800 mb-1">Autorizações Excepcionais de Júri</h3>
+              <p className="text-sm text-slate-500">
+                {processes.length} {processes.length === 1 ? 'processo' : 'processos'} com valores acima dos limites regulamentares aguardando análise jurídica.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold border border-amber-200">
+                {processes.length} Pendente{processes.length !== 1 ? 's' : ''}
+              </span>
+              <span className="px-4 py-2 bg-purple-100 text-purple-700 rounded-xl text-sm font-bold border border-purple-200 group-hover:bg-purple-200 transition-colors">
+                Acessar →
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="bg-white rounded-[32px] shadow-lg border border-slate-200 overflow-hidden">
         <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"><h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-3"><Users size={20} className="text-slate-400"/> Gestão de Atribuições</h3><button onClick={() => setViewMode('KANBAN')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-purple-700 hover:border-purple-200 transition-all shadow-sm"><Layout size={16}/> Ver Quadro Kanban</button></div>
@@ -226,25 +351,26 @@ export const AjsefinDashboard: React.FC = () => {
   const renderProcessList = () => {
     let config = { title: 'Minha Fila de Trabalho', desc: 'Processos ativos atribuídos a você.', color: 'text-purple-600', bg: 'bg-purple-50', icon: UserCog };
     let filteredProcesses = processes;
-    if (listFilter === 'MY_TASKS') { filteredProcesses = processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status !== 'AGUARDANDO_ASSINATURA'); }
-    else if (listFilter === 'DRAFTS') { config = { title: 'Rascunhos e Minutas', desc: 'Documentos em fase de redação.', color: 'text-amber-600', bg: 'bg-amber-50', icon: FileClock }; filteredProcesses = processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status === 'REDACAO'); }
-    else if (listFilter === 'AWAITING_SIG') { config = { title: 'Aguardando Assinatura', desc: 'Enviados para o Ordenador de Despesa.', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckSquare }; filteredProcesses = processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status === 'AGUARDANDO_ASSINATURA'); }
-    else if (listFilter === 'RETURNED') { config = { title: 'Processos Devolvidos', desc: 'Requer atenção imediata para correção.', color: 'text-red-600', bg: 'bg-red-50', icon: CornerUpLeft }; filteredProcesses = processes.filter(p => p.assignedTo === CURRENT_USER_ID && p.status === 'DEVOLVIDO'); }
-    else if (listFilter === 'TEAM_MEMBER' && selectedMemberId) { const member = AJSEFIN_TEAM.find(m => m.id === selectedMemberId); config = { title: `Fila: ${member?.name.split('Dr. ')[1] || 'Assessor'}`, desc: `Processos sob responsabilidade de ${member?.name}.`, color: 'text-blue-600', bg: 'bg-blue-50', icon: Users }; filteredProcesses = processes.filter(p => p.assignedTo === selectedMemberId); }
+    if (listFilter === 'MY_TASKS') { filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status !== 'AGUARDANDO_ASSINATURA'); }
+    else if (listFilter === 'DRAFTS') { config = { title: 'Rascunhos e Minutas', desc: 'Documentos em fase de redação.', color: 'text-amber-600', bg: 'bg-amber-50', icon: FileClock }; filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status === 'REDACAO'); }
+    else if (listFilter === 'AWAITING_SIG') { config = { title: 'Aguardando Assinatura', desc: 'Enviados para o Ordenador de Despesa.', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckSquare }; filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status === 'AGUARDANDO_ASSINATURA'); }
+    else if (listFilter === 'RETURNED') { config = { title: 'Processos Devolvidos', desc: 'Requer atenção imediata para correção.', color: 'text-red-600', bg: 'bg-red-50', icon: CornerUpLeft }; filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status === 'DEVOLVIDO'); }
+    else if (listFilter === 'TEAM_MEMBER' && selectedMemberId) { const member = teamMembers.find(m => m.id === selectedMemberId); config = { title: `Fila: ${member?.name.split('Dr. ')[1] || member?.name || 'Assessor'}`, desc: `Processos sob responsabilidade de ${member?.name}.`, color: 'text-blue-600', bg: 'bg-blue-50', icon: Users }; filteredProcesses = processes.filter(p => p.assignedTo === selectedMemberId); }
     return (
       <div className="p-8 max-w-[1200px] mx-auto animate-in slide-in-from-right-4">
         <div className="flex justify-between items-center mb-8"><div className="flex items-center gap-4"><button onClick={() => setViewMode('DASHBOARD')} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-blue-600 hover:shadow-md transition-all"><ArrowLeft size={20} /></button><div><h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3"><config.icon className={config.color} size={28}/> {config.title}</h2><p className="text-slate-500 text-sm font-medium">{config.desc}</p></div></div><div className={`px-4 py-2 ${config.bg} ${config.color} rounded-lg text-xs font-bold border border-slate-100 shadow-sm`}>{filteredProcesses.length} Registros</div></div>
-        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200 overflow-hidden"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Protocolo / Interessado</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Assunto</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Origem / Status</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Prazo</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredProcesses.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><FileSearch size={48} className="text-slate-200"/><p className="font-medium text-sm">Nenhum processo encontrado nesta fila.</p></div></td></tr>) : (filteredProcesses.map(p => (<tr key={p.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setSelectedProcessForDetails(p)}><td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{p.interested}</div><div className="text-[10px] font-mono text-slate-400">{p.protocol}</div></td><td className="px-6 py-4"><div className="text-xs font-medium text-slate-600 max-w-xs truncate" title={p.subject}>{p.subject}</div><div className="text-[10px] text-slate-400 mt-0.5">{p.draftType || 'Parecer'}</div></td><td className="px-6 py-4"><div className="flex flex-col items-start gap-1"><span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${p.origin === 'SOSFU' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{p.origin}</span><span className="text-[10px] text-slate-500 font-bold">{p.status}</span></div></td><td className="px-6 py-4"><span className={`text-xs font-bold ${p.isLate ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-slate-500'}`}>{p.deadline}</span></td><td className="px-6 py-4 text-right relative"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); setSelectedProcessForDetails(p); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"><MoreHorizontal size={14}/> Detalhes</button>{listFilter === 'AWAITING_SIG' ? null : listFilter === 'TEAM_MEMBER' ? (<><button onClick={(e) => { e.stopPropagation(); setAssigningId(assigningId === p.id ? null : p.id); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all shadow-sm"><UserPlus size={14}/> Reatribuir</button>{assigningId === p.id && (<div className="absolute right-6 top-12 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 animate-in zoom-in-95 origin-top-right overflow-hidden text-left"><div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black text-slate-500 uppercase">Novo Responsável</span><button onClick={(e) => { e.stopPropagation(); setAssigningId(null); }}><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-64 overflow-y-auto">{AJSEFIN_TEAM.filter(m => m.id !== p.assignedTo).map(member => { const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={(e) => { e.stopPropagation(); handleAssign(p.id, member.id); }} className="w-full text-left px-4 py-3 hover:bg-purple-50 flex items-center gap-3 border-b border-slate-50 last:border-0 group/item transition-colors"><img src={member.avatar} className="w-8 h-8 rounded-full border border-slate-100"/><div className="flex-1"><p className="text-xs font-bold text-slate-700 group-hover/item:text-purple-700">{member.name}</p><div className="flex justify-between items-center mt-1"><span className="text-[9px] text-slate-400">{member.role}</span><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount} ativos</span></div></div></button>); })}</div></div>)}</>) : (<button onClick={(e) => { e.stopPropagation(); handleOpenEditor(p); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all shadow-sm"><Edit3 size={14}/> {listFilter === 'RETURNED' ? 'Corrigir' : 'Abrir'}</button>)}</div></td></tr>)))}</tbody></table></div>
+        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200 overflow-hidden"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Protocolo / Interessado</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Assunto</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Origem / Status</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Prazo</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredProcesses.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><FileSearch size={48} className="text-slate-200"/><p className="font-medium text-sm">Nenhum processo encontrado nesta fila.</p></div></td></tr>) : (filteredProcesses.map(p => (<tr key={p.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setSelectedProcessForDetails(p)}><td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{p.interested}</div><div className="text-[10px] font-mono text-slate-400">{p.protocol}</div></td><td className="px-6 py-4"><div className="text-xs font-medium text-slate-600 max-w-xs truncate" title={p.subject}>{p.subject}</div><div className="text-[10px] text-slate-400 mt-0.5">{p.draftType || 'Parecer'}</div></td><td className="px-6 py-4"><div className="flex flex-col items-start gap-1"><span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${p.origin === 'SOSFU' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{p.origin}</span><span className="text-[10px] text-slate-500 font-bold">{p.status}</span></div></td><td className="px-6 py-4"><span className={`text-xs font-bold ${p.isLate ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-slate-500'}`}>{p.deadline}</span></td><td className="px-6 py-4 text-right relative"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); setSelectedProcessForDetails(p); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"><MoreHorizontal size={14}/> Detalhes</button>{listFilter === 'TEAM_MEMBER' && (<><button onClick={(e) => { e.stopPropagation(); setAssigningId(assigningId === p.id ? null : p.id); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all shadow-sm"><UserPlus size={14}/> Reatribuir</button>{assigningId === p.id && (<div className="absolute right-6 top-12 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 animate-in zoom-in-95 origin-top-right overflow-hidden text-left"><div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black text-slate-500 uppercase">Novo Responsável</span><button onClick={(e) => { e.stopPropagation(); setAssigningId(null); }}><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-64 overflow-y-auto">{teamMembers.filter(m => m.id !== p.assignedTo).map(member => { const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={(e) => { e.stopPropagation(); handleAssign(p.id, member.id); }} className="w-full text-left px-4 py-3 hover:bg-purple-50 flex items-center gap-3 border-b border-slate-50 last:border-0 group/item transition-colors"><img src={member.avatar} className="w-8 h-8 rounded-full border border-slate-100"/><div className="flex-1"><p className="text-xs font-bold text-slate-700 group-hover/item:text-purple-700">{member.name}</p><div className="flex justify-between items-center mt-1"><span className="text-[9px] text-slate-400">{member.role}</span><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount} ativos</span></div></div></button>); })}</div></div>)}</>)}</div></td></tr>)))}</tbody></table></div>
       </div>
     );
   };
 
   const renderInbox = () => {
     const unassignedProcesses = processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo);
+    console.log('[AJSEFIN] renderInbox - Total processes:', processes.length, 'Unassigned (TRIAGEM):', unassignedProcesses.length, 'All statuses:', processes.map(p => p.status));
     return (
       <div className="p-8 max-w-[1200px] mx-auto animate-in slide-in-from-right-4">
         <div className="flex justify-between items-center mb-8"><div className="flex items-center gap-4"><button onClick={() => setViewMode('DASHBOARD')} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-blue-600 hover:shadow-md transition-all"><ArrowLeft size={20} /></button><div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Caixa de Entrada</h2><p className="text-slate-500 text-sm font-medium">Distribuição de processos novos para a equipe.</p></div></div><div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100">{unassignedProcesses.length} Pendentes</div></div>
-        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200 overflow-hidden"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Protocolo / Interessado</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Assunto</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Origem</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Entrada</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{unassignedProcesses.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><CheckSquare size={48} className="text-emerald-200"/><p className="font-medium text-sm">Tudo limpo! Não há novos processos para distribuir.</p></div></td></tr>) : (unassignedProcesses.map(p => (<tr key={p.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setSelectedProcessForDetails(p)}><td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{p.interested}</div><div className="text-[10px] font-mono text-slate-400">{p.protocol}</div></td><td className="px-6 py-4"><div className="text-xs font-medium text-slate-600 max-w-xs truncate" title={p.subject}>{p.subject}</div></td><td className="px-6 py-4"><span className={`text-[9px] font-black px-2 py-1 rounded uppercase tracking-wider ${p.origin === 'SOSFU' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{p.origin}</span></td><td className="px-6 py-4 text-xs font-medium text-slate-500">{p.entryDate}</td><td className="px-6 py-4 text-right relative"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); setSelectedProcessForDetails(p); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"><MoreHorizontal size={14}/> Detalhes</button><button onClick={(e) => { e.stopPropagation(); setAssigningId(assigningId === p.id ? null : p.id); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all shadow-sm"><UserPlus size={14}/> Atribuir</button></div>{assigningId === p.id && (<div className="absolute right-6 top-14 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 animate-in zoom-in-95 origin-top-right overflow-hidden"><div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black text-slate-500 uppercase">Selecione o Assessor</span><button onClick={(e) => { e.stopPropagation(); setAssigningId(null); }}><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-64 overflow-y-auto">{AJSEFIN_TEAM.map(member => { const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={(e) => { e.stopPropagation(); handleAssign(p.id, member.id); }} className="w-full text-left px-4 py-3 hover:bg-purple-50 flex items-center gap-3 border-b border-slate-50 last:border-0 group/item transition-colors"><img src={member.avatar} className="w-8 h-8 rounded-full border border-slate-100"/><div className="flex-1"><p className="text-xs font-bold text-slate-700 group-hover/item:text-purple-700">{member.name}</p><div className="flex justify-between items-center mt-1"><span className="text-[9px] text-slate-400">{member.role}</span><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount} ativos</span></div></div></button>); })}</div></div>)}</td></tr>)))}</tbody></table></div>
+        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Protocolo / Interessado</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Assunto</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Origem</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Entrada</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{unassignedProcesses.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><CheckSquare size={48} className="text-emerald-200"/><p className="font-medium text-sm">Tudo limpo! Não há novos processos para distribuir.</p></div></td></tr>) : (unassignedProcesses.map(p => (<tr key={p.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setSelectedProcessForDetails(p)}><td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{p.interested}</div><div className="text-[10px] font-mono text-slate-400">{p.protocol}</div></td><td className="px-6 py-4"><div className="text-xs font-medium text-slate-600 max-w-xs truncate" title={p.subject}>{p.subject}</div></td><td className="px-6 py-4"><span className={`text-[9px] font-black px-2 py-1 rounded uppercase tracking-wider ${p.origin === 'SOSFU' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{p.origin}</span></td><td className="px-6 py-4 text-xs font-medium text-slate-500">{p.entryDate}</td><td className="px-6 py-4 text-right relative"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); setSelectedProcessForDetails(p); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"><MoreHorizontal size={14}/> Detalhes</button><button onClick={(e) => { e.stopPropagation(); setAssigningId(assigningId === p.id ? null : p.id); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all shadow-sm"><UserPlus size={14}/> Atribuir</button></div>{assigningId === p.id && (<div className="absolute right-0 top-12 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 z-[100]"><div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center rounded-t-xl"><span className="text-xs font-bold text-slate-600">Selecione o Assessor</span><button onClick={(e) => { e.stopPropagation(); setAssigningId(null); }} className="p-1 hover:bg-slate-200 rounded"><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-80 overflow-y-auto">{teamMembers.map(member => { const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={(e) => { e.stopPropagation(); handleAssign(p.id, member.id); }} className="w-full text-left px-4 py-3 hover:bg-purple-50 flex items-center gap-3 border-b border-slate-100 last:border-0 transition-colors"><img src={member.avatar} className="w-10 h-10 rounded-full border-2 border-slate-100"/><div className="flex-1"><p className="text-sm font-bold text-slate-700 hover:text-purple-700">{member.name}</p><div className="flex justify-between items-center mt-1"><span className="text-[10px] text-slate-400">{member.role}</span><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount || 0} ativos</span></div></div></button>); })}</div></div>)}</td></tr>)))}</tbody></table></div>
       </div>
     );
   };
@@ -255,7 +381,23 @@ export const AjsefinDashboard: React.FC = () => {
   };
 
   const renderEditor = () => {
-    if (!activeProcess) return null;
+    console.log('[AJSEFIN] renderEditor called, activeProcess:', activeProcess?.id, activeProcess?.protocol);
+    if (!activeProcess) {
+      console.error('[AJSEFIN] renderEditor: activeProcess is null, returning empty!');
+      return (
+        <div className="flex h-full items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <p className="text-slate-500 text-lg">Nenhum processo selecionado</p>
+            <button 
+              onClick={() => setViewMode('DASHBOARD')} 
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700"
+            >
+              Voltar ao Painel
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex h-full animate-in slide-in-from-right-4 duration-300 bg-slate-50">
         <aside className="w-[400px] bg-white border-r border-slate-200 flex flex-col z-10 shadow-lg"><div className="p-6 border-b border-slate-100 bg-slate-50/50"><button onClick={() => setViewMode('DASHBOARD')} className="flex items-center gap-2 text-slate-500 hover:text-purple-700 text-xs font-bold uppercase tracking-widest mb-4 transition-colors"><ArrowLeft size={14} /> Voltar ao Painel</button><h2 className="text-xl font-black text-slate-800 leading-tight">{activeProcess.subject}</h2><p className="text-sm text-purple-600 font-mono font-bold mt-1">{activeProcess.protocol}</p></div><div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar"><div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3"><div className="flex justify-between text-xs"><span className="text-slate-500 font-medium">Interessado</span><span className="font-bold text-slate-800 text-right w-1/2 truncate">{activeProcess.interested}</span></div><div className="flex justify-between text-xs"><span className="text-slate-500 font-medium">Valor</span><span className="font-bold text-slate-800">R$ {activeProcess.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div><div className="flex justify-between text-xs"><span className="text-slate-500 font-medium">Prazo Legal</span><span className="font-bold text-red-600">{activeProcess.deadline}</span></div></div><div className="space-y-4"><h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><BookOpen size={14} /> Peças dos Autos</h3><div className="space-y-2">{[{ title: 'Solicitação Inicial', page: '02', author: 'Gestor' }, { title: 'Análise Técnica SOSFU', page: '05', author: 'Analista Jaires', highlight: true }, { title: 'Consulta Saldo SIAFE', page: '06', author: 'Sistema' }].map((doc, i) => (<button key={i} className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 group ${doc.highlight ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:border-purple-300'}`}><div className="w-8 h-8 bg-white border border-slate-100 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-400 shadow-sm">{doc.page}</div><div><p className={`text-xs font-bold ${doc.highlight ? 'text-blue-700' : 'text-slate-700'}`}>{doc.title}</p><p className="text-[10px] text-slate-400">Por: {doc.author}</p></div>{doc.highlight && <div className="ml-auto w-2 h-2 bg-blue-500 rounded-full"></div>}</button>))}</div></div><div className="bg-purple-50 border border-purple-100 p-4 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-purple-100 transition-colors"><div className="p-2 bg-purple-200 text-purple-700 rounded-lg"><Paperclip size={16}/></div><div><p className="text-xs font-bold text-purple-900">Anexar Novo Documento</p><p className="text-[10px] text-purple-600">PDF, Imagens ou Planilhas</p></div></div></div></aside>
@@ -266,7 +408,7 @@ export const AjsefinDashboard: React.FC = () => {
 
   return (
     <div className="h-full bg-[#f8fafc] flex flex-col overflow-hidden">
-      {viewMode !== 'EDITOR' && (<header className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm z-20"><div><h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">Módulo Jurídico <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium tracking-normal border border-purple-200">AJSEFIN</span></h1><p className="text-slate-500 font-medium mt-2 flex items-center gap-2"><Scale size={16} className="text-purple-500" /> Painel de Controle e Minutas Jurídicas</p></div><div className="flex items-center gap-4"><div className="flex -space-x-3 mr-4">{AJSEFIN_TEAM.map(member => (<img key={member.id} src={member.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm cursor-help hover:z-10 transition-all hover:scale-110" title={member.name} />))}</div><button className="flex items-center gap-2 px-5 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"><Plus size={16} /> Novo Processo</button></div></header>)}
+      {viewMode !== 'EDITOR' && (<header className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm z-20"><div><h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">Módulo Jurídico <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium tracking-normal border border-purple-200">AJSEFIN</span></h1><p className="text-slate-500 font-medium mt-2 flex items-center gap-2"><Scale size={16} className="text-purple-500" /> Painel de Controle e Minutas Jurídicas</p></div><div className="flex items-center gap-4"><div className="flex -space-x-3 mr-4">{teamMembers.map(member => (<img key={member.id} src={member.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm cursor-help hover:z-10 transition-all hover:scale-110" title={member.name} />))}</div><button className="flex items-center gap-2 px-5 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"><Plus size={16} /> Novo Processo</button></div></header>)}
       <div className="flex-1 overflow-hidden relative">
         {viewMode === 'DASHBOARD' && <div className="h-full overflow-y-auto custom-scrollbar">{renderDashboard()}</div>}
         {viewMode === 'INBOX' && <div className="h-full overflow-y-auto custom-scrollbar">{renderInbox()}</div>}
@@ -301,6 +443,7 @@ export const AjsefinDashboard: React.FC = () => {
             onTramitar={() => setShowTramitarModal(true)}
             onGenerateAtesto={undefined}
             onCreateDocument={() => setShowDocumentWizard(true)}
+            visibleTabs={['overview', 'dossier']}
           />
         </div>
       )}

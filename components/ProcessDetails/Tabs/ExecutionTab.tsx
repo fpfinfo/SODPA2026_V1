@@ -135,6 +135,25 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   const totalGeral = enrichedProcessData?.valor_total || processData.value || processData.valor_total || 0;
 
   // ========================================
+  // EXCEÇÃO JÚRI - Bloqueio até Autorização do Ordenador
+  // ========================================
+  const LIMITE_POLICIAIS = 5;
+  const tipoProcesso = (processData.tipo || '').toString().toUpperCase();
+  const isJuriProcess = tipoProcesso.includes('JURI') || tipoProcesso.includes('JÚRI') || tipoProcesso.includes('SESSAO');
+  
+  // Parse participantes do júri
+  const juriParticipants = enrichedProcessData?.juri_participants || processData.juri_participants || {};
+  const quantidadePoliciais = typeof juriParticipants === 'object' ? 
+    (juriParticipants.policias || juriParticipants.policiais || 0) : 0;
+  
+  const hasExcepcaoPoliciais = isJuriProcess && quantidadePoliciais > LIMITE_POLICIAIS;
+  const statusProcesso = (processData.status || '').toUpperCase();
+  const isAutorizadoOrdenador = statusProcesso.includes('AUTORIZADO ORDENADOR');
+  
+  // Se tem exceção e NÃO foi autorizado pelo ordenador, bloqueia execução
+  const isBlockedByExceptionalFlow = hasExcepcaoPoliciais && !isAutorizadoOrdenador;
+
+  // ========================================
   // HELPERS
   // ========================================
   const formatCurrency = (value: number) => {
@@ -154,6 +173,9 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
   };
 
   const canGenerateDoc = (tipo: string): boolean => {
+    // BLOQUEIO: Processos Júri com exceção de policiais aguardando autorização do Ordenador
+    if (isBlockedByExceptionalFlow) return false;
+    
     switch (tipo) {
       case 'PORTARIA': return canGeneratePortaria;
       case 'CERTIDAO_REGULARIDADE': return canGenerateCertidao;
@@ -361,11 +383,35 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
         <h3 className="text-lg font-black uppercase tracking-wide mb-2">Esteira de Execução</h3>
         <p className="text-sm text-blue-100">
-          {isWaitingSefin ? 'Aguardando retorno da SEFIN...' :
+          {isBlockedByExceptionalFlow ? 'Aguardando autorização do Ordenador de Despesas...' :
+           isWaitingSefin ? 'Aguardando retorno da SEFIN...' :
            isSignedBySefin ? 'SEFIN assinou! Prossiga com a liquidação.' :
            'Gere os documentos na sequência indicada'}
         </p>
       </div>
+
+      {/* ======================================== */}
+      {/* BANNER: Bloqueado por Exceção de Júri */}
+      {/* ======================================== */}
+      {isBlockedByExceptionalFlow && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-2xl"></div>
+          </div>
+          <div className="relative flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/25 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+              <Lock className="w-7 h-7" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-black text-lg">⚖️ Aguardando Autorização Excepcional</h4>
+              <p className="text-sm text-amber-100 mt-1">
+                Este processo de Sessão de Júri possui <strong>{quantidadePoliciais} policiais</strong> (limite: {LIMITE_POLICIAIS}). 
+                A execução está bloqueada até que o Ordenador de Despesas assine a Autorização Excepcional.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ======================================== */}
       {/* BLOCO A: Instrução e Empenho (Pré-SEFIN) */}

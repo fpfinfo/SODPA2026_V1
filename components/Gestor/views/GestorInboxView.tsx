@@ -153,6 +153,20 @@ ${cargo}`
 
       if (error) throw error
 
+      // UPDATE STATUS: Change process status to ATESTADO after signing
+      const { error: updateError } = await supabase
+        .from('solicitacoes')
+        .update({ 
+          status: 'ATESTADO', // Processo atestado, pronto para tramitação
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedProcess.id)
+      
+      if (updateError) {
+        console.error('Error updating process status:', updateError)
+        // Continue even if status update fails - document was saved
+      }
+
       setShowAtestoPreview(false)
       showToast({ 
         type: 'success', 
