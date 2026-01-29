@@ -26,7 +26,8 @@ const WORKFLOW_DESTINATIONS: Record<string, { value: string; label: string; stat
     { value: 'SEFIN', label: 'SEFIN - Ordenador de Despesa', status: 'PENDENTE ASSINATURA' },
     { value: 'GESTOR', label: 'Devolver ao Gestor', status: 'DEVOLVIDO' },
     { value: 'AJSEFIN', label: 'AJSEFIN - Parecer Jurídico', status: 'AGUARDANDO PARECER' },
-    { value: 'AJSEFIN', label: 'AJSEFIN - Autorização Excepcional (Júri)', status: 'AGUARDANDO AUTORIZACAO EXCEPCIONAL' }
+    { value: 'AJSEFIN', label: 'AJSEFIN - Autorização Excepcional (Júri)', status: 'AGUARDANDO AUTORIZACAO EXCEPCIONAL' },
+    { value: 'SGP', label: 'SGP - Averbação em Folha (Desconto/Ressarcimento)', status: 'AGUARDANDO AVERBAÇÃO' }
   ],
   'SEFIN': [
     { value: 'SOSFU', label: 'SOSFU - Empenho/Financeiro', status: 'APROVADO' },
@@ -35,10 +36,12 @@ const WORKFLOW_DESTINATIONS: Record<string, { value: string; label: string; stat
   'AJSEFIN': [
     { value: 'SOSFU', label: 'Retornar à SOSFU', status: 'PARECER EMITIDO' },
     { value: 'SOSFU', label: 'Retornar à SOSFU (Autorização Concedida)', status: 'AUTORIZAÇÃO CONCEDIDA' },
-    { value: 'SEFIN', label: 'SEFIN - Assinatura do Ordenador (Autorização Excepcional)', status: 'AGUARDANDO ASSINATURA ORDENADOR' }
+    { value: 'SEFIN', label: 'SEFIN - Assinatura do Ordenador (Autorização Excepcional)', status: 'AGUARDANDO ASSINATURA ORDENADOR' },
+    { value: 'SGP', label: 'SGP - Averbação em Folha (Reposição ao Erário)', status: 'AGUARDANDO AVERBAÇÃO' }
   ],
   'SGP': [
-    { value: 'SOSFU', label: 'Retornar à SOSFU', status: 'INCLUSÃO EM FOLHA REALIZADA' }
+    { value: 'SOSFU', label: 'Retornar à SOSFU (Averbação Concluída)', status: 'AVERBAÇÃO REALIZADA' },
+    { value: 'AJSEFIN', label: 'Retornar à AJSEFIN (Pendência)', status: 'AVERBAÇÃO PENDENTE' }
   ]
 };
 
@@ -141,6 +144,36 @@ export const TramitarModal: React.FC<TramitarModalProps> = ({
       if (histError) {
         console.warn('Could not insert tramitacao history:', histError);
         // Continue anyway - history is optional
+      }
+
+      // If destination is SGP, create a task in sgp_tasks for the HR team
+      if (selectedDest.value === 'SGP') {
+        // Fetch solicitacao details for the task
+        const { data: solicitacao } = await supabase
+          .from('solicitacoes')
+          .select('nup, suprido_id, servidor_nome, servidor_matricula, total_utilizado')
+          .eq('id', processId)
+          .maybeSingle();
+
+        const { error: sgpTaskError } = await supabase
+          .from('sgp_tasks')
+          .insert({
+            solicitacao_id: processId,
+            titulo: solicitacao?.nup || `Processo ${processId.slice(0, 8)}`,
+            tipo: currentModule === 'AJSEFIN' ? 'ALCANCE' : 'GLOSA',
+            origem: currentModule,
+            status: 'PENDING',
+            valor: solicitacao?.total_utilizado?.toString() || '0',
+            observacoes: observacao || null,
+            created_by: user?.id
+          });
+
+        if (sgpTaskError) {
+          console.warn('Could not create SGP task:', sgpTaskError);
+          // Continue anyway - task will be visible via solicitacao query
+        } else {
+          console.log('✅ SGP task created for process:', processId);
+        }
       }
 
       showToast({ type: 'success', title: 'Processo tramitado!', message: `Encaminhado para ${selectedDest.label}` });

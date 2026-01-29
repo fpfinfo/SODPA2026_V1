@@ -5,16 +5,15 @@ import { SefinHeader } from './SefinHeader'
 import { useSefinCockpit } from '../../hooks/useSefinCockpit'
 
 // Views
-import { SefinDashboardView } from './views/SefinDashboardView'
-import { SefinInboxView } from './views/SefinInboxView'
+import { SefinControlPanelView } from './views/SefinControlPanelView'
 import { SefinExplorerView } from './views/SefinExplorerView'
 import { SefinInsightsView } from './views/SefinInsightsView'
 import { SefinIntelligenceView } from './views/SefinIntelligenceView'
 
-export type SefinViewType = 'dashboard' | 'inbox' | 'explorer' | 'insights' | 'intelligence'
+export type SefinViewType = 'control' | 'explorer' | 'insights' | 'intelligence'
 
 export function SefinCockpit() {
-  const [activeView, setActiveView] = useState<SefinViewType>('dashboard')
+  const [activeView, setActiveView] = useState<SefinViewType>('control')
   const [searchQuery, setSearchQuery] = useState('')
   
   // Get counts for header badges
@@ -25,10 +24,8 @@ export function SefinCockpit() {
   // Render active view based on navigation
   const renderActiveView = () => {
     switch (activeView) {
-      case 'dashboard':
-        return <SefinDashboardView />
-      case 'inbox':
-        return <SefinInboxView searchQuery={searchQuery} />
+      case 'control':
+        return <SefinControlPanelView />
       case 'explorer':
         return <SefinExplorerView searchQuery={searchQuery} />
       case 'insights':
@@ -36,7 +33,7 @@ export function SefinCockpit() {
       case 'intelligence':
         return <SefinIntelligenceView />
       default:
-        return <SefinDashboardView />
+        return <SefinControlPanelView />
     }
   }
 

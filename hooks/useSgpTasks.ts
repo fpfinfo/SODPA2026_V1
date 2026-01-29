@@ -47,11 +47,10 @@ export function useSgpTasks(): UseSgpTasksReturn {
     setError(null);
     
     try {
-      // Try to fetch from Supabase sefin_tasks with SGP-related tasks
+      // Fetch from the dedicated sgp_tasks table
       const { data, error: fetchError } = await supabase
-        .from('sefin_tasks')
+        .from('sgp_tasks')
         .select('*')
-        .in('tipo', ['GLOSA', 'ALCANCE', 'DEDUCAO'])
         .order('created_at', { ascending: false });
       
       if (fetchError) throw fetchError;
@@ -69,11 +68,11 @@ export function useSgpTasks(): UseSgpTasksReturn {
         decisionDate: t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : '',
         decisionNumber: `DEC-${t.id.slice(0, 4).toUpperCase()}/${new Date().getFullYear()}`,
         status: (t.status === 'SIGNED' ? 'PROCESSED' : 'PENDING') as 'PENDING' | 'PROCESSED',
-        assignedTo: t.ordenador_id || null,
+        assignedTo: t.assigned_to || null,
         dueDate: t.assinado_em,
       }));
       
-      // Combine with fallback if empty
+      // Use fetched data or fallback if empty
       if (mapped.length === 0) {
         setTasks(FALLBACK_TASKS);
       } else {

@@ -45,7 +45,7 @@ import {
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
 type AjsefinView = 'DASHBOARD' | 'KANBAN' | 'EDITOR' | 'INBOX' | 'LIST' | 'AUTORIZACAO_JURI';
-type ListFilterType = 'MY_TASKS' | 'DRAFTS' | 'AWAITING_SIG' | 'RETURNED' | 'TEAM_MEMBER';
+type ListFilterType = 'MY_TASKS' | 'DRAFTS' | 'AWAITING_SIG' | 'SIGNED' | 'RETURNED' | 'TEAM_MEMBER';
 type ProcessStatus = 'TRIAGEM' | 'REDACAO' | 'REVISAO' | 'AGUARDANDO_ASSINATURA' | 'DEVOLVIDO' | 'ENVIADO';
 
 interface LegalProcess {
@@ -155,9 +155,10 @@ export const AjsefinDashboard: React.FC = () => {
             if (statusUpper.includes('ANALISE AJSEFIN')) {
               mappedStatus = hasResponsavel ? 'REDACAO' : 'TRIAGEM';
             } else if (statusUpper.includes('DOCUMENTO ASSINADO')) {
-              // Returned from SEFIN after Ordenador signature - ready for tramitation
-              mappedStatus = 'AGUARDANDO_ASSINATURA'; // Reuse existing status for signed docs
-            } else if (statusUpper.includes('ASSINATURA')) {
+              // Returned from SEFIN after Ordenador signature - ready for tramitation to SOSFU
+              mappedStatus = 'ENVIADO'; // Use ENVIADO status for docs signed by Ordenador and ready to tramitate
+            } else if (statusUpper.includes('AGUARDANDO ASSINATURA')) {
+              // Still waiting for SEFIN signature - only match explicit 'AGUARDANDO ASSINATURA'
               mappedStatus = 'AGUARDANDO_ASSINATURA';
             } else if (statusUpper.includes('DEVOLVIDO')) {
               mappedStatus = 'DEVOLVIDO';
@@ -199,9 +200,10 @@ export const AjsefinDashboard: React.FC = () => {
 
   const stats = useMemo(() => ({
     newInbox: processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo).length,
-    myTasks: processes.filter(p => p.assignedTo === currentUserId && p.status !== 'AGUARDANDO_ASSINATURA').length,
+    myTasks: processes.filter(p => p.assignedTo === currentUserId && !['AGUARDANDO_ASSINATURA', 'ENVIADO'].includes(p.status)).length,
     drafting: processes.filter(p => p.assignedTo === currentUserId && p.status === 'REDACAO').length,
-    awaitingSig: processes.filter(p => p.assignedTo === currentUserId && p.status === 'AGUARDANDO_ASSINATURA').length,
+    awaitingSig: processes.filter(p => p.status === 'AGUARDANDO_ASSINATURA').length, // Global - all processes waiting SEFIN sig
+    signed: processes.filter(p => p.status === 'ENVIADO').length, // Documents signed by SEFIN, ready to tramitate
     returned: processes.filter(p => p.assignedTo === currentUserId && p.status === 'DEVOLVIDO').length,
   }), [processes, currentUserId]);
 
@@ -304,11 +306,12 @@ export const AjsefinDashboard: React.FC = () => {
 
   const renderDashboard = () => (
     <div className="p-8 max-w-[1600px] mx-auto space-y-10 animate-in fade-in">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-5">
         <div onClick={() => handleCardClick('INBOX')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-blue-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform"><Inbox size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Geral</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.newInbox}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-blue-600">Novos Recebidos</p><p className="text-[10px] text-slate-400 mt-1">Aguardando distribuição</p></div></div>
         <div onClick={() => handleCardClick('LIST', 'MY_TASKS')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-purple-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform"><UserCog size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Minha Fila</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.myTasks}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-purple-600">Atribuídos a Mim</p><p className="text-[10px] text-slate-400 mt-1">Processos na sua mesa</p></div></div>
         <div onClick={() => handleCardClick('LIST', 'DRAFTS')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-amber-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform"><FileClock size={20}/></div></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.drafting}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-amber-600">Em Minuta</p><p className="text-[10px] text-slate-400 mt-1">Pareceres em elaboração</p></div></div>
         <div onClick={() => handleCardClick('LIST', 'AWAITING_SIG')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform"><CheckSquare size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">SEFIN</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.awaitingSig}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-emerald-600">Aguard. Assinatura</p><p className="text-[10px] text-slate-400 mt-1">Enviados ao Ordenador</p></div></div>
+        <div onClick={() => handleCardClick('LIST', 'SIGNED')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-teal-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-teal-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-teal-50 text-teal-600 rounded-xl group-hover:scale-110 transition-transform"><Send size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Tramitação</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.signed || 0}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-teal-600">Tramitar p/ SOSFU</p><p className="text-[10px] text-slate-400 mt-1">Assinados pelo Ordenador</p></div></div>
         <div onClick={() => handleCardClick('LIST', 'RETURNED')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-red-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-red-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform"><CornerUpLeft size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Atenção</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.returned}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-red-600">Devolvidos</p><p className="text-[10px] text-slate-400 mt-1">Correções solicitadas</p></div></div>
       </div>
       
@@ -351,9 +354,10 @@ export const AjsefinDashboard: React.FC = () => {
   const renderProcessList = () => {
     let config = { title: 'Minha Fila de Trabalho', desc: 'Processos ativos atribuídos a você.', color: 'text-purple-600', bg: 'bg-purple-50', icon: UserCog };
     let filteredProcesses = processes;
-    if (listFilter === 'MY_TASKS') { filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status !== 'AGUARDANDO_ASSINATURA'); }
+    if (listFilter === 'MY_TASKS') { filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && !['AGUARDANDO_ASSINATURA', 'ENVIADO'].includes(p.status)); }
     else if (listFilter === 'DRAFTS') { config = { title: 'Rascunhos e Minutas', desc: 'Documentos em fase de redação.', color: 'text-amber-600', bg: 'bg-amber-50', icon: FileClock }; filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status === 'REDACAO'); }
-    else if (listFilter === 'AWAITING_SIG') { config = { title: 'Aguardando Assinatura', desc: 'Enviados para o Ordenador de Despesa.', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckSquare }; filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status === 'AGUARDANDO_ASSINATURA'); }
+    else if (listFilter === 'AWAITING_SIG') { config = { title: 'Aguardando Assinatura SEFIN', desc: 'Enviados para o Ordenador de Despesa.', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckSquare }; filteredProcesses = processes.filter(p => p.status === 'AGUARDANDO_ASSINATURA'); }
+    else if (listFilter === 'SIGNED') { config = { title: 'Prontos para Tramitação', desc: 'Assinados pelo Ordenador - encaminhar ao SOSFU.', color: 'text-teal-600', bg: 'bg-teal-50', icon: Send }; filteredProcesses = processes.filter(p => p.status === 'ENVIADO'); }
     else if (listFilter === 'RETURNED') { config = { title: 'Processos Devolvidos', desc: 'Requer atenção imediata para correção.', color: 'text-red-600', bg: 'bg-red-50', icon: CornerUpLeft }; filteredProcesses = processes.filter(p => p.assignedTo === currentUserId && p.status === 'DEVOLVIDO'); }
     else if (listFilter === 'TEAM_MEMBER' && selectedMemberId) { const member = teamMembers.find(m => m.id === selectedMemberId); config = { title: `Fila: ${member?.name.split('Dr. ')[1] || member?.name || 'Assessor'}`, desc: `Processos sob responsabilidade de ${member?.name}.`, color: 'text-blue-600', bg: 'bg-blue-50', icon: Users }; filteredProcesses = processes.filter(p => p.assignedTo === selectedMemberId); }
     return (

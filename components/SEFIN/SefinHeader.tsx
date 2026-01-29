@@ -6,7 +6,8 @@ import {
   LayoutDashboard,
   Inbox,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  PanelTop
 } from 'lucide-react'
 import type { SefinViewType } from './SefinCockpit'
 
@@ -38,16 +39,10 @@ export function SefinHeader({
 }: SefinHeaderProps) {
   const navItems: NavItem[] = [
     {
-      id: 'dashboard',
-      label: 'Painel',
-      shortLabel: 'Painel',
-      icon: <LayoutDashboard size={18} />
-    },
-    {
-      id: 'inbox',
-      label: 'Caixa de Entrada',
-      shortLabel: 'Inbox',
-      icon: <Inbox size={18} />,
+      id: 'control',
+      label: 'Painel de Controle',
+      shortLabel: 'Controle',
+      icon: <PanelTop size={18} />,
       badge: pendingCount,
       badgeType: urgentCount > 0 ? 'urgent' : 'default'
     },

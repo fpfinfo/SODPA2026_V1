@@ -36,10 +36,18 @@ import {
   Clock,
   FileCode,
   Eye,
-  Zap
+  Zap,
+  FilePlus,
+  Send,
+  FileSignature
 } from 'lucide-react';
+import { useSgpCockpit, SgpTask } from '../hooks/useSgpCockpit';
+import { useSgpTeamMembers } from '../hooks/useSgpTeamMembers';
 import { useSgpTasks, DeductionTask } from '../hooks/useSgpTasks';
 import { DocumentInventory } from './ProcessDetails/DocumentInventory';
+import { TramitarModal } from './TramitarModal';
+import { SgpContextDrawer } from './SGP/SgpContextDrawer';
+import { SgpDocumentCreator } from './SGP/SgpDocumentCreator';
 import { supabase } from '../lib/supabaseClient';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
@@ -48,17 +56,11 @@ type SgpView = 'DASHBOARD' | 'LIST' | 'WORKSTATION';
 type ListFilterType = 'INBOX' | 'MY_TASKS' | 'PROCESSED' | 'TEAM_MEMBER';
 type SgpSubView = 'DETAILS' | 'SERVER' | 'DECISION' | 'DOSSIER' | 'CALCULATION' | 'HISTORY';
 
-const SGP_TEAM = [
-  { id: '1', name: 'Marta Rocha', role: 'Gerente de Folha', avatar: 'https://i.pravatar.cc/150?u=marta', capacity: 15 },
-  { id: '2', name: 'João Kleber', role: 'Analista de RH', avatar: 'https://i.pravatar.cc/150?u=joao', capacity: 20 },
-  { id: '3', name: 'Lúcia Ferreira', role: 'Técnica Judiciária', avatar: 'https://i.pravatar.cc/150?u=lucia', capacity: 20 },
-];
-
-const CURRENT_USER_ID = '1';
-
 export const SgpDashboard: React.FC = () => {
-  // Use Supabase hook
+  // Use new Supabase hooks
   const { tasks: supabaseTasks, isLoading, assignTask: hookAssignTask, processTask: hookProcessTask, redistributeTasks } = useSgpTasks();
+  const { kpis, filteredTasks: cockpitTasks, assignToMe, signTask, returnTask } = useSgpCockpit();
+  const { teamMembers, getCurrentMember } = useSgpTeamMembers();
   
   const [tasks, setTasks] = useState<DeductionTask[]>([]);
   const [viewMode, setViewMode] = useState<SgpView>('DASHBOARD');
@@ -75,6 +77,15 @@ export const SgpDashboard: React.FC = () => {
   const [subView, setSubView] = useState<SgpSubView>('DETAILS');
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [dossierDocs, setDossierDocs] = useState<any[]>([]);
+  
+  // New state for tramitation and document creation
+  const [showTramitarModal, setShowTramitarModal] = useState(false);
+  const [showDocCreator, setShowDocCreator] = useState(false);
+  const [signaturePin, setSignaturePin] = useState('');
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [showContextDrawer, setShowContextDrawer] = useState(false);
+  const [selectedSgpTask, setSelectedSgpTask] = useState<SgpTask | null>(null);
+  const [docCreatorTaskId, setDocCreatorTaskId] = useState<string>('');
 
   // Fetch current user
   useEffect(() => {
@@ -92,8 +103,23 @@ export const SgpDashboard: React.FC = () => {
     }
   }, [supabaseTasks]);
 
-  const stats = useMemo(() => ({ inbox: tasks.filter(t => t.status === 'PENDING' && !t.assignedTo).length, myTasks: tasks.filter(t => t.assignedTo === CURRENT_USER_ID && t.status === 'PENDING').length, processed: tasks.filter(t => t.status === 'PROCESSED').length, totalRecovery: tasks.filter(t => t.status === 'PENDING').reduce((acc, curr) => acc + curr.value, 0) }), [tasks]);
-  const teamLoad = useMemo(() => SGP_TEAM.map(member => { const memberTasks = tasks.filter(t => t.assignedTo === member.id && t.status === 'PENDING'); return { ...member, activeCount: memberTasks.length, utilization: (memberTasks.length / member.capacity) * 100 }; }), [tasks]);
+  // Compute team load using real team members
+  const teamLoad = useMemo(() => teamMembers.map(member => {
+    const memberTasks = tasks.filter(t => t.assignedTo === member.id && t.status === 'PENDING');
+    return { 
+      ...member, 
+      activeCount: memberTasks.length, 
+      utilization: (memberTasks.length / member.capacity) * 100,
+      avatar: member.avatar_url || `https://i.pravatar.cc/150?u=${member.email}`
+    };
+  }), [tasks, teamMembers]);
+
+  const stats = useMemo(() => ({ 
+    inbox: kpis.pendingTotal, 
+    myTasks: kpis.assignedToMe, 
+    processed: kpis.processedTotal, 
+    totalRecovery: kpis.totalDeductionValue 
+  }), [kpis]);
 
   const handleCardClick = (view: SgpView, filter?: ListFilterType) => { setViewMode(view); if (filter) setListFilter(filter); };
   const handleViewMemberQueue = (memberId: string) => { setSelectedMemberId(memberId); setListFilter('TEAM_MEMBER'); setViewMode('LIST'); };
@@ -103,13 +129,13 @@ export const SgpDashboard: React.FC = () => {
 
   const renderRedistributionModal = () => {
     if (!redistributionSourceId) return null;
-    const sourceMember = SGP_TEAM.find(m => m.id === redistributionSourceId);
+    const sourceMember = teamLoad.find(m => m.id === redistributionSourceId);
     const taskCount = tasks.filter(t => t.assignedTo === redistributionSourceId && t.status === 'PENDING').length;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
           <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-black text-slate-800 flex items-center gap-2"><ArrowRightLeft className="text-rose-600" size={20}/> Redistribuir Carga</h3><button onClick={() => setRedistributionSourceId(null)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button></div>
-          <div className="p-6"><div className="bg-amber-50 border border-amber-100 p-4 rounded-xl mb-6 flex items-start gap-3"><UserMinus size={20} className="text-amber-600 shrink-0 mt-0.5"/><div><p className="text-sm font-bold text-amber-800">Origem: {sourceMember?.name}</p><p className="text-xs text-amber-700 mt-1">Este analista possui <strong>{taskCount} processos</strong> ativos.</p></div></div><p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Selecione o Destino</p><div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">{SGP_TEAM.filter(m => m.id !== redistributionSourceId).map(member => { const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={() => handleBulkRedistribute(member.id)} className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-rose-300 hover:bg-rose-50 transition-all group text-left"><div className="flex items-center gap-3"><img src={member.avatar} className="w-8 h-8 rounded-full"/><div><p className="text-sm font-bold text-slate-700 group-hover:text-rose-700">{member.name}</p><p className="text-[10px] text-slate-400">{member.role}</p></div></div><span className={`text-[10px] font-bold px-2 py-1 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount} ativos</span></button>); })}</div></div>
+          <div className="p-6"><div className="bg-amber-50 border border-amber-100 p-4 rounded-xl mb-6 flex items-start gap-3"><UserMinus size={20} className="text-amber-600 shrink-0 mt-0.5"/><div><p className="text-sm font-bold text-amber-800">Origem: {sourceMember?.nome}</p><p className="text-xs text-amber-700 mt-1">Este analista possui <strong>{taskCount} processos</strong> ativos.</p></div></div><p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Selecione o Destino</p><div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">{teamLoad.filter(m => m.id !== redistributionSourceId).map(member => { const load = member; return (<button key={member.id} onClick={() => handleBulkRedistribute(member.id)} className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-rose-300 hover:bg-rose-50 transition-all group text-left"><div className="flex items-center gap-3"><img src={member.avatar} className="w-8 h-8 rounded-full"/><div><p className="text-sm font-bold text-slate-700 group-hover:text-rose-700">{member.nome}</p><p className="text-[10px] text-slate-400">{member.cargo}</p></div></div><span className={`text-[10px] font-bold px-2 py-1 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount} ativos</span></button>); })}</div></div>
         </div>
       </div>
     );
@@ -126,7 +152,7 @@ export const SgpDashboard: React.FC = () => {
 
       <div className="bg-white rounded-[32px] shadow-lg border border-slate-200 overflow-hidden">
         <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"><h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-3"><Users size={20} className="text-slate-400"/> Gestão da Equipe SGP</h3></div>
-        <table className="w-full text-left border-collapse"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 w-1/3">Analista / Cargo</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Carga de Trabalho</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Status</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100">{teamLoad.map(member => (<tr key={member.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => handleViewMemberQueue(member.id)}><td className="px-8 py-6"><div className="flex items-center gap-4"><div className="relative"><img src={member.avatar} className="w-12 h-12 rounded-2xl border-2 border-white shadow-md group-hover:scale-105 transition-transform" /><div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${member.activeCount > 8 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div></div><div><p className="text-sm font-black text-slate-800">{member.name}</p><p className="text-[11px] font-medium text-slate-500 mt-0.5">{member.role}</p></div></div></td><td className="px-8 py-6"><div className="max-w-xs"><div className="flex justify-between text-xs font-bold mb-2"><span className="text-slate-600">{member.activeCount} Processos</span><span className="text-slate-400">{Math.round(member.utilization)}% Cap.</span></div><div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${member.utilization > 90 ? 'bg-red-500' : member.utilization > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(member.utilization, 100)}%` }}></div></div></div></td><td className="px-8 py-6 text-center"><span className={`inline-flex px-2 py-1 rounded text-[10px] font-black uppercase tracking-wide border ${member.activeCount > 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>{member.activeCount > 0 ? 'Ativo' : 'Disponível'}</span></td><td className="px-8 py-6 text-right"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); handleViewMemberQueue(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-sm" title="Ver Fila"><List size={16}/></button><button onClick={(e) => { e.stopPropagation(); setRedistributionSourceId(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 rounded-xl transition-all shadow-sm" title="Redistribuir Carga"><ArrowRightLeft size={16}/></button></div></td></tr>))}</tbody></table>
+        <table className="w-full text-left border-collapse"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 w-1/3">Analista / Cargo</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Carga de Trabalho</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Status</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100">{teamLoad.map(member => (<tr key={member.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => handleViewMemberQueue(member.id)}><td className="px-8 py-6"><div className="flex items-center gap-4"><div className="relative"><img src={member.avatar} className="w-12 h-12 rounded-2xl border-2 border-white shadow-md group-hover:scale-105 transition-transform" /><div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${member.activeCount > 8 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div></div><div><p className="text-sm font-black text-slate-800">{member.nome}</p><p className="text-[11px] font-medium text-slate-500 mt-0.5">{member.cargo}</p></div></div></td><td className="px-8 py-6"><div className="max-w-xs"><div className="flex justify-between text-xs font-bold mb-2"><span className="text-slate-600">{member.activeCount} Processos</span><span className="text-slate-400">{Math.round(member.utilization)}% Cap.</span></div><div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${member.utilization > 90 ? 'bg-red-500' : member.utilization > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(member.utilization, 100)}%` }}></div></div></div></td><td className="px-8 py-6 text-center"><span className={`inline-flex px-2 py-1 rounded text-[10px] font-black uppercase tracking-wide border ${member.activeCount > 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>{member.activeCount > 0 ? 'Ativo' : 'Disponível'}</span></td><td className="px-8 py-6 text-right"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); handleViewMemberQueue(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-sm" title="Ver Fila"><List size={16}/></button><button onClick={(e) => { e.stopPropagation(); setRedistributionSourceId(member.id); }} className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 rounded-xl transition-all shadow-sm" title="Redistribuir Carga"><ArrowRightLeft size={16}/></button></div></td></tr>))}</tbody></table>
       </div>
     </div>
   );
@@ -135,14 +161,14 @@ export const SgpDashboard: React.FC = () => {
     let filteredTasks = tasks;
     let config = { title: 'Caixa de Entrada', color: 'text-rose-600', icon: Inbox };
     if (listFilter === 'INBOX') filteredTasks = tasks.filter(t => t.status === 'PENDING' && !t.assignedTo);
-    else if (listFilter === 'MY_TASKS') { config = { title: 'Minha Fila de Trabalho', color: 'text-purple-600', icon: UserCog }; filteredTasks = tasks.filter(t => t.assignedTo === CURRENT_USER_ID && t.status === 'PENDING'); }
+    else if (listFilter === 'MY_TASKS') { config = { title: 'Minha Fila de Trabalho', color: 'text-purple-600', icon: UserCog }; filteredTasks = tasks.filter(t => t.assignedTo === currentUserId && t.status === 'PENDING'); }
     else if (listFilter === 'PROCESSED') { config = { title: 'Histórico de Processados', color: 'text-emerald-600', icon: CheckSquare }; filteredTasks = tasks.filter(t => t.status === 'PROCESSED'); }
-    else if (listFilter === 'TEAM_MEMBER' && selectedMemberId) { const member = SGP_TEAM.find(m => m.id === selectedMemberId); config = { title: `Fila de ${member?.name.split(' ')[0]}`, color: 'text-blue-600', icon: Users }; filteredTasks = tasks.filter(t => t.assignedTo === selectedMemberId && t.status === 'PENDING'); }
+    else if (listFilter === 'TEAM_MEMBER' && selectedMemberId) { const member = teamLoad.find(m => m.id === selectedMemberId); config = { title: `Fila de ${member?.nome.split(' ')[0]}`, color: 'text-blue-600', icon: Users }; filteredTasks = tasks.filter(t => t.assignedTo === selectedMemberId && t.status === 'PENDING'); }
 
     return (
       <div className="p-8 max-w-[1400px] mx-auto animate-in slide-in-from-right-4">
         <div className="flex justify-between items-center mb-8"><div className="flex items-center gap-4"><button onClick={() => setViewMode('DASHBOARD')} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-rose-600 hover:shadow-md transition-all"><ArrowLeft size={20} /></button><div><h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3"><config.icon className={config.color} size={28}/> {config.title}</h2><p className="text-slate-500 text-sm font-medium">Gestão de averbações e descontos em folha.</p></div></div><div className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200 shadow-sm">{filteredTasks.length} Registros</div></div>
-        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200 overflow-hidden"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Servidor / Matrícula</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Decisão / Origem</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo / Valor</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredTasks.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><FileSearch size={48} className="text-slate-200"/><p className="font-medium text-sm">Nenhum processo encontrado nesta fila.</p></div></td></tr>) : (filteredTasks.map(task => { const assignedStaff = SGP_TEAM.find(s => s.id === task.assignedTo); return (<tr key={task.id} className="hover:bg-slate-50 transition-colors group"><td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{task.serverName}</div><div className="text-[10px] font-mono text-slate-400 flex items-center gap-1"><User size={10}/> {task.matricula}</div></td><td className="px-6 py-4"><div className="text-xs font-medium text-slate-600">{task.decisionNumber}</div><div className="text-[10px] text-slate-400 mt-0.5">Origem: {task.origin}</div></td><td className="px-6 py-4"><div className="flex items-center gap-2"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${task.type === 'GLOSA' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{task.type}</span><span className="font-bold text-slate-700 text-sm">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(task.value)}</span></div></td><td className="px-6 py-4"><div className="flex flex-col"><span className={`text-xs font-bold ${task.status === 'PROCESSED' ? 'text-emerald-600' : 'text-slate-600'}`}>{task.status === 'PROCESSED' ? 'Averbado' : 'Pendente'}</span>{assignedStaff ? (<span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5"><img src={assignedStaff.avatar} className="w-4 h-4 rounded-full"/>{assignedStaff.name.split(' ')[0]}</span>) : (<span className="text-[10px] text-slate-400 italic">Não atribuído</span>)}</div></td><td className="px-6 py-4 text-right relative">{listFilter === 'TEAM_MEMBER' ? (<><button onClick={() => setAssigningId(assigningId === task.id ? null : task.id)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition-all shadow-sm"><UserPlus size={14}/> Reatribuir</button>{assigningId === task.id && (<div className="absolute right-6 top-12 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 animate-in zoom-in-95 origin-top-right overflow-hidden text-left"><div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black text-slate-500 uppercase">Novo Responsável</span><button onClick={() => setAssigningId(null)}><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-64 overflow-y-auto">{SGP_TEAM.map(member => { if (member.id === task.assignedTo) return null; const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={() => handleAssign(task.id, member.id)} className="w-full text-left px-4 py-3 hover:bg-rose-50 flex items-center gap-3 border-b border-slate-50 last:border-0 group/item transition-colors"><img src={member.avatar} className="w-8 h-8 rounded-full border border-slate-100"/><div className="flex-1"><p className="text-xs font-bold text-slate-700 group-hover/item:text-rose-700">{member.name}</p><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount} ativos</span></div></button>); })}</div></div>)}</>) : !task.assignedTo ? (<button onClick={() => handleAssign(task.id, CURRENT_USER_ID)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all shadow-sm"><UserPlus size={14}/> Assumir</button>) : task.assignedTo === CURRENT_USER_ID ? (<button onClick={() => { setSelectedTask(task); setViewMode('WORKSTATION'); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-600 text-white border border-rose-600 rounded-lg text-xs font-bold hover:bg-rose-700 transition-all shadow-sm"><Calculator size={14}/> Averbar</button>) : (<span className="text-xs font-bold text-slate-400 italic">Atribuído</span>)}</td></tr>); }))}</tbody></table></div>
+        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200 overflow-hidden"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Servidor / Matrícula</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Decisão / Origem</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo / Valor</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredTasks.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><FileSearch size={48} className="text-slate-200"/><p className="font-medium text-sm">Nenhum processo encontrado nesta fila.</p></div></td></tr>) : (filteredTasks.map(task => { const assignedStaff = teamLoad.find(s => s.id === task.assignedTo); return (<tr key={task.id} className="hover:bg-slate-50 transition-colors group"><td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{task.serverName}</div><div className="text-[10px] font-mono text-slate-400 flex items-center gap-1"><User size={10}/> {task.matricula}</div></td><td className="px-6 py-4"><div className="text-xs font-medium text-slate-600">{task.decisionNumber}</div><div className="text-[10px] text-slate-400 mt-0.5">Origem: {task.origin}</div></td><td className="px-6 py-4"><div className="flex items-center gap-2"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${task.type === 'GLOSA' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{task.type}</span><span className="font-bold text-slate-700 text-sm">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(task.value)}</span></div></td><td className="px-6 py-4"><div className="flex flex-col"><span className={`text-xs font-bold ${task.status === 'PROCESSED' ? 'text-emerald-600' : 'text-slate-600'}`}>{task.status === 'PROCESSED' ? 'Averbado' : 'Pendente'}</span>{assignedStaff ? (<span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5"><img src={assignedStaff.avatar} className="w-4 h-4 rounded-full"/>{assignedStaff.nome.split(' ')[0]}</span>) : (<span className="text-[10px] text-slate-400 italic">Não atribuído</span>)}</div></td><td className="px-6 py-4 text-right relative">{listFilter === 'TEAM_MEMBER' ? (<><button onClick={() => setAssigningId(assigningId === task.id ? null : task.id)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition-all shadow-sm"><UserPlus size={14}/> Reatribuir</button>{assigningId === task.id && (<div className="absolute right-6 top-12 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 animate-in zoom-in-95 origin-top-right overflow-hidden text-left"><div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black text-slate-500 uppercase">Novo Responsável</span><button onClick={() => setAssigningId(null)}><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-64 overflow-y-auto">{teamLoad.map(member => { if (member.id === task.assignedTo) return null; const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={() => handleAssign(task.id, member.id)} className="w-full text-left px-4 py-3 hover:bg-rose-50 flex items-center gap-3 border-b border-slate-50 last:border-0 group/item transition-colors"><img src={member.avatar} className="w-8 h-8 rounded-full border border-slate-100"/><div className="flex-1"><p className="text-xs font-bold text-slate-700 group-hover/item:text-rose-700">{member.nome}</p><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount} ativos</span></div></button>); })}</div></div>)}</>) : !task.assignedTo ? (<button onClick={() => handleAssign(task.id, currentUserId)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all shadow-sm"><UserPlus size={14}/> Assumir</button>) : task.assignedTo === currentUserId ? (<button onClick={() => { setSelectedTask(task); setViewMode('WORKSTATION'); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-600 text-white border border-rose-600 rounded-lg text-xs font-bold hover:bg-rose-700 transition-all shadow-sm"><Calculator size={14}/> Averbar</button>) : (<span className="text-xs font-bold text-slate-400 italic">Atribuído</span>)}</td></tr>); }))}</tbody></table></div>
       </div>
     );
   };
@@ -456,8 +482,38 @@ export const SgpDashboard: React.FC = () => {
 
   return (
     <div className="h-full bg-[#f8fafc] overflow-hidden flex flex-col">
-      {viewMode !== 'WORKSTATION' && (<header className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm z-20"><div><h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">Gestão de Pessoas <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-lg text-xs font-medium tracking-normal border border-rose-200">SGP</span></h1><p className="text-slate-500 font-medium mt-2 flex items-center gap-2"><Users size={16} className="text-rose-500" /> Módulo de Averbação de Descontos e Ressarcimentos</p></div><div className="flex items-center gap-4"><div className="flex -space-x-3 mr-4">{SGP_TEAM.map(member => (<img key={member.id} src={member.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm cursor-help hover:z-10 transition-all hover:scale-110" title={member.name} />))}</div></div></header>)}
+      {viewMode !== 'WORKSTATION' && (<header className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm z-20"><div><h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">Gestao de Pessoas <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-lg text-xs font-medium tracking-normal border border-rose-200">SGP</span></h1><p className="text-slate-500 font-medium mt-2 flex items-center gap-2"><Users size={16} className="text-rose-500" /> Módulo de Averbação de Descontos e Ressarcimentos</p></div><div className="flex items-center gap-4"><div className="flex -space-x-3 mr-4">{teamLoad.map(member => (<img key={member.id} src={member.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm cursor-help hover:z-10 transition-all hover:scale-110" title={member.nome} />))}</div></div></header>)}
       <div className="flex-1 overflow-hidden relative">{viewMode === 'DASHBOARD' && (<div className="h-full overflow-y-auto custom-scrollbar">{renderDashboard()}</div>)}{viewMode === 'LIST' && (<div className="h-full overflow-y-auto custom-scrollbar">{renderProcessList()}</div>)}{viewMode === 'WORKSTATION' && (<div className="absolute inset-0 z-30">{renderWorkstation()}</div>)}{renderRedistributionModal()}</div>
+      
+      {/* SGP Context Drawer */}
+      <SgpContextDrawer
+        task={selectedSgpTask}
+        isOpen={showContextDrawer}
+        onClose={() => { setShowContextDrawer(false); setSelectedSgpTask(null); }}
+        onSign={async (taskId) => {
+          const result = await signTask(taskId, signaturePin || '123456');
+          if (result.success) setShowContextDrawer(false);
+        }}
+        onReturn={async (taskId, reason) => {
+          const origin = selectedSgpTask?.origem || 'SOSFU';
+          await returnTask(taskId, origin as 'SOSFU' | 'AJSEFIN', reason);
+        }}
+        onCreateDocument={(taskId) => {
+          setDocCreatorTaskId(taskId);
+          setShowDocCreator(true);
+        }}
+      />
+
+      {/* SGP Document Creator */}
+      <SgpDocumentCreator
+        isOpen={showDocCreator}
+        onClose={() => setShowDocCreator(false)}
+        taskId={docCreatorTaskId}
+        solicitacaoId={selectedSgpTask?.solicitacao_id || undefined}
+        onSuccess={() => {
+          setShowDocCreator(false);
+        }}
+      />
     </div>
   );
 };

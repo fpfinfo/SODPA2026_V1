@@ -1,0 +1,44 @@
+components/Ajsefin/AutorizacaoExcepcionalView.tsx(234,30): error TS2339: Property 'unidade' does not exist on type 'ExceptionalProcess'.
+components/Ajsefin/AutorizacaoExcepcionalView.tsx(235,34): error TS2339: Property 'valor_total' does not exist on type 'ExceptionalProcess'.
+components/Ajsefin/AutorizacaoExcepcionalView.tsx(287,26): error TS2339: Property 'valor_total' does not exist on type 'ExceptionalProcess'.
+components/Ajsefin/AutorizacaoExcepcionalView.tsx(505,84): error TS2339: Property 'unidade' does not exist on type 'ExceptionalProcess'.
+components/Ajsefin/AutorizacaoExcepcionalView.tsx(509,99): error TS2339: Property 'valor_total' does not exist on type 'ExceptionalProcess'.
+components/Documents/ReciboTransporteModal.tsx(14,27): error TS2554: Expected 1 arguments, but got 0.
+components/Gestor/BatchSigningModal.tsx(89,49): error TS2339: Property 'nome' does not exist on type '{ nome: any; }[]'.
+components/Gestor/GestorDashboard.tsx(118,9): error TS1117: An object literal cannot have multiple properties with the same name.
+components/Gestor/GestorDashboard.tsx(984,72): error TS2552: Cannot find name 'Unlock'. Did you mean 'Lock'?
+components/Gestor/GestorDashboard.tsx(984,93): error TS2607: JSX element class does not support attributes because it does not have a 'props' property.
+components/Gestor/GestorDashboard.tsx(984,94): error TS2786: 'Lock' cannot be used as a JSX component.
+  Its type '{ new (): Lock; prototype: Lock; }' is not a valid JSX element type.
+    Type '{ new (): Lock; prototype: Lock; }' is not assignable to type 'new (props: any, context: any) => Component<any, any, any>'.
+      Type 'Lock' is missing the following properties from type 'Component<any, any, any>': context, setState, forceUpdate, render, and 2 more.
+components/Gestor/GestorDashboard.tsx(1000,32): error TS2304: Cannot find name 'AlertTriangle'.
+components/Gestor/GestorDashboard.tsx(1441,34): error TS2304: Cannot find name 'isChecklistComplete'.
+components/Gestor/GestorDashboard.tsx(1443,25): error TS2304: Cannot find name 'isChecklistComplete'.
+components/Gestor/GestorDashboard.tsx(1448,48): error TS2304: Cannot find name 'isChecklistComplete'.
+components/Gestor/GestorDashboard.tsx(1688,31): error TS2304: Cannot find name 'BRASAO_TJPA_URL'.
+components/Gestor/GestorDashboard.tsx(1731,34): error TS2304: Cannot find name 'BRASAO_TJPA_URL'.
+components/Gestor/GestorDashboard.tsx(1860,27): error TS2304: Cannot find name 'BRASAO_TJPA_URL'.
+components/Gestor/GestorDashboard.tsx(1877,139): error TS2304: Cannot find name 'BRASAO_TJPA_URL'.
+components/Gestor/GestorDashboard.tsx(1958,33): error TS2304: Cannot find name 'BRASAO_TJPA_URL'.
+components/Gestor/GestorDashboard.tsx(2071,29): error TS2304: Cannot find name 'BRASAO_TJPA_URL'.
+components/Gestor/GestorDashboard.tsx(2092,35): error TS2304: Cannot find name 'BRASAO_TJPA_URL'.
+components/Gestor/PrestacaoAtestoTab.tsx(366,23): error TS2367: This comparison appears to be unintentional because the types '"NOTA_FISCAL" | "CUPOM_FISCAL" | "RECIBO" | "FATURA" | "OUTROS"' and '"PASSAGEM"' have no overlap.
+components/ProcessDetails/Tabs/DetailsTab.tsx(174,21): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+components/ProcessDetails/UniversalProcessDetailsPage.tsx(211,67): error TS2551: Property 'juri_participants' does not exist on type 'ProcessData'. Did you mean 'juri_participantes'?
+components/SEFIN/views/SefinInboxView.tsx(347,27): error TS2339: Property 'id' does not exist on type '{ nup: string; suprido_nome: string; lotacao_nome: string; valor_total: number; status: string; created_at: string; }'.
+components/SEFIN/views/SefinInboxView.tsx(347,69): error TS2339: Property 'id' does not exist on type '{ nup: string; suprido_nome: string; lotacao_nome: string; valor_total: number; status: string; created_at: string; }'.
+components/SEFIN/views/SefinInboxView.tsx(348,44): error TS2339: Property 'id' does not exist on type '{ nup: string; suprido_nome: string; lotacao_nome: string; valor_total: number; status: string; created_at: string; }'.
+components/SOSFU/PrestacaoContasTab.tsx(136,5): error TS2339: Property 'devolvPC' does not exist on type '{ fetchPC: () => Promise<void>; createPC: (valorConcedido: number) => Promise<{ success: boolean; data: any; error?: undefined; } | { success: boolean; error: any; data?: undefined; }>; ... 25 more ...; error: string; }'.
+hooks/useSupridoCRM.ts(203,3): error TS2304: Cannot find name 'useEffect'.
+lib/riskEngine.ts(1,30): error TS2307: Cannot find module './useSupridoCRM' or its corresponding type declarations.
+supabase/functions/analyze-justification/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/analyze-justification/index.ts(2,30): error TS2307: Cannot find module 'jsr:@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/analyze-justification/index.ts(4,24): error TS2304: Cannot find name 'Deno'.
+supabase/functions/analyze-justification/index.ts(116,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/analyze-justification/index.ts(117,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/process-document/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/process-document/index.ts(2,30): error TS2307: Cannot find module 'jsr:@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/process-document/index.ts(3,23): error TS2307: Cannot find module 'npm:tesseract.js@5' or its corresponding type declarations.
+supabase/functions/process-document/index.ts(171,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/process-document/index.ts(172,7): error TS2304: Cannot find name 'Deno'.

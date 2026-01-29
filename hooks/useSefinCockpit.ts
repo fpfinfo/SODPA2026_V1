@@ -15,6 +15,14 @@ export interface SefinTask {
   created_at: string
   signed_at?: string
   signed_by?: string
+  // Assignment
+  assigned_to?: string
+  assigned_at?: string
+  assigned_by?: string
+  assignee?: {
+    nome: string
+    avatar_url?: string
+  }
   // Risk assessment
   riskScore: number       // 0-100
   riskLevel: RiskLevel
@@ -55,6 +63,7 @@ export interface SefinFilters {
   type: 'all' | 'PORTARIA' | 'CERTIDAO_REGULARIDADE' | 'NOTA_EMPENHO' | 'NOTA_LIQUIDACAO' | 'ORDEM_BANCARIA' | 'AUTORIZACAO_ORDENADOR'
   priority: 'all' | 'urgent' | 'high-value' | 'normal'
   period: 'today' | 'week' | 'month' | 'all'
+  assignee: 'all' | 'me' | 'unassigned' | string
   searchQuery: string
 }
 
@@ -128,6 +137,7 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
     type: 'all',
     priority: 'all',
     period: 'all',
+    assignee: 'all',
     searchQuery: ''
   })
 
@@ -458,12 +468,15 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       }
 
       // Check if all documents for this solicitacao are signed
+      // CRITICAL: Exclude the current task from the check since it was just updated to SIGNED
+      // but the DB transaction may not be committed yet
       if (task?.solicitacao_id) {
         const { data: pendingTasks } = await supabase
           .from('sefin_tasks')
           .select('id')
           .eq('solicitacao_id', task.solicitacao_id)
           .neq('status', 'SIGNED')
+          .neq('id', taskId)  // Exclude the task we just signed
 
         // If no more pending tasks for this process, update solicitacao status
         if (!pendingTasks || pendingTasks.length === 0) {
@@ -623,25 +636,80 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       }
 
       // Get unique solicitacao_ids and check if all tasks are signed
+      // CRITICAL: Exclude the tasks we just signed from the pending check
       const solicitacaoIds = [...new Set((tasks || []).map(t => t.solicitacao_id).filter(Boolean))]
       for (const solicitacaoId of solicitacaoIds) {
-        const { data: pendingTasks } = await supabase
+        // Get tasks for this solicitacao that we signed in this batch
+        const signedTasksForSolicitacao = (tasks || []).filter(t => t.solicitacao_id === solicitacaoId).map(t => t.id)
+        
+        let query = supabase
           .from('sefin_tasks')
-          .select('id')
+          .select('id, tipo')
           .eq('solicitacao_id', solicitacaoId)
           .neq('status', 'SIGNED')
+        
+        // Exclude all tasks we just signed in this batch
+        for (const signedId of signedTasksForSolicitacao) {
+          query = query.neq('id', signedId)
+        }
+        
+        const { data: pendingTasks } = await query
 
         // If no pending tasks, update solicitacao status
         if (!pendingTasks || pendingTasks.length === 0) {
-          await supabase
-            .from('solicitacoes')
-            .update({ 
-              status: 'APROVADO',
-              status_workflow: 'SIGNED_BY_SEFIN', // SCS 4.0: Unlock DL/OB generation
-              destino_atual: 'SOSFU',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', solicitacaoId)
+          // Get the tipos of tasks we signed to determine routing
+          const signedTaskTypes = (tasks || [])
+            .filter(t => t.solicitacao_id === solicitacaoId)
+            .map(t => t.tipo)
+          
+          const hasAjsefinDocument = signedTaskTypes.some(tipo => 
+            ['PARECER', 'DECISAO', 'DESPACHO', 'CERTIDAO'].includes(tipo)
+          )
+          const hasExceptionalAuth = signedTaskTypes.includes('AUTORIZACAO_ORDENADOR')
+          
+          if (hasExceptionalAuth) {
+            // Exceptional authorization - return to SOSFU
+            await supabase
+              .from('solicitacoes')
+              .update({ 
+                status: 'AUTORIZADO ORDENADOR',
+                destino_atual: 'SOSFU',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', solicitacaoId)
+          } else if (hasAjsefinDocument) {
+            // AJSEFIN document - return to AJSEFIN for tramitation
+            await supabase
+              .from('solicitacoes')
+              .update({ 
+                status: 'DOCUMENTO ASSINADO',
+                destino_atual: 'AJSEFIN',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', solicitacaoId)
+            
+            // Record tramitation
+            await supabase
+              .from('tramitacoes')
+              .insert({
+                solicitacao_id: solicitacaoId,
+                origem: 'SEFIN',
+                destino: 'AJSEFIN',
+                observacao: 'Documento(s) assinado(s) pelo Ordenador. Processo retorna à AJSEFIN para tramitação.',
+                user_id: user.id
+              })
+          } else {
+            // Regular flow - mark as APROVADO
+            await supabase
+              .from('solicitacoes')
+              .update({ 
+                status: 'APROVADO',
+                status_workflow: 'SIGNED_BY_SEFIN', // SCS 4.0: Unlock DL/OB generation
+                destino_atual: 'SOSFU',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', solicitacaoId)
+          }
         }
       }
 
@@ -671,6 +739,51 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
     }
   }, [fetchTasks])
 
+  // Assign task to a specific member
+  const assignTask = useCallback(async (taskId: string, memberId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      const { error } = await supabase
+        .from('sefin_tasks')
+        .update({
+          assigned_to: memberId,
+          assigned_at: new Date().toISOString(),
+          assigned_by: user?.id
+        })
+        .eq('id', taskId)
+
+      if (error) throw error
+
+      await fetchTasks()
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  }, [fetchTasks])
+
+  // Assign task to current user
+  const assignToMe = useCallback(async (taskId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return { success: false, error: 'Usuário não autenticado' }
+
+      return assignTask(taskId, user.id)
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  }, [assignTask])
+
+  // Get current user ID
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) setCurrentUserId(user.id)
+    }
+    getCurrentUser()
+  }, [])
+
   return {
     // Data
     tasks,
@@ -678,6 +791,7 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
     kpis,
     isLoading,
     error,
+    currentUserId,
     
     // Filters
     filters,
@@ -690,8 +804,11 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
     signTask,
     signMultipleTasks,
     returnTask,
+    assignTask,
+    assignToMe,
     refresh: fetchTasks
   }
 }
 
 export default useSefinCockpit
+
