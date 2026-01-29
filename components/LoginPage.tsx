@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabaseClient';
-import { Loader2, Lock, Mail, AlertCircle, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Loader2, Lock, Mail, AlertCircle, ArrowLeft, CheckCircle, Plane } from 'lucide-react';
 
-const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
+const BRASAO_TJPA_URL = 'https://bnlgogjdoqaqcjjunevu.supabase.co/storage/v1/object/public/assets/brasao-tjpa.png';
 
 export const LoginPage: React.FC = () => {
   const { signIn } = useAuth();
@@ -85,18 +85,14 @@ export const LoginPage: React.FC = () => {
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-center">
             <div className="flex justify-center mb-4">
               <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                <img 
-                  src={BRASAO_TJPA_URL} 
-                  alt="Brasão TJPA" 
-                  className="w-16 h-16 object-contain"
-                />
+                <Plane size={48} className="text-white" />
               </div>
             </div>
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              SCS <span className="text-blue-200">TJPA</span>
+              SODPA <span className="text-blue-200">TJPA</span>
             </h1>
             <p className="text-blue-200/80 text-sm mt-1">
-              {showForgotPassword ? 'Recuperação de Senha' : 'Sistema de Concessão de Suprimentos'}
+              {showForgotPassword ? 'Recuperação de Senha' : 'Serviço de Diárias e Passagens'}
             </p>
           </div>
 
