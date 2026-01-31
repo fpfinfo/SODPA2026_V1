@@ -64,7 +64,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
           prioridade,
           observacoes,
           created_at,
-          atribuido_a,
+          assigned_to_id,
           profiles!diarias_servidor_id_fkey (
             id,
             nome,
@@ -72,7 +72,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
             cargo
           )
         `)
-        .is('atribuido_a', null)
+        .is('assigned_to_id', null)
         .in('status', ['SOLICITADA', 'PENDENTE_ANALISE', 'RETORNO_SEFIN'])
         .order('created_at', { ascending: false });
 
@@ -92,7 +92,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
           prioridade,
           justificativa,
           created_at,
-          atribuido_a,
+          assigned_to_id,
           profiles!passagens_servidor_id_fkey (
             id,
             nome,
@@ -100,7 +100,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
             cargo
           )
         `)
-        .is('atribuido_a', null)
+        .is('assigned_to_id', null)
         .in('status', ['SOLICITADA', 'PENDENTE_ANALISE', 'RETORNO_SEFIN'])
         .order('created_at', { ascending: false });
 
@@ -122,7 +122,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
         dataFim: d.data_fim,
         destino: d.destino,
         observacoes: d.observacoes,
-        atribuidoA: d.atribuido_a,
+        atribuidoA: d.assigned_to_id,
         createdAt: d.created_at,
       }));
 
@@ -140,7 +140,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
         tipoPassagem: p.tipo_passagem,
         classeTarifa: p.classe_tarifa,
         justificativa: p.justificativa,
-        atribuidoA: p.atribuido_a,
+        atribuidoA: p.assigned_to_id,
         createdAt: p.created_at,
       }));
 
@@ -171,7 +171,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
       const { error: updateError } = await supabase
         .from(table)
         .update({ 
-          atribuido_a: user.id,
+          assigned_to_id: user.id,
           status: 'EM_ANALISE',
           updated_at: new Date().toISOString()
         })
@@ -202,7 +202,7 @@ export function useSODPAInbox(): UseSODPAInboxReturn {
       const { error: updateError } = await supabase
         .from(table)
         .update({ 
-          atribuido_a: memberId,
+          assigned_to_id: memberId,
           status: 'EM_ANALISE',
           updated_at: new Date().toISOString()
         })

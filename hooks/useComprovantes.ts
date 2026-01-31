@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabaseClient'
 // =============================================================================
 
 export type TipoComprovante = 'NOTA_FISCAL' | 'CUPOM_FISCAL' | 'RECIBO' | 'FATURA' | 'PASSAGEM' | 'OUTROS'
-export type ElementoDespesa = '3.3.90.30' | '3.3.90.33' | '3.3.90.36' | '3.3.90.39'
+export type ElementoDespesa = '3.3.90.30.01' | '3.3.90.30.02' | '3.3.90.33' | '3.3.90.36' | '3.3.90.39'
 export type SentinelaRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 
 export interface ComprovanteMetadata {
@@ -97,7 +97,8 @@ const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp
 
 // Elementos de despesa com labels
 export const ELEMENTOS_DESPESA = [
-  { code: '3.3.90.30', label: 'Material de Consumo' },
+  { code: '3.3.90.30.01', label: 'Material de Consumo' },
+  { code: '3.3.90.30.02', label: 'Combustíveis e Lubrificantes' },
   { code: '3.3.90.33', label: 'Passagens e Locomoção' },
   { code: '3.3.90.36', label: 'Serviços Pessoa Física' },
   { code: '3.3.90.39', label: 'Serviços Pessoa Jurídica' }
@@ -318,6 +319,52 @@ export function useComprovantes({ prestacaoId }: UseComprovantesOptions) {
   }, [comprovantes])
 
   // ==========================================================================
+  // DELETE ALL - Limpar todos os comprovantes (útil para reiniciar rascunho de testes)
+  // ==========================================================================
+  const deleteAllComprovantes = useCallback(async () => {
+    if (comprovantes.length === 0) return { success: true };
+    
+    try {
+      setError(null);
+      setIsLoading(true); // Show loading state during bulk delete
+
+      const filePaths = comprovantes.map(c => c.file_path).filter(Boolean);
+      const ids = comprovantes.map(c => c.id);
+
+      // 1. Remover do Storage (Batch)
+      if (filePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove(filePaths);
+
+        if (storageError) {
+          console.warn('⚠️ [useComprovantes] Storage bulk delete warning:', storageError);
+        }
+      }
+
+      // 2. Remover do Banco
+      const { error: deleteError } = await supabase
+        .from('comprovantes_pc')
+        .delete()
+        .in('id', ids);
+
+      if (deleteError) throw deleteError;
+
+      // 3. Atualizar estado local
+      setComprovantes([]);
+      
+      console.log('✅ [useComprovantes] Deleted all:', ids.length, 'items');
+      return { success: true };
+    } catch (err: any) {
+      console.error('❌ [useComprovantes] Delete All error:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [comprovantes]);
+
+  // ==========================================================================
   // VALIDAR - Marcar comprovante como validado (SOSFU action)
   // ==========================================================================
   const validarComprovante = useCallback(async (
@@ -462,6 +509,7 @@ export function useComprovantes({ prestacaoId }: UseComprovantesOptions) {
     fetchComprovantes,
     uploadComprovante,
     deleteComprovante,
+    deleteAllComprovantes,
     validarComprovante,
     runSentinelaOCR,
     refresh: fetchComprovantes

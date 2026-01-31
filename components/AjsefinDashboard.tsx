@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useToast } from './ui/ToastProvider';
 import { UniversalProcessDetailsPage } from './ProcessDetails';
 import { TramitarModal } from './TramitarModal';
 import { DocumentCreationWizard } from './DocumentCreationWizard';
@@ -39,7 +40,12 @@ import {
   FileSearch,
   ArrowRightLeft,
   UserMinus,
-  Check
+  Check,
+  ArrowRight,
+  Zap,
+  Calendar,
+  Timer,
+  CheckCircle2
 } from 'lucide-react';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
@@ -87,9 +93,16 @@ export const AjsefinDashboard: React.FC = () => {
   
   // States for UniversalProcessDetailsPage integration
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>('Assessor');
   const [showTramitarModal, setShowTramitarModal] = useState(false);
   const [showDocumentWizard, setShowDocumentWizard] = useState(false);
   const [selectedProcessForDetails, setSelectedProcessForDetails] = useState<LegalProcess | null>(null);
+  const [filterPeriod, setFilterPeriod] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
+  
+  // Sprint 3: Animation and notification states
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const prevProcessCountRef = useRef<number>(0);
+  const { showToast } = useToast();
   
   // Fetch current user ID and data on mount
   useEffect(() => {
@@ -98,7 +111,18 @@ export const AjsefinDashboard: React.FC = () => {
       try {
         // 1. Fetch current user
         const { data: { user } } = await supabase.auth.getUser();
-        if (user?.id) setCurrentUserId(user.id);
+        if (user?.id) {
+          setCurrentUserId(user.id);
+          // Fetch user name for Welcome Card
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('nome')
+            .eq('id', user.id)
+            .single();
+          if (profile?.nome) {
+            setCurrentUserName(profile.nome.split(' ')[0]);
+          }
+        }
 
         // 2. Fetch AJSEFIN team members from profiles
         const { data: ajsefinProfiles, error: teamError } = await supabase
@@ -108,15 +132,21 @@ export const AjsefinDashboard: React.FC = () => {
         
         if (teamError) console.error('Error fetching AJSEFIN team:', teamError);
         else if (ajsefinProfiles) {
-          const team: TeamMember[] = ajsefinProfiles.map((p, index) => ({
-            id: p.id,
-            name: p.nome || `Assessor ${index + 1}`,
-            role: p.cargo || 'Assessor Jurídico',
-            avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.nome || 'user'}`,
-            capacity: 10 // Capacidade padrão
-          }));
+          const team: TeamMember[] = ajsefinProfiles.map((p, index) => {
+            // Generate initials-based fallback avatar
+            const initials = (p.nome || 'U').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=7c3aed&color=fff&bold=true&size=128`;
+            
+            return {
+              id: p.id,
+              name: p.nome || `Assessor ${index + 1}`,
+              role: p.cargo || 'Assessor Jurídico',
+              avatar: p.avatar_url || fallbackAvatar, // Use avatar_url from profile, or initials-based fallback
+              capacity: 10 // Capacidade padrão
+            };
+          });
           setTeamMembers(team);
-          console.log('[AJSEFIN] Team members loaded:', team.length, team.map(t => t.name));
+          console.log('[AJSEFIN] Team members loaded:', team.length, team.map(t => ({ name: t.name, hasAvatar: !!ajsefinProfiles.find(p => p.id === t.id)?.avatar_url })));
         }
 
         // 3. Fetch real processes destined to AJSEFIN
@@ -198,6 +228,22 @@ export const AjsefinDashboard: React.FC = () => {
     fetchData();
   }, []);
 
+  // Sprint 3: Notify when new processes arrive
+  useEffect(() => {
+    const newInboxCount = processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo).length;
+    
+    if (prevProcessCountRef.current > 0 && newInboxCount > prevProcessCountRef.current) {
+      const diff = newInboxCount - prevProcessCountRef.current;
+      showToast({
+        type: 'info',
+        title: `📥 ${diff} novo${diff > 1 ? 's' : ''} processo${diff > 1 ? 's' : ''}!`,
+        message: 'Novos processos chegaram na sua caixa de entrada.'
+      });
+    }
+    
+    prevProcessCountRef.current = newInboxCount;
+  }, [processes, showToast]);
+
   const stats = useMemo(() => ({
     newInbox: processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo).length,
     myTasks: processes.filter(p => p.assignedTo === currentUserId && !['AGUARDANDO_ASSINATURA', 'ENVIADO'].includes(p.status)).length,
@@ -211,6 +257,37 @@ export const AjsefinDashboard: React.FC = () => {
     const memberProcesses = processes.filter(p => p.assignedTo === member.id);
     return { ...member, activeCount: memberProcesses.length, lateCount: memberProcesses.filter(p => p.isLate).length, utilization: (memberProcesses.length / member.capacity) * 100 };
   }), [processes, teamMembers]);
+
+  // Keyboard shortcut: Esc to go back
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (selectedProcessForDetails) {
+          setSelectedProcessForDetails(null);
+        } else if (viewMode !== 'DASHBOARD') {
+          setViewMode('DASHBOARD');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewMode, selectedProcessForDetails]);
+
+  // Calculate upcoming deadlines for Radar
+  const upcomingDeadlines = useMemo(() => {
+    const myProcesses = processes.filter(p => p.assignedTo === currentUserId);
+    return myProcesses
+      .filter(p => p.deadline !== '-')
+      .map(p => {
+        const deadlineDate = new Date(p.deadline.split('/').reverse().join('-'));
+        const now = new Date();
+        const daysUntil = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return { ...p, daysUntil };
+      })
+      .filter(p => p.daysUntil <= 7) // Only show next 7 days
+      .sort((a, b) => a.daysUntil - b.daysUntil)
+      .slice(0, 5); // Max 5 items
+  }, [processes, currentUserId]);
 
   const getAssignee = (id: string | null) => teamMembers.find(m => m.id === id);
 
@@ -306,6 +383,39 @@ export const AjsefinDashboard: React.FC = () => {
 
   const renderDashboard = () => (
     <div className="p-8 max-w-[1600px] mx-auto space-y-10 animate-in fade-in">
+      
+      {/* Welcome Card */}
+      {stats.myTasks > 0 && (
+        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <Scale className="absolute top-4 right-4 text-white/10" size={48} />
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                <span className="text-2xl">⚖️</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white">Olá, {currentUserName}!</h2>
+                <p className="text-purple-100 text-sm font-medium mt-0.5">
+                  Você tem <span className="font-black text-white">{stats.myTasks} processo{stats.myTasks !== 1 ? 's' : ''}</span> aguardando sua análise.
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => handleCardClick('LIST', 'MY_TASKS')}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-purple-700 rounded-xl font-black text-sm hover:bg-purple-50 shadow-lg transition-all transform hover:scale-105 active:scale-95"
+            >
+              <UserCog size={18} />
+              Ver Minha Fila
+              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-6 gap-5">
         <div onClick={() => handleCardClick('INBOX')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-blue-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform"><Inbox size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Geral</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.newInbox}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-blue-600">Novos Recebidos</p><p className="text-[10px] text-slate-400 mt-1">Aguardando distribuição</p></div></div>
         <div onClick={() => handleCardClick('LIST', 'MY_TASKS')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-purple-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-purple-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform"><UserCog size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Minha Fila</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.myTasks}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-purple-600">Atribuídos a Mim</p><p className="text-[10px] text-slate-400 mt-1">Processos na sua mesa</p></div></div>
@@ -314,6 +424,56 @@ export const AjsefinDashboard: React.FC = () => {
         <div onClick={() => handleCardClick('LIST', 'SIGNED')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-teal-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-teal-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-teal-50 text-teal-600 rounded-xl group-hover:scale-110 transition-transform"><Send size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Tramitação</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.signed || 0}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-teal-600">Tramitar p/ SOSFU</p><p className="text-[10px] text-slate-400 mt-1">Assinados pelo Ordenador</p></div></div>
         <div onClick={() => handleCardClick('LIST', 'RETURNED')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:border-red-400 hover:shadow-md transition-all cursor-pointer"><div className="absolute top-0 left-0 w-1 h-full bg-red-500 group-hover:w-2 transition-all"></div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform"><CornerUpLeft size={20}/></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Atenção</span></div><div><h3 className="text-3xl font-black text-slate-800 mb-1">{stats.returned}</h3><p className="text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-red-600">Devolvidos</p><p className="text-[10px] text-slate-400 mt-1">Correções solicitadas</p></div></div>
       </div>
+      
+      {/* Radar de Prazos */}
+      {upcomingDeadlines.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                <Timer size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">Radar de Prazos</h3>
+                <p className="text-[10px] text-slate-400">Próximos 7 dias • Meus processos</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {upcomingDeadlines.map(p => (
+              <div 
+                key={p.id}
+                onClick={() => setSelectedProcessForDetails(p)}
+                className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`text-lg font-black ${
+                    p.daysUntil <= 0 ? 'text-red-600' : 
+                    p.daysUntil <= 2 ? 'text-amber-600' : 
+                    'text-emerald-600'
+                  }`}>
+                    {p.daysUntil <= 0 ? '🔴' : p.daysUntil <= 2 ? '🟡' : '🟢'}
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 group-hover:text-amber-700">{p.subject}</p>
+                    <p className="text-[10px] text-slate-400">{p.protocol}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={`text-xs font-black ${
+                    p.daysUntil <= 0 ? 'text-red-600' : 
+                    p.daysUntil <= 2 ? 'text-amber-600' : 
+                    'text-slate-600'
+                  }`}>
+                    {p.daysUntil <= 0 ? 'Vencido!' : p.daysUntil === 1 ? 'Amanhã' : `${p.daysUntil} dias`}
+                  </span>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{p.deadline}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Special Card: Autorização Excepcional de Júri */}
       {processes.length > 0 && (
@@ -369,12 +529,96 @@ export const AjsefinDashboard: React.FC = () => {
   };
 
   const renderInbox = () => {
-    const unassignedProcesses = processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo);
-    console.log('[AJSEFIN] renderInbox - Total processes:', processes.length, 'Unassigned (TRIAGEM):', unassignedProcesses.length, 'All statuses:', processes.map(p => p.status));
+    let unassignedProcesses = processes.filter(p => p.status === 'TRIAGEM' && !p.assignedTo);
+    
+    // Apply period filter
+    if (filterPeriod !== 'ALL') {
+      unassignedProcesses = unassignedProcesses.filter(p => {
+        if (p.entryDate === '-') return true;
+        const entryDate = new Date(p.entryDate.split('/').reverse().join('-'));
+        const now = new Date();
+        const daysDiff = Math.floor((now.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (filterPeriod === 'TODAY' && daysDiff > 0) return false;
+        if (filterPeriod === 'WEEK' && daysDiff > 7) return false;
+        if (filterPeriod === 'MONTH' && daysDiff > 30) return false;
+        return true;
+      });
+    }
+    
+    console.log('[AJSEFIN] renderInbox - Total processes:', processes.length, 'Filtered:', unassignedProcesses.length);
     return (
       <div className="p-8 max-w-[1200px] mx-auto animate-in slide-in-from-right-4">
-        <div className="flex justify-between items-center mb-8"><div className="flex items-center gap-4"><button onClick={() => setViewMode('DASHBOARD')} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-blue-600 hover:shadow-md transition-all"><ArrowLeft size={20} /></button><div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Caixa de Entrada</h2><p className="text-slate-500 text-sm font-medium">Distribuição de processos novos para a equipe.</p></div></div><div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100">{unassignedProcesses.length} Pendentes</div></div>
-        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Protocolo / Interessado</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Assunto</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Origem</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Entrada</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{unassignedProcesses.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><CheckSquare size={48} className="text-emerald-200"/><p className="font-medium text-sm">Tudo limpo! Não há novos processos para distribuir.</p></div></td></tr>) : (unassignedProcesses.map(p => (<tr key={p.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setSelectedProcessForDetails(p)}><td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{p.interested}</div><div className="text-[10px] font-mono text-slate-400">{p.protocol}</div></td><td className="px-6 py-4"><div className="text-xs font-medium text-slate-600 max-w-xs truncate" title={p.subject}>{p.subject}</div></td><td className="px-6 py-4"><span className={`text-[9px] font-black px-2 py-1 rounded uppercase tracking-wider ${p.origin === 'SOSFU' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{p.origin}</span></td><td className="px-6 py-4 text-xs font-medium text-slate-500">{p.entryDate}</td><td className="px-6 py-4 text-right relative"><div className="flex items-center justify-end gap-2"><button onClick={(e) => { e.stopPropagation(); setSelectedProcessForDetails(p); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"><MoreHorizontal size={14}/> Detalhes</button><button onClick={(e) => { e.stopPropagation(); setAssigningId(assigningId === p.id ? null : p.id); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all shadow-sm"><UserPlus size={14}/> Atribuir</button></div>{assigningId === p.id && (<div className="absolute right-0 top-12 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 z-[100]"><div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center rounded-t-xl"><span className="text-xs font-bold text-slate-600">Selecione o Assessor</span><button onClick={(e) => { e.stopPropagation(); setAssigningId(null); }} className="p-1 hover:bg-slate-200 rounded"><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-80 overflow-y-auto">{teamMembers.map(member => { const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={(e) => { e.stopPropagation(); handleAssign(p.id, member.id); }} className="w-full text-left px-4 py-3 hover:bg-purple-50 flex items-center gap-3 border-b border-slate-100 last:border-0 transition-colors"><img src={member.avatar} className="w-10 h-10 rounded-full border-2 border-slate-100"/><div className="flex-1"><p className="text-sm font-bold text-slate-700 hover:text-purple-700">{member.name}</p><div className="flex justify-between items-center mt-1"><span className="text-[10px] text-slate-400">{member.role}</span><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount || 0} ativos</span></div></div></button>); })}</div></div>)}</td></tr>)))}</tbody></table></div>
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setViewMode('DASHBOARD')} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-blue-600 hover:shadow-md transition-all"><ArrowLeft size={20} /></button>
+            <div>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight">Caixa de Entrada</h2>
+              <p className="text-slate-500 text-sm font-medium">Distribuição de processos novos para a equipe.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Period Filter */}
+            <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+              {(['ALL', 'TODAY', 'WEEK', 'MONTH'] as const).map(period => (
+                <button
+                  key={period}
+                  onClick={() => setFilterPeriod(period)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    filterPeriod === period 
+                      ? 'bg-white text-blue-700 shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {period === 'ALL' ? 'Todos' : period === 'TODAY' ? 'Hoje' : period === 'WEEK' ? 'Semana' : 'Mês'}
+                </button>
+              ))}
+            </div>
+            <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100">{unassignedProcesses.length} Pendentes</div>
+          </div>
+        </div>
+        <div className="bg-white rounded-[24px] shadow-lg border border-slate-200"><table className="w-full text-left"><thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Protocolo / Interessado</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Assunto</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Origem</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Prazo</th><th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th></tr></thead><tbody className="divide-y divide-slate-100">{unassignedProcesses.length === 0 ? (<tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><CheckSquare size={48} className="text-emerald-200"/><p className="font-medium text-sm">Tudo limpo! Não há novos processos para distribuir.</p></div></td></tr>) : (unassignedProcesses.map(p => {
+          // Calculate SLA badge
+          const deadlineDate = p.deadline !== '-' ? new Date(p.deadline.split('/').reverse().join('-')) : null;
+          const now = new Date();
+          const daysUntilDeadline = deadlineDate ? Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+          
+          let slaBadge = null;
+          if (p.isLate || daysUntilDeadline < 0) {
+            slaBadge = <span className="px-2 py-0.5 text-[9px] font-black bg-red-100 text-red-700 rounded-full border border-red-200 animate-pulse">🔴 Atrasado</span>;
+          } else if (daysUntilDeadline <= 2) {
+            slaBadge = <span className="px-2 py-0.5 text-[9px] font-black bg-amber-100 text-amber-700 rounded-full border border-amber-200 animate-pulse">🟡 {daysUntilDeadline}d</span>;
+          } else if (daysUntilDeadline <= 5) {
+            slaBadge = <span className="px-2 py-0.5 text-[9px] font-black bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">🟢 {daysUntilDeadline}d</span>;
+          }
+          
+          return (
+            <tr key={p.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setSelectedProcessForDetails(p)}>
+              <td className="px-6 py-4"><div className="font-bold text-slate-700 text-sm">{p.interested}</div><div className="text-[10px] font-mono text-slate-400">{p.protocol}</div></td>
+              <td className="px-6 py-4"><div className="text-xs font-medium text-slate-600 max-w-xs truncate" title={p.subject}>{p.subject}</div></td>
+              <td className="px-6 py-4"><span className={`text-[9px] font-black px-2 py-1 rounded uppercase tracking-wider ${p.origin === 'SOSFU' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{p.origin}</span></td>
+              <td className="px-6 py-4">
+                <div className="flex flex-col gap-1">
+                  <span className={`text-xs font-bold ${p.isLate ? 'text-red-600' : 'text-slate-500'}`}>{p.deadline}</span>
+                  {slaBadge}
+                </div>
+              </td>
+              <td className="px-6 py-4 text-right relative">
+                <div className="flex items-center justify-end gap-2">
+                  {/* Quick Action: Assumir para Mim */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); if (currentUserId) handleAssign(p.id, currentUserId); }} 
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-all shadow-md hover:shadow-lg"
+                    title="Assumir este processo para minha fila"
+                  >
+                    <Zap size={14} className="text-amber-300" /> Assumir
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setAssigningId(assigningId === p.id ? null : p.id); }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-blue-50 hover:text-blue-700 transition-all shadow-sm"><UserPlus size={14}/> Atribuir</button>
+                </div>
+                {assigningId === p.id && (<div className="absolute right-0 top-12 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 z-[100]"><div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center rounded-t-xl"><span className="text-xs font-bold text-slate-600">Selecione o Assessor</span><button onClick={(e) => { e.stopPropagation(); setAssigningId(null); }} className="p-1 hover:bg-slate-200 rounded"><X size={14} className="text-slate-400 hover:text-slate-600"/></button></div><div className="max-h-80 overflow-y-auto">{teamMembers.map(member => { const load = teamLoad.find(t => t.id === member.id); return (<button key={member.id} onClick={(e) => { e.stopPropagation(); handleAssign(p.id, member.id); }} className="w-full text-left px-4 py-3 hover:bg-purple-50 flex items-center gap-3 border-b border-slate-100 last:border-0 transition-colors"><img src={member.avatar} className="w-10 h-10 rounded-full border-2 border-slate-100"/><div className="flex-1"><p className="text-sm font-bold text-slate-700 hover:text-purple-700">{member.name}</p><div className="flex justify-between items-center mt-1"><span className="text-[10px] text-slate-400">{member.role}</span><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${load && load.utilization > 80 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{load?.activeCount || 0} ativos</span></div></div></button>); })}</div></div>)}
+              </td>
+            </tr>
+          );
+        }))}</tbody></table></div>
       </div>
     );
   };
@@ -412,7 +656,7 @@ export const AjsefinDashboard: React.FC = () => {
 
   return (
     <div className="h-full bg-[#f8fafc] flex flex-col overflow-hidden">
-      {viewMode !== 'EDITOR' && (<header className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm z-20"><div><h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">Módulo Jurídico <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium tracking-normal border border-purple-200">AJSEFIN</span></h1><p className="text-slate-500 font-medium mt-2 flex items-center gap-2"><Scale size={16} className="text-purple-500" /> Painel de Controle e Minutas Jurídicas</p></div><div className="flex items-center gap-4"><div className="flex -space-x-3 mr-4">{teamMembers.map(member => (<img key={member.id} src={member.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm cursor-help hover:z-10 transition-all hover:scale-110" title={member.name} />))}</div><button className="flex items-center gap-2 px-5 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"><Plus size={16} /> Novo Processo</button></div></header>)}
+      {viewMode !== 'EDITOR' && (<header className="bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-center shadow-sm z-20"><div><h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">Módulo Jurídico <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium tracking-normal border border-purple-200">AJSEFIN</span></h1><p className="text-slate-500 font-medium mt-2 flex items-center gap-2"><Scale size={16} className="text-purple-500" /> Painel de Controle e Minutas Jurídicas</p></div><div className="flex items-center gap-4"><div className="flex -space-x-3">{teamMembers.map(member => (<img key={member.id} src={member.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm cursor-help hover:z-10 transition-all hover:scale-110" title={member.name} />))}</div></div></header>)}
       <div className="flex-1 overflow-hidden relative">
         {viewMode === 'DASHBOARD' && <div className="h-full overflow-y-auto custom-scrollbar">{renderDashboard()}</div>}
         {viewMode === 'INBOX' && <div className="h-full overflow-y-auto custom-scrollbar">{renderInbox()}</div>}
@@ -464,6 +708,9 @@ export const AjsefinDashboard: React.FC = () => {
           onSuccess={() => {
             setShowTramitarModal(false);
             setSelectedProcessForDetails(null);
+            // Trigger success animation
+            setShowSuccessAnimation(true);
+            setTimeout(() => setShowSuccessAnimation(false), 3000);
           }}
         />
       )}
@@ -480,6 +727,39 @@ export const AjsefinDashboard: React.FC = () => {
             setShowDocumentWizard(false);
           }}
         />
+      )}
+
+      {/* Success Animation Overlay */}
+      {showSuccessAnimation && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
+          {/* Confetti/Sparkles */}
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-bounce"
+              style={{
+                left: `${10 + Math.random() * 80}%`,
+                top: `${10 + Math.random() * 80}%`,
+                animationDelay: `${Math.random() * 0.5}s`,
+                animationDuration: `${0.5 + Math.random() * 0.5}s`,
+                fontSize: `${16 + Math.random() * 16}px`,
+              }}
+            >
+              {['✨', '🎉', '⭐', '💜', '✓'][Math.floor(Math.random() * 5)]}
+            </div>
+          ))}
+          
+          {/* Success Modal */}
+          <div className="bg-white rounded-3xl shadow-2xl p-8 animate-in zoom-in-95 duration-300 flex flex-col items-center gap-4 border-4 border-purple-200">
+            <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center animate-pulse">
+              <CheckCircle2 className="text-purple-600" size={48} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800">Tramitação Concluída!</h2>
+            <p className="text-slate-500 text-center max-w-xs">
+              O processo foi encaminhado com sucesso ao destino selecionado.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

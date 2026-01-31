@@ -247,7 +247,10 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
   // ==========================================================================
   // SUBMIT - Submeter para análise SOSFU
   // ==========================================================================
-  const submitPC = useCallback(async (nup?: string) => {
+  // ==========================================================================
+  // SUBMIT - Submeter para análise (Gestor ou SOSFU se Auto-Atesto)
+  // ==========================================================================
+  const submitPC = useCallback(async (nup?: string, isAutoAtesto: boolean = false) => {
     if (!pc) throw new Error('PC não encontrada')
 
     try {
@@ -271,22 +274,37 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
         throw new Error('Valor gasto excede o valor concedido')
       }
 
+      // [ROUTING LOGIC]
+      // Standard: Suprido -> Gestor (AGUARDANDO_ATESTO_GESTOR)
+      // Auto-Atesto: Suprido/Gestor -> SOSFU (EM_ANALISE)
+      const nextStatus = isAutoAtesto ? 'EM_ANALISE' : 'AGUARDANDO_ATESTO_GESTOR';
+      const nextDestino = isAutoAtesto ? 'SOSFU' : 'GESTOR'; // Workflow destination
+      const notificationRole = isAutoAtesto ? 'SOSFU' : 'GESTOR';
+      
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from('prestacao_contas')
         .update({
-          status: 'AGUARDANDO_ATESTO_GESTOR',
-          submitted_at: new Date().toISOString()
+          status: nextStatus,
+          submitted_at: new Date().toISOString(),
+          // Se auto-atesto, já marca como revisado pelo próprio usuário
+          ...(isAutoAtesto ? { 
+              reviewed_at: new Date().toISOString(),
+              reviewed_by: user?.id 
+          } : {})
         })
         .eq('id', pc.id)
 
       if (error) throw error
 
-      // Atualizar workflow da solicitação - PC vai para GESTOR para atesto
+      // Atualizar workflow da solicitação
       await supabase
         .from('solicitacoes')
         .update({
-          status_workflow: 'AGUARDANDO_ATESTO_GESTOR',
-          destino_atual: 'GESTOR', // PC precisa de atesto do Gestor antes de ir para SOSFU
+          status_workflow: isAutoAtesto ? 'PC_REVIEW_SOSFU' : 'AGUARDANDO_ATESTO_GESTOR',
+          destino_atual: nextDestino,
+          assigned_to_id: isAutoAtesto ? null : undefined, // [SOSFU-FIX] Clear assignment only if going to SOSFU
           updated_at: new Date().toISOString()
         })
         .eq('id', solicitacaoId)
@@ -297,29 +315,36 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
         .insert({
           solicitacao_id: solicitacaoId,
           origem: 'SUPRIDO',
-          destino: 'GESTOR', // Gestor precisa dar atesto na PC
+          destino: nextDestino,
           status_anterior: 'AWAITING_ACCOUNTABILITY',
-          status_novo: 'AGUARDANDO_ATESTO_GESTOR',
-          observacao: `Prestação de Contas submetida para atesto do Gestor. Valor: R$ ${valorGastoCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          status_novo: isAutoAtesto ? 'PC_REVIEW_SOSFU' : 'AGUARDANDO_ATESTO_GESTOR',
+          observacao: isAutoAtesto 
+            ? `Prestação de Contas assinada e atestada (Auto-Atesto). Encaminhada à SOSFU.`
+            : `Prestação de Contas submetida para atesto do Gestor. Valor: R$ ${valorGastoCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         })
 
-      // [NOTIFICATION] Notify Gestor
+      // [NOTIFICATION]
       if (nup) {
+        const title = isAutoAtesto ? 'Nova PC (Auto-Atesto)' : 'Nova Prestação de Contas';
+        const msg = isAutoAtesto 
+          ? `Gestor enviou PC com Auto-Atesto (NUP ${nup}). Pronta para análise.` 
+          : `O suprido enviou a PC do processo NUP ${nup}. Aguardando seu atesto.`;
+
         await supabase.from('system_notifications').insert({
-          role_target: 'GESTOR',
+          role_target: notificationRole,
           type: 'INFO',
           category: 'PROCESS',
-          title: 'Nova Prestação de Contas Recebida',
-          message: `O suprido enviou a PC do processo NUP ${nup}. Aguardando seu atesto.`,
-          link_action: `/gestor/dashboard?nup=${nup}`, // Deep link heuristic
+          title: title,
+          message: msg,
+          link_action: isAutoAtesto ? `/sosfu/dashboard?nup=${nup}` : `/gestor/dashboard?nup=${nup}`,
           metadata: { solicitacao_id: solicitacaoId, nup }
         });
       }
 
-      setPC(prev => prev ? { ...prev, status: 'SUBMETIDA' } : null)
+      setPC(prev => prev ? { ...prev, status: isAutoAtesto ? 'EM_ANALISE' : 'SUBMETIDA' } : null)
       queryClient.invalidateQueries({ queryKey: ['processes'] })
       
-      console.log('✅ [usePrestacaoContas] Submitted')
+      console.log('✅ [usePrestacaoContas] Submitted. Auto-Atesto:', isAutoAtesto)
       return { success: true }
     } catch (err: any) {
       console.error('❌ [usePrestacaoContas] Submit error:', err)
@@ -354,6 +379,7 @@ export function usePrestacaoContas({ solicitacaoId }: UsePrestacaoContasOptions)
         .update({
           status_workflow: 'PC_REVIEW_SOSFU',
           destino_atual: 'SOSFU',
+          assigned_to_id: null, // [SOSFU-FIX] Clear assignment so it goes to Inbox (Novos Recebidos)
           updated_at: new Date().toISOString()
         })
         .eq('id', solicitacaoId)

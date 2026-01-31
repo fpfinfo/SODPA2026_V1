@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { FileText, Eye, FileDown, BookOpen, Loader2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { FileText, Eye, FileDown, BookOpen, Loader2, Printer, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { useDossierData } from './hooks/useDossierData';
 import { DocumentInventory } from './DocumentInventory';
 import { PrestacaoContasSection } from './PrestacaoContasSection';
@@ -44,6 +46,7 @@ interface UniversalDossierPanelProps {
   processData: ProcessData;
   currentUserId: string;
   onDocumentEdit?: (doc: any) => void;
+  onDocumentDeleted?: () => void; // New Prop
 }
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
@@ -53,19 +56,176 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
   processData,
   currentUserId,
   onDocumentEdit,
+  onDocumentDeleted, // Destructure
 }) => {
   const { dossierDocs, prestacaoData, comprovantesPC, isLoading, refreshDocs, deleteDocument, updateDocument } = useDossierData({
     processId,
     currentUserId,
   });
 
+  // ... (existing state) ...
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [selectedPreviewDoc, setSelectedPreviewDoc] = useState<any | null>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const pdfPrintRef = useRef<HTMLDivElement>(null);
+
+  // ============================================================================
+  // HANDLE PRINT
+  // ============================================================================
+  const handlePrint = () => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    // Get the content to print (the white pages inside the viewer)
+    const content = document.getElementById('pdf-content-container')?.innerHTML || '';
+
+    // Get styles (Tailwind + Custom)
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(node => node.outerHTML)
+      .join('');
+
+    if (iframe.contentWindow) {
+      iframe.contentWindow.document.open();
+      iframe.contentWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Imprimir Dossiê - ${processData.nup || 'Documento'}</title>
+            ${styles}
+            <style>
+              @page {
+                size: A4;
+                margin: 0; /* Browser handles styling via body padding */
+              }
+              body {
+                margin: 0;
+                padding: 10mm 15mm;
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              /* Force scale to fit width if needed, but usually natural flow is better for A4 logic */
+              .print-page {
+                margin-bottom: 20px;
+                page-break-after: always;
+                box-shadow: none !important; /* Remove shadows for print */
+                border: none !important;
+                transform: none !important; /* Remove zoom transform */
+              }
+              /* Hide UI elements that might have leaked (though we select content-container) */
+              .no-print { display: none !important; }
+            </style>
+          </head>
+          <body>
+            ${content}
+            <script>
+              window.onload = function() {
+                 setTimeout(function() {
+                    window.print();
+                    // Cleanup usually happens after print dialog closes, but it's async
+                    // safely remove iframe after a delay
+                    setTimeout(() => {
+                        window.parent.document.body.removeChild(window.frameElement);
+                    }, 1000);
+                 }, 800); // Wait for images/styles
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      iframe.contentWindow.document.close();
+    }
+  };
+
+  // ============================================================================
+  // HANDLE DOWNLOAD PDF
+  // ============================================================================
+  const handleDownload = async () => {
+    const element = document.getElementById('pdf-content-container');
+    if (!element) return;
+
+    try {
+      // 1. Create a "Clone" container to capture at 100% scale (ignoring UI Zoom)
+      const cloneContainer = document.createElement('div');
+      cloneContainer.style.position = 'absolute';
+      cloneContainer.style.top = '-9999px';
+      cloneContainer.style.left = '0';
+      cloneContainer.style.width = '850px'; // Slightly larger than A4 width
+      cloneContainer.style.zIndex = '-1';
+      document.body.appendChild(cloneContainer);
+
+      // Clone content
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.style.transform = 'scale(1)'; // Force 100%
+      clone.style.gap = '0'; // Remove visual gaps for PDF flow
+      cloneContainer.appendChild(clone);
+
+      // Wait for images
+      const images = Array.from(clone.querySelectorAll('img'));
+      await Promise.all(images.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }));
+
+      // 2. Capture with html2canvas (First Page or All?)
+      // For simplicity/perf in this iteration, we capture the whole scroll view as pages
+      // OR we can iterate children.
+      // Let's iterate children to make clean pages.
+      
+      const pages = Array.from(clone.children) as HTMLElement[];
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        
+        // Remove shadows/borders for clean capture
+        page.style.boxShadow = 'none';
+        page.style.border = 'none';
+
+        const canvas = await html2canvas(page, {
+          scale: 2, // High quality
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
+      }
+
+      // 3. Save
+      const fileName = selectedPreviewDoc?.title 
+        ? `${selectedPreviewDoc.title.replace(/[^a-z0-9]/gi, '_')}.pdf`
+        : `Dossie_${processData.nup || 'Completo'}.pdf`;
+        
+      pdf.save(fileName);
+
+      // Cleanup
+      document.body.removeChild(cloneContainer);
+
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    }
+  };
 
   const handleViewDocument = (doc: any) => {
-    // Wrap the document in the format expected by the renderer
-    // The renderer expects { id, title, type, originalDoc } structure
+    // ...
     setSelectedPreviewDoc({
       id: doc.id,
       title: doc.titulo || doc.nome || 'Documento',
@@ -79,6 +239,7 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
     const result = await deleteDocument(docId);
     if (result.success) {
       refreshDocs();
+      if (onDocumentDeleted) onDocumentDeleted(); // Call parent
     }
   };
 
@@ -247,6 +408,24 @@ export const UniversalDossierPanel: React.FC<UniversalDossierPanelProps> = ({
                   >
                     +
                   </button>
+                </div>
+
+                {/* Print/Download Actions */}
+                <div className="flex items-center gap-2 mr-4 bg-black/40 rounded-lg p-1">
+                   <button
+                     onClick={handlePrint}
+                     className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                     title="Imprimir"
+                   >
+                     <Printer size={18} />
+                   </button>
+                   <button
+                     onClick={handleDownload}
+                     className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                     title="Baixar PDF"
+                   >
+                     <Download size={18} />
+                   </button>
                 </div>
                 
                 {/* Sign Document Button - Only for MINUTA documents created by current user */}

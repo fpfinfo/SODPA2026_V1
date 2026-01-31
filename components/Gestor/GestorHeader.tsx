@@ -123,6 +123,7 @@ export function GestorHeader({
           {filteredNavItems.map((item) => (
             <button
               key={item.id}
+              data-view={item.id}
               onClick={() => onNavigate(item.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all relative ${
                 activeView === item.id

@@ -61,9 +61,10 @@ export interface ComprovantePC {
 interface UseDossierDataProps {
   processId: string;
   currentUserId: string;
+  prestacaoId?: string; // Add explicit ID support
 }
 
-export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps) => {
+export const useDossierData = ({ processId, currentUserId, prestacaoId }: UseDossierDataProps) => {
   const [dossierDocs, setDossierDocs] = useState<DossierDocument[]>([]);
   const [prestacaoData, setPrestacaoData] = useState<PrestacaoContasData | null>(null);
   const [comprovantesPC, setComprovantesPC] = useState<ComprovantePC[]>([]);
@@ -86,14 +87,20 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
-      // setDossierDocs(docsData || []); // Moved to end with merge
 
       // 2. Fetch prestação de contas
-      const { data: pcData, error: pcError } = await supabase
+      // If prestacaoId is provided, use it. Otherwise, fetch by solicitacao_id (risky if multiple exist)
+      let query = supabase
         .from('prestacao_contas')
-        .select('*')
-        .eq('solicitacao_id', processId)
-        .maybeSingle();
+        .select('*');
+      
+      if (prestacaoId) {
+        query = query.eq('id', prestacaoId);
+      } else {
+        query = query.eq('solicitacao_id', processId);
+      }
+
+      const { data: pcData, error: pcError } = await query.maybeSingle();
 
       if (pcError && pcError.code !== 'PGRST116') throw pcError;
       setPrestacaoData(pcData || null);
@@ -273,12 +280,30 @@ export const useDossierData = ({ processId, currentUserId }: UseDossierDataProps
       // Log to audit trail
       const docToDelete = dossierDocs.find(d => d.id === docId);
       
+      if (!docToDelete) {
+        throw new Error('Documento não encontrado na lista local');
+      }
+
       await supabase.from('historico_documentos').insert({
         documento_id: docId,
         acao: 'DELETE',
         usuario_id: currentUserId,
         dados_anteriores: docToDelete,
       });
+
+      // Special handling for CERTIDAO_ATESTO deletion
+      if (docToDelete.tipo === 'CERTIDAO_ATESTO' || docToDelete.tipo === 'ATESTO') {
+        // Revert process status to PENDENTE_ATESTO
+        const { error: updateError } = await supabase
+          .from('solicitacoes')
+          .update({ status: 'PENDENTE_ATESTO' })
+          .eq('id', processId);
+
+        if (updateError) {
+          console.error('Error reverting process status:', updateError);
+          // We continue with deletion even if status update fails, but ideally we should warn
+        }
+      }
 
       // Delete the document
       const { error } = await supabase

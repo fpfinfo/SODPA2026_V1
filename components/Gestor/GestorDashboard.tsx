@@ -563,7 +563,7 @@ export const GestorDashboard: React.FC = () => {
     const template = {
       type: 'Certidão de Atesto',
       title: `Minuta de Certidão de Atesto Nº ${Math.floor(Math.random() * 100)}/2026`,
-      content: `CERTIDÃO DE ATESTO DA CHEFIA IMEDIATA\n\nCERTIFICO, no uso das minhas atribuições legais e em conformidade com o Regulamento de Suprimento de Fundos do TJPA, que a despesa pretendida pelo servidor ${selectedProcess.interested} no processo ${selectedProcess.nup} reveste-se de interesse público e atende aos critérios de conveniência e oportunidade desta unidade judiciária.\n\nDeclaro que verifiquei a disponibilidade orçamentária da unidade e a adequação dos itens solicitados.\n\nAtesto, ainda, a impossibilidade de atendimento da demanda via fluxo normal de compras/licitação em tempo hábil.\n\nEncaminhe-se ao Serviço de Suprimento de Fundos (SOSFU) para análise técnica.`,
+      content: `CERTIDÃO DE ATESTO DA CHEFIA IMEDIATA\n\nCERTIFICO, no uso das minhas atribuições legais e em conformidade com o Regulamento de Suprimento de Fundos do TJPA, que a despesa pretendida pelo servidor ${selectedProcess.interested} no processo ${selectedProcess.nup} reveste-se de interesse público e atende aos critérios de conveniência e oportunidade desta unidade judiciária.\n\nDeclaro que verifiquei a adequação dos itens solicitados.\n\nAtesto, ainda, a impossibilidade de atendimento da demanda via fluxo normal de compras/licitação em tempo hábil.\n\nEncaminhe-se ao Serviço de Suprimento de Fundos (SOSFU) para análise técnica.`,
       icon: BadgeCheck
     };
 

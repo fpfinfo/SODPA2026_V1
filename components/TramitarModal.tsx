@@ -34,10 +34,9 @@ const WORKFLOW_DESTINATIONS: Record<string, { value: string; label: string; stat
     { value: 'SOSFU', label: 'Devolver à SOSFU (Correção)', status: 'DEVOLVIDO' }
   ],
   'AJSEFIN': [
-    { value: 'SOSFU', label: 'Retornar à SOSFU', status: 'PARECER EMITIDO' },
-    { value: 'SOSFU', label: 'Retornar à SOSFU (Autorização Concedida)', status: 'AUTORIZAÇÃO CONCEDIDA' },
-    { value: 'SEFIN', label: 'SEFIN - Assinatura do Ordenador (Autorização Excepcional)', status: 'AGUARDANDO ASSINATURA ORDENADOR' },
-    { value: 'SGP', label: 'SGP - Averbação em Folha (Reposição ao Erário)', status: 'AGUARDANDO AVERBAÇÃO' }
+    { value: 'SOSFU', label: 'SOSFU - Caixa de Entrada', status: 'PARECER EMITIDO' },
+    { value: 'SEFIN', label: 'SEFIN - Caixa de Entrada (Ordenadores)', status: 'AGUARDANDO ASSINATURA ORDENADOR' },
+    { value: 'SGP', label: 'SGP - Caixa de Entrada', status: 'AGUARDANDO AVERBAÇÃO' }
   ],
   'SGP': [
     { value: 'SOSFU', label: 'Retornar à SOSFU (Averbação Concluída)', status: 'AVERBAÇÃO REALIZADA' },
@@ -115,12 +114,33 @@ export const TramitarModal: React.FC<TramitarModalProps> = ({
       
       if (!selectedDest) throw new Error('Destino não encontrado');
 
+      // Logic to determine status based on potential PC flow
+      let targetStatus = selectedDest.status;
+      
+      // If GESTOR -> SOSFU, check if it's PC Phase by looking for PC-specific documents or history
+      if (currentModule === 'GESTOR' && selectedDest.value === 'SOSFU') {
+         // Check for Certidão de Atesto PC
+         const { data: atestoDocs } = await supabase
+          .from('documentos')
+          .select('id, tipo')
+          .eq('solicitacao_id', processId)
+          .in('tipo', ['CERTIDAO_ATESTO_PC', 'COMPROVANTE_PC']);
+         
+         const isPC = atestoDocs && atestoDocs.length > 0;
+         
+         if (isPC) {
+            targetStatus = 'EM ANÁLISE DE PC';
+         }
+      }
+
       // Update solicitacao status
       const { error: updateError } = await supabase
         .from('solicitacoes')
         .update({
-          status: selectedDest.status,
+          status: targetStatus,
           destino_atual: selectedDest.value,
+          // Clear assignment if returning from GESTOR to SOSFU so it goes to Inbox
+          assigned_to_id: (currentModule === 'GESTOR' && selectedDest.value === 'SOSFU') ? null : undefined,
           updated_at: new Date().toISOString()
         })
         .eq('id', processId);
@@ -144,6 +164,46 @@ export const TramitarModal: React.FC<TramitarModalProps> = ({
       if (histError) {
         console.warn('Could not insert tramitacao history:', histError);
         // Continue anyway - history is optional
+      }
+
+      // If destination is SEFIN (from AJSEFIN), create a task in sefin_tasks for the Ordenadores (Inbox)
+      if (selectedDest.value === 'SEFIN' && currentModule === 'AJSEFIN') {
+        // Fetch solicitacao details for the task
+        const { data: solicitacao } = await supabase
+          .from('solicitacoes')
+          .select('nup, tipo, subtipo, valor_total')
+          .eq('id', processId)
+          .maybeSingle();
+
+        // Fetch the decision document created by AJSEFIN
+        const { data: decisaoDoc } = await supabase
+          .from('documentos')
+          .select('id, tipo, titulo')
+          .eq('solicitacao_id', processId)
+          .in('tipo', ['DECISAO', 'AUTORIZACAO_ORDENADOR', 'PARECER'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const { error: sefinTaskError } = await supabase
+          .from('sefin_tasks')
+          .insert({
+            solicitacao_id: processId,
+            documento_id: decisaoDoc?.id || null,
+            tipo: 'AUTORIZACAO_ORDENADOR',
+            titulo: `Autorização: ${solicitacao?.nup || processId.slice(0, 8)}`,
+            origem: 'AJSEFIN',
+            status: 'PENDING',
+            // assigned_to is NULL - goes to Inbox for any Ordenador to claim
+            observacoes: observacao || `Processo enviado por AJSEFIN para assinatura do Ordenador`,
+            created_by: user?.id
+          });
+
+        if (sefinTaskError) {
+          console.warn('Could not create SEFIN task:', sefinTaskError);
+        } else {
+          console.log('✅ SEFIN task created for process (AJSEFIN → SEFIN Inbox):', processId);
+        }
       }
 
       // If destination is SGP, create a task in sgp_tasks for the HR team

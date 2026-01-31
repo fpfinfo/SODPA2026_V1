@@ -60,6 +60,8 @@ const STEPS = [
   { id: 3, title: 'Revisão do Dossiê', icon: ClipboardCheck }
 ];
 
+import { SignatureModal } from '../ui/SignatureModal';
+
 // =============================================================================
 // COMPONENT
 // =============================================================================
@@ -77,6 +79,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
   const [totalISSRetido, setTotalISSRetido] = useState(0);
   const [declaracaoAceita, setDeclaracaoAceita] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   
   // GDR States
   const [gdrINSSPaga, setGdrINSSPaga] = useState(false);
@@ -95,7 +98,8 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
     createPC,
     submitPC,
     fetchPC,
-    refresh
+    refresh,
+    error
   } = usePrestacaoContas({ solicitacaoId });
 
   // Calculated values
@@ -103,18 +107,18 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
   const temINSSParaRecolher = totalINSSRetido > 0;
   const temSaldoParaDevolver = saldoDevolver > 0;
 
-  // Load or create PC on mount
+  // Load data on mount
   useEffect(() => {
-    const initPC = async () => {
-      await fetchPC();
-      
-      // If no PC exists, create draft
-      if (!pc) {
-        await createPC(processData.valorConcedido);
-      }
-    };
-    initPC();
+    fetchPC();
   }, []);
+
+  // Create draft if not found after loading
+  useEffect(() => {
+    if (!isLoading && !pc && !error) {
+       console.log('📝 [PrestacaoContasWizard] No PC found, creating draft...');
+       createPC(processData.valorConcedido);
+    }
+  }, [isLoading, pc, error, processData.valorConcedido, createPC]);
 
   // Calculate totals from comprovantes
   useEffect(() => {
@@ -394,6 +398,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
           nup={processData.nup}
           valorConcedido={processData.valorConcedido}
           onTotalChange={setTotalGasto}
+          onChanges={refresh} // Sync Wizard state with Uploader changes
         />
       )}
 
@@ -484,7 +489,6 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
         <div className="w-20 h-20 bg-emerald-100 rounded-3xl mx-auto flex items-center justify-center mb-4">
           <ClipboardCheck size={40} className="text-emerald-600" />
         </div>
-        <h2 className="text-2xl font-black text-slate-800">Conferência Final</h2>
         <h2 className="text-2xl font-black text-slate-800">Conferência Final</h2>
         <p className="text-sm text-slate-500 mt-2">Revise os valores e confirme a declaração</p>
         
@@ -785,7 +789,7 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
           {currentStep === 3 && renderStep3()}
         </div>
 
-        {/* Footer */}
+            {/* Footer */}
         <div className="border-t border-slate-100 p-8 flex items-center justify-between bg-slate-50">
           <button
             onClick={currentStep === 1 ? onClose : goBack}
@@ -799,32 +803,59 @@ export const PrestacaoContasWizard: React.FC<PrestacaoContasWizardProps> = ({
             <button
               onClick={goNext}
               disabled={!canProceed(currentStep)}
-              className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:-translate-y-1"
+              className={`
+                flex items-center gap-2 px-8 py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all
+                ${canProceed(currentStep) 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-300 hover:-translate-y-1' 
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}
+              `}
             >
               Próxima Etapa
               <ArrowRight size={18} />
             </button>
           ) : (
             <button
-              onClick={handleSubmit}
+              onClick={() => setIsSignatureModalOpen(true)}
               disabled={!canProceed(3) || isSubmitting}
-              className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-emerald-200 hover:-translate-y-1"
+              className={`
+                flex items-center gap-2 px-8 py-4 rounded-2xl font-bold shadow-lg shadow-emerald-200 transition-all
+                ${canProceed(3) && !isSubmitting
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-300 hover:-translate-y-1' 
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}
+              `}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  Enviando PC...
+                  Enviando...
                 </>
               ) : (
                 <>
                   <Send size={18} />
-                  Submeter Prestação de Contas
+                  Assinar e Enviar
                 </>
               )}
             </button>
           )}
         </div>
       </div>
+
+      <SignatureModal
+        isOpen={isSignatureModalOpen}
+        onClose={() => setIsSignatureModalOpen(false)}
+        onConfirm={async (pin) => {
+          // Simulação de validação de PIN (aceita qualquer PIN de 4 dígitos por enquanto ou valida específico)
+          if (pin.length !== 4) return { success: false, error: 'PIN inválido' };
+          
+          // Trigger submit logic
+          await handleSubmit();
+          
+          return { success: true };
+        }}
+        title="Assinar Prestação de Contas"
+        description="Digite seu PIN para assinar digitalmente a declaração de contas."
+        documentsCount={1}
+      />
     </div>
   );
 };

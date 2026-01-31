@@ -246,6 +246,43 @@ export function useSODPAProcesses() {
     [processos]
   );
 
+  // Create new passagem
+  const createPassagem = useCallback(async (data: {
+    nomeInteressado: string;
+    setor: string;
+    categoria: string;
+    destino: string;
+    dataViagem: string; 
+    valorEstimado: number;
+    motivo: string;
+    solicitanteId: string;
+  }) => {
+    try {
+        const mockNUP = `TJPA-REQ-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`;
+        
+        const { error } = await supabase
+        .from('passagens')
+        .insert([{
+            nup: mockNUP,
+            servidor_id: data.solicitanteId,
+            tipo_passagem: 'NACIONAL',
+            classe_tarifa: data.categoria, 
+            justificativa: data.motivo,
+            valor_estimado: data.valorEstimado,
+            status: 'SOLICITADA',
+            observacoes: `Destino: ${data.destino} | Setor: ${data.setor}`,
+            created_at: new Date().toISOString()
+        }]);
+
+      if (error) throw error;
+      await fetchProcessos();
+      return { success: true };
+    } catch (err) {
+       console.error('Erro ao criar passagem:', err);
+       return { success: false, error: err };
+    }
+  }, [fetchProcessos]);
+
   return {
     processos,
     diarias,
@@ -262,5 +299,6 @@ export function useSODPAProcesses() {
     getInbox,
     getMinhaMesa,
     getByStatus,
+    createPassagem
   };
 }

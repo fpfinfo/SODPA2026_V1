@@ -77,7 +77,11 @@ export const ProcessDetailsModal: React.FC<ProcessDetailsModalProps> = ({ proces
   const isPCPhase = statusWorkflow.startsWith('PC_') || 
     statusWorkflow.startsWith('TCE_') ||
     statusWorkflow === 'AWAITING_ACCOUNTABILITY' ||
-    process.status === AccountStatus.AUDIT;
+    statusWorkflow === 'AGUARDANDO_ATESTO_GESTOR' ||
+    process.status === AccountStatus.AUDIT ||
+    process.type === ProcessType.ACCOUNTABILITY || // Explicit Type Check
+    (process.status as string)?.includes('PRESTA') || // Broad String Check
+    (process.status as string)?.toUpperCase().includes('PC'); // Broad String Check
 
   // Fetch enriched process data with servidores_tj details
   const { processData: enrichedProcessData, isLoading: isLoadingDetails } = useProcessDetails(process.id);

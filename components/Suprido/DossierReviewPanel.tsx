@@ -4,6 +4,7 @@ import { useDossierData, DossierDocument } from '../ProcessDetails/hooks/useDoss
 
 interface DossierReviewPanelProps {
   processId: string;
+  prestacaoId?: string; // Explicit ID
   currentUserId: string;
   onApprovalChange: (checked: boolean) => void;
   declaracaoAceita: boolean;
@@ -11,12 +12,14 @@ interface DossierReviewPanelProps {
 
 export const DossierReviewPanel: React.FC<DossierReviewPanelProps> = ({
   processId,
+  prestacaoId,
   currentUserId,
   onApprovalChange,
   declaracaoAceita
 }) => {
   const { dossierDocs, comprovantesPC, isLoading, error, refreshDocs } = useDossierData({
     processId,
+    prestacaoId,
     currentUserId
   });
 

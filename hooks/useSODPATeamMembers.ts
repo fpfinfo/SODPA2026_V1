@@ -112,6 +112,61 @@ export function useSODPATeamMembers() {
     await fetchTeamMembers();
   }, [fetchTeamMembers]);
 
+  // Add new member
+  const addMember = useCallback(async (data: Omit<TeamMember, 'id'>) => {
+    try {
+      const { error } = await supabase
+        .from('servidores_tj')
+        .insert([{
+          ...data,
+          setor: 'SODPA',
+          ativo: true,
+          // user_id would typically be handled here or via trigger
+        }]);
+
+      if (error) throw error;
+      await fetchTeamMembers();
+      return { success: true };
+    } catch (err) {
+      console.error('Error adding member:', err);
+      return { success: false, error: err };
+    }
+  }, [fetchTeamMembers]);
+
+  // Update member
+  const updateMember = useCallback(async (id: string, data: Partial<TeamMember>) => {
+    try {
+      const { error } = await supabase
+        .from('servidores_tj')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchTeamMembers();
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating member:', err);
+      return { success: false, error: err };
+    }
+  }, [fetchTeamMembers]);
+
+  // Toggle Status
+  const toggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('servidores_tj')
+        .update({ ativo: !currentStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchTeamMembers();
+      return { success: true };
+    } catch (err) {
+      console.error('Error toggling status:', err);
+      return { success: false, error: err };
+    }
+  }, [fetchTeamMembers]);
+
   return {
     members,
     loading,
@@ -120,5 +175,8 @@ export function useSODPATeamMembers() {
     getMemberById,
     getAvailableMembers,
     updateCapacity,
+    addMember,
+    updateMember,
+    toggleStatus
   };
 }

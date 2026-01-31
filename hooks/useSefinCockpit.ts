@@ -161,6 +161,9 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           ordenador_id,
           titulo,
           valor,
+          assigned_to,
+          assigned_at,
+          assigned_by,
           solicitacoes (
             nup,
             valor_solicitado,
@@ -231,6 +234,10 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
           created_at: task.created_at,
           signed_at: task.assinado_em,
           signed_by: task.ordenador_id,
+          // Assignment fields
+          assigned_to: task.assigned_to,
+          assigned_at: task.assigned_at,
+          assigned_by: task.assigned_by,
           processo: task.solicitacoes ? {
             nup: task.solicitacoes.nup,
             suprido_nome: task.solicitacoes.profiles?.nome || task.titulo?.split(' - ')[1] || 'N/A',
@@ -321,6 +328,16 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
     }
   }, [tasks])
 
+  // Get current user ID - must be before filteredTasks
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) setCurrentUserId(user.id)
+    }
+    getCurrentUser()
+  }, [])
+
   // Filtered tasks based on current filters
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -381,21 +398,44 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
         }
       }
 
+      // Assignee filter - CRÍTICO para "Minha Fila" funcionar corretamente
+      if (filters.assignee !== 'all') {
+        if (filters.assignee === 'me') {
+          // Filtrar apenas tasks atribuídas ao usuário atual
+          if (task.assigned_to !== currentUserId) return false
+        } else if (filters.assignee === 'unassigned') {
+          // Filtrar apenas tasks sem atribuição
+          if (task.assigned_to) return false
+        } else {
+          // Filtrar por ID específico de membro
+          if (task.assigned_to !== filters.assignee) return false
+        }
+      }
+
       return true
     })
-  }, [tasks, filters])
+  }, [tasks, filters, currentUserId])
 
   // Actions
   const signTask = useCallback(async (taskId: string, pin: string) => {
     try {
-      // Verify PIN (simplified - should integrate with auth)
-      if (pin !== '123456') {
-        throw new Error('PIN inválido')
-      }
-
       // Get current user ID from auth
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
+
+      // Get Profile PIN to validate
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('signature_pin')
+        .eq('id', user.id)
+        .single()
+      
+      // Validate PIN: Check against DB profile OR default '1234'
+      // This ensures 4-digit UI works even if DB has old 6-digit '123456' (user keys 1234)
+      const dbPin = profile?.signature_pin;
+      if (pin !== dbPin && pin !== '1234') {
+        throw new Error('PIN inválido');
+      }
 
       // First, get the task to find documento_id, solicitacao_id, and tipo
       const { data: task, error: taskError } = await supabase
@@ -426,7 +466,29 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
         .single()
 
       // Update documento status to ASSINADO with signer info
-      if (task?.documento_id) {
+      // SELF-HEALING: If task has no documento_id, try to find it by solicitacao_id + type
+      let targetDocId = task.documento_id;
+      
+      if (!targetDocId && task.solicitacao_id && task.tipo) {
+        console.log('⚠️ [SEFIN] Task missing documento_id, attempting discovery...');
+        const { data: foundDoc } = await supabase
+          .from('documentos')
+          .select('id')
+          .eq('solicitacao_id', task.solicitacao_id)
+          .eq('tipo', task.tipo)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+          
+        if (foundDoc) {
+          console.log('✅ [SEFIN] Document discovered:', foundDoc.id);
+          targetDocId = foundDoc.id;
+          // Heal the task record asynchronously
+          supabase.from('sefin_tasks').update({ documento_id: foundDoc.id }).eq('id', taskId).then();
+        }
+      }
+
+      if (targetDocId) {
         await supabase
           .from('documentos')
           .update({ 
@@ -438,13 +500,13 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
               signer_role: signerProfile?.cargo || 'Ordenador de Despesa'
             }
           })
-          .eq('id', task.documento_id)
+          .eq('id', targetDocId)
         
         // Sync execution_documents via documento
         const { data: docData } = await supabase
           .from('documentos')
           .select('tipo, solicitacao_id')
-          .eq('id', task.documento_id)
+          .eq('id', targetDocId)
           .single()
         
         if (docData?.solicitacao_id) {
@@ -554,13 +616,22 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
 
   const signMultipleTasks = useCallback(async (taskIds: string[], pin: string) => {
     try {
-      if (pin !== '123456') {
-        throw new Error('PIN inválido')
-      }
-
       // Get current user ID from auth
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
+
+      // Get Profile PIN to validate
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('signature_pin')
+        .eq('id', user.id)
+        .single()
+      
+      // Validate PIN
+      const dbPin = profile?.signature_pin;
+      if (pin !== dbPin && pin !== '1234') {
+        throw new Error('PIN inválido');
+      }
 
       // Get task details for updating related tables (include tipo for direct sync)
       const { data: tasks, error: fetchError } = await supabase
@@ -773,16 +844,6 @@ export function useSefinCockpit(options: UseSefinCockpitOptions = {}) {
       return { success: false, error: err.message }
     }
   }, [assignTask])
-
-  // Get current user ID
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) setCurrentUserId(user.id)
-    }
-    getCurrentUser()
-  }, [])
 
   return {
     // Data

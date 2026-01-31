@@ -32,6 +32,7 @@ interface ComprovantesUploaderProps {
   valorConcedido: number;
   readOnly?: boolean;
   onTotalChange?: (total: number) => void;
+  onChanges?: () => void;
 }
 
 interface FormData {
@@ -55,7 +56,7 @@ const initialFormData: FormData = {
   valor: '',
   data_emissao: '',
   descricao: '',
-  elemento_despesa: '3.3.90.30'
+  elemento_despesa: '3.3.90.30.01'
 };
 
 // =============================================================================
@@ -67,7 +68,8 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
   nup = '0000000-00.0000.0.00.0000',
   valorConcedido,
   readOnly = false,
-  onTotalChange
+  onTotalChange,
+  onChanges
 }) => {
   const { showToast } = useToast();
   const { suggestions, searchFornecedores, clearSuggestions } = useFornecedoresHistory();
@@ -93,6 +95,7 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
     alertasCriticos,
     uploadComprovante,
     deleteComprovante,
+    deleteAllComprovantes,
     fetchComprovantes
   } = useComprovantes({ prestacaoId });
 
@@ -161,15 +164,17 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
       if (fileInputRef.current) fileInputRef.current.value = '';
       
       showToast({ type: 'success', title: 'Comprovante anexado!', message: 'O documento foi salvo com sucesso.' });
+      onChanges?.();
     } else {
       showToast({ type: 'error', title: 'Erro', message: result.error || 'Erro ao enviar comprovante' });
     }
-  }, [selectedFile, formData, uploadComprovante]);
+  }, [selectedFile, formData, uploadComprovante, onChanges]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Remover este comprovante?')) return;
     await deleteComprovante(id);
-  }, [deleteComprovante]);
+    onChanges?.();
+  }, [deleteComprovante, onChanges]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -208,6 +213,24 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
               <AlertTriangle size={18} className="text-red-400" />
               <span className="text-sm font-bold">{alertasCriticos} Alerta(s) Crítico(s)</span>
             </div>
+          )}
+          
+          {/* Botão de Limpar Tudo (Visível apenas em modo edição e se tiver itens) */}
+          {!readOnly && comprovantes.length > 0 && (
+            <button
+               onClick={async () => {
+                 if (confirm('ATENÇÃO: Deseja apagar TODOS os comprovantes deste rascunho? Esta ação é irreversível e útil para reiniciar testes.')) {
+                    await deleteAllComprovantes();
+                    showToast({ title: 'Rascunho Limpo', message: 'Todos os comprovantes foram removidos.', type: 'success' });
+                    onChanges?.(); // Notify parent to refresh list
+                 }
+               }}
+               className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-200 hover:text-red-100 rounded-lg text-xs font-bold transition-colors border border-red-500/20"
+               title="Apagar todos os comprovantes para reiniciar"
+            >
+               <Trash2 size={14} />
+               Limpar Rascunho
+            </button>
           )}
         </div>
 
@@ -321,7 +344,7 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
              // Detect Type based on URL content (Heuristic)
              const lowerText = text.toLowerCase();
              let tipoDetectado: 'PASSAGEM' | 'CUPOM_FISCAL' | 'OUTROS' = 'OUTROS';
-             let elementoDetectado: '3.3.90.33' | '3.3.90.30' | '3.3.90.39' = '3.3.90.39';
+             let elementoDetectado: '3.3.90.33' | '3.3.90.30.01' | '3.3.90.30.02' | '3.3.90.39' = '3.3.90.39';
              let desc = 'Documento capturado via QR Code';
 
              if (lowerText.includes('bpe') || lowerText.includes('bilhete') || lowerText.includes('svrs')) {
@@ -330,7 +353,7 @@ export const ComprovantesUploader: React.FC<ComprovantesUploaderProps> = ({
                 desc = 'Bilhete de Passagem (BP-e)';
              } else if (lowerText.includes('nfce') || lowerText.includes('nfe') || lowerText.includes('fazenda') || lowerText.includes('sefa')) {
                 tipoDetectado = 'CUPOM_FISCAL';
-                elementoDetectado = '3.3.90.30';
+                elementoDetectado = '3.3.90.30.01';
                 desc = 'Cupom Fiscal (NFC-e) - Consumo';
              }
 

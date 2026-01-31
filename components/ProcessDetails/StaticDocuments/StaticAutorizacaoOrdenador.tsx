@@ -220,7 +220,7 @@ export const StaticAutorizacaoOrdenador: React.FC<StaticAutorizacaoOrdenadorProp
                     {signerName}
                   </p>
                   <p className="text-xs text-emerald-700 mt-1">
-                    {signerRole}
+                    Secretaria de Planejamento, Coordenação e Finanças
                   </p>
                   <div className="mt-3 text-[11px] font-medium text-emerald-800 space-y-1">
                     <p>

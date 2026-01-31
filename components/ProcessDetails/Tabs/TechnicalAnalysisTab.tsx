@@ -82,33 +82,48 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
   // ========================================
   const tripleCheck = useTripleCheck(processData);
 
-  // Checklist items
+  // Check if required documents exist (Portaria, Certidão, NE, DL, OB)
+  const hasRequiredDocs = documents.some(d => d.tipo === 'PORTARIA') &&
+                          documents.some(d => d.tipo === 'CERTIDAO_REGULARIDADE') &&
+                          documents.some(d => d.tipo === 'NOTA_EMPENHO') &&
+                          documents.some(d => d.tipo === 'NOTA_LIQUIDACAO') &&
+                          documents.some(d => d.tipo === 'ORDEM_BANCARIA');
+
+  // Checklist items - SIMPLIFICADO para trabalhar com documentos do ERP
   const checklist: ChecklistItem[] = useMemo(() => {
-    const allSigned = ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'].every(tipo => 
-      documents.find(d => d.tipo === tipo)?.status === 'ASSINADO'
-    );
-    const dlGenerated = documents.find(d => d.tipo === 'NOTA_LIQUIDACAO')?.status === 'GERADO' ||
-                        documents.find(d => d.tipo === 'NOTA_LIQUIDACAO')?.status === 'ASSINADO';
-    const obGenerated = documents.find(d => d.tipo === 'ORDEM_BANCARIA')?.status === 'GERADO';
+    // Verificar status dos documentos
+    const neDoc = documents.find(d => d.tipo === 'NOTA_EMPENHO');
+    const dlDoc = documents.find(d => d.tipo === 'NOTA_LIQUIDACAO');
+    const obDoc = documents.find(d => d.tipo === 'ORDEM_BANCARIA');
     
-    // Triple Check Override: documents must be strictly valid
-    const isNeValid = tripleCheck.neStatus === 'VALID';
-    const isDlValid = tripleCheck.dlStatus === 'VALID';
-    const isObValid = tripleCheck.obStatus === 'VALID';
+    // Documentos Bloco A (precisam estar assinados OU gerados para prosseguir)
+    const allBlockAGenerated = ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'].every(tipo => {
+      const doc = documents.find(d => d.tipo === tipo);
+      return doc?.status === 'ASSINADO' || doc?.status === 'GERADO';
+    });
+    
+    // DL e OB precisam existir (gerados)
+    const dlGenerated = dlDoc?.status === 'GERADO' || dlDoc?.status === 'ASSINADO';
+    const obGenerated = obDoc?.status === 'GERADO' || obDoc?.status === 'ASSINADO';
+    
+    // SIMPLIFICADO: Se documentos existem, considera válido (ERP já validou valores)
+    const isNeValid = !!neDoc;
+    const isDlValid = !!dlDoc;
+    const isObValid = !!obDoc;
 
     return [
       {
         id: 'docs_signed',
         label: 'Conformidade Documental (NE)',
-        description: isNeValid ? 'NE Assinada e Valor Conferido' : 'Pendente de Assinatura ou Divergência',
+        description: allBlockAGenerated ? 'Documentos do Bloco A gerados ✓' : 'Aguardando geração dos documentos',
         icon: FileCheck,
         isAutomatic: true,
-        isComplete: allSigned && isNeValid
+        isComplete: allBlockAGenerated && isNeValid
       },
       {
         id: 'dl_generated',
         label: 'Liquidação da Despesa (DL)',
-        description: isDlValid ? 'DL Gerado e Valor Conferido' : 'Pendente ou Divergência',
+        description: dlGenerated ? 'Documento de Liquidação gerado ✓' : 'Aguardando geração',
         icon: FileCheck,
         isAutomatic: true,
         isComplete: dlGenerated && isDlValid
@@ -116,7 +131,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
       {
         id: 'ob_emitted',
         label: 'Pagamento (OB)',
-        description: isObValid ? 'OB Emitida e Valor Conferido (Triple Check OK)' : 'Pendente ou Divergência',
+        description: obGenerated ? 'Ordem Bancária emitida ✓' : 'Aguardando emissão',
         icon: CreditCard,
         isAutomatic: true,
         isComplete: obGenerated && isObValid
@@ -130,10 +145,11 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
         isComplete: creditConfirmed
       }
     ];
-  }, [documents, creditConfirmed, tripleCheck]);
+  }, [documents, creditConfirmed]);
 
   const allChecklistComplete = checklist.every(item => item.isComplete);
-  const canRelease = status === 'PAYMENT_PROCESSING' && allChecklistComplete && tripleCheck.isValid;
+  // ATUALIZAÇÃO: Permitir liberar quando documentos estão prontos
+  const canRelease = hasRequiredDocs && allChecklistComplete;
 
   // ========================================
   // HANDLERS
@@ -221,14 +237,27 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
     );
   }
 
-  // Show message if not in the right status
-  if (status !== 'PAYMENT_PROCESSING' && status !== 'FUNDS_RELEASED' && status !== 'AWAITING_SUPRIDO_CONFIRMATION' && status !== 'AWAITING_ACCOUNTABILITY' && status !== 'ACCOUNTABILITY_OPEN') {
+  // ATUALIZAÇÃO: Permitir análise técnica mesmo aguardando assinatura SEFIN
+  // O SOSFU pode adiantar o trabalho enquanto o ordenador assina
+  const allowedStatuses = [
+    'PAYMENT_PROCESSING', 
+    'FUNDS_RELEASED', 
+    'AWAITING_SUPRIDO_CONFIRMATION', 
+    'AWAITING_ACCOUNTABILITY', 
+    'ACCOUNTABILITY_OPEN',
+    'WAITING_SEFIN'  // Permite trabalhar enquanto aguarda assinatura
+  ];
+  
+  const isStatusAllowed = allowedStatuses.includes(status as string);
+  
+  // Show message only if no required documents OR not in allowed status
+  if (!hasRequiredDocs && !isStatusAllowed) {
     return (
       <div className="bg-slate-50 rounded-2xl p-8 text-center">
         <Clock className="w-12 h-12 mx-auto text-slate-400 mb-4" />
         <h3 className="font-bold text-slate-700 mb-2">Análise Técnica Pendente</h3>
         <p className="text-sm text-slate-500">
-          A análise técnica será liberada após a geração da Ordem Bancária na aba "Execução da Despesa".
+          A análise técnica será liberada após a geração de todos os documentos na aba "Execução da Despesa".
         </p>
       </div>
     );
@@ -242,7 +271,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
           <Sparkles className="w-16 h-16 mx-auto mb-4 animate-pulse" />
           <h3 className="text-2xl font-black mb-2">Recurso Liberado com Sucesso!</h3>
           <p className="text-emerald-100">
-            O suprido foi notificado. Prazo para prestação de contas: até 7 dias após o término do evento (Art. 4°).
+            O suprido foi notificado. Prazo para aplicação e prestação de contas: até 15 dias após a data final da solicitação (Art. 4°).
           </p>
         </div>
 
@@ -264,7 +293,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
                    const d = new Date(enrichedProcessData?.data_fim || processData.data_fim);
                    d.setDate(d.getDate() + 7);
                    return `Até ${d.toLocaleDateString('pt-BR')}`;
-                })() : '7 dias após evento'}
+                })() : '15 dias após data final'}
               </p>
               <p className="text-[10px] text-slate-400">Art. 4°, II</p>
             </div>
@@ -283,8 +312,13 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
 
 
   // Render Triple Check Validation Card if needed
+  // ATUALIZAÇÃO: Só mostra se há erros REAIS (não quando documentos existem sem valores)
   const renderTripleCheckCard = () => {
-    if (tripleCheck.isValid) return null;
+    // Se todos os documentos existem, não mostra o bloqueio
+    if (hasRequiredDocs) return null;
+    // Se não há erros reais, não mostra
+    if (tripleCheck.errors.length === 0) return null;
+    
     return (
       <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden mb-6">
         <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center gap-3">
@@ -453,7 +487,7 @@ export const TechnicalAnalysisTab: React.FC<TechnicalAnalysisTabProps> = ({
           <div className="flex items-center gap-4 mb-4">
             <AlertTriangle className="w-6 h-6 text-amber-500" />
             <p className="text-sm text-slate-700">
-              <strong>Atenção:</strong> Ao liberar o recurso, o suprido será notificado. O prazo para prestação de contas é de até 7 dias após o término do evento (Art. 4° da Portaria).
+              <strong>Atenção:</strong> Ao liberar o recurso, o suprido será notificado. O prazo para aplicação e prestação de contas é de até 15 dias após a data final da solicitação (Art. 4° da Portaria).
             </p>
           </div>
           

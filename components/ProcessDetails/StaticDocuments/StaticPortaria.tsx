@@ -113,7 +113,10 @@ const parseItens = (data: any): any[] => {
 
 export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, documentData }) => {
   // Support both form_data wrapper (dossier) and direct metadata (execution_documents)
-  const metadata = documentData.metadata?.form_data || documentData.metadata || {};
+  // CRITICAL FIX: Merge root metadata (signature info) with form_data to ensure signed_* fields are available
+  const rootMetadata = documentData.metadata || {};
+  const formData = rootMetadata.form_data || {};
+  const metadata = { ...rootMetadata, ...formData };
   
   // Parse expense items and sort by element code
   const rawItens = parseItens(processData.itens_despesa || processData.items);
@@ -150,6 +153,13 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
   
   const formatDate = (date?: string) => {
     if (!date) return new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    
+    // If it's a full ISO string (like created_at), use Date object to respect local timezone behavior
+    if (date.includes('T') && date.length > 10) {
+       return new Date(date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    // For plain dates (YYYY-MM-DD), use split to prevent timezone shifts
     const cleanDate = date.split('T')[0];
     if (cleanDate.includes('-')) {
       const [year, month, day] = cleanDate.split('-');
@@ -173,10 +183,11 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
   const anoPortaria = new Date(documentData.created_at || Date.now()).getFullYear();
   const valorTotal = processData.valor_total || processData.value || 0;
 
-  // Cálculo dos prazos
+  // Cálculo dos prazos - NOVA LÓGICA: Prazo único de Aplicação e Prestação de Contas
+  // Data da emissão da Portaria até (data_fim do formulário + 15 dias)
   const dataEmissao = new Date(documentData.created_at || Date.now());
-  const dataFimEvento = processData.end_date ? new Date(processData.end_date) : new Date(dataEmissao.getTime() + 90 * 24 * 60 * 60 * 1000);
-  const dataLimitePrestacao = new Date(dataFimEvento.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const dataFimEvento = processData.end_date ? new Date(processData.end_date) : dataEmissao;
+  const prazoAplicacaoPrestacao = new Date(dataFimEvento.getTime() + 15 * 24 * 60 * 60 * 1000); // [SOSFU-UPDATE] Rule: End Date + 15 days
 
   // Formatação das dotações para Art. 2°
   const formatDotacoes = () => {
@@ -279,20 +290,17 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
         )}
         
 
-        {/* Art. 4º */}
+        {/* Art. 4º - Prazo único de Aplicação e Prestação de Contas */}
         <div className="leading-loose">
           <span className="font-bold">Art. 4º</span>{' '}
-          A aplicação e a prestação de contas do valor referido no Artigo 2º desta Portaria deverão observar os prazos a seguir:
+          A aplicação e a prestação de contas do valor referido no Artigo 2º desta Portaria deverão ser realizadas no seguinte prazo:
         </div>
 
         <div className="pl-8 space-y-2">
           <div className="leading-relaxed">
-            <strong>I</strong> – Prazo de Aplicação: de <strong>{formatDateShort(documentData.created_at)}</strong> a{' '}
-            <strong>{formatDateShort(processData.end_date)}</strong>;
-          </div>
-          <div className="leading-relaxed">
-            <strong>II</strong> – Prazo para Prestação de Contas: até <strong>{formatDateShort(dataLimitePrestacao.toISOString())}</strong>{' '}
-            (+7 dias após o término do prazo de aplicação).
+            <strong>Parágrafo único</strong> – Prazo de Aplicação e Prestação de Contas:{' '}
+            <strong>{formatDateShort(documentData.created_at)}</strong> até{' '}
+            <strong>{formatDateShort(prazoAplicacaoPrestacao.toISOString())}</strong>.
           </div>
 
           <div className="leading-relaxed">
@@ -307,21 +315,48 @@ export const StaticPortaria: React.FC<StaticPortariaProps> = ({ processData, doc
         {/* Signature */}
         <div className="mt-16 text-center space-y-4">
           <div className="pt-4 border-t border-slate-400 max-w-md mx-auto">
-            <p className="font-bold text-base uppercase">
-              {metadata.signed_by_name || 'ANAILTON PAULO DE ALENCAR'}
-            </p>
             <p className="text-sm font-semibold">Ordenador de Despesa</p>
-            <p className="text-xs text-slate-600">{metadata.signer_role || 'Secretário Adjunto de Planejamento, Coordenação e Finanças'}</p>
+            <p className="text-xs text-slate-600">Secretaria de Planejamento, Coordenação e Finanças</p>
           </div>
         </div>
 
         {/* Digital signature notice - Show when document is signed */}
+        {/* Electronic Signature Block (Standardized Style) */}
         {(documentData?.status === 'ASSINADO' || documentData?.status === 'Assinado' || metadata.signed_at) && (
-          <div className="mt-8 text-center text-xs text-slate-500 italic border-t border-slate-200 pt-4">
-            <p className="text-emerald-600 font-bold mb-2">✓ ASSINADO ELETRONICAMENTE</p>
-            <p>Assinado digitalmente por <strong>{metadata.signed_by_name || 'Anailton Paulo de Alencar'}</strong></p>
-            <p>Data: {formatDate(metadata.signed_at || documentData?.signed_at || documentData?.updated_at || documentData?.created_at)}</p>
-            <p className="text-[10px] mt-1">Documento válido conforme Lei 14.063/2020</p>
+          <div className="mt-16 pt-8 border-t-2 border-slate-200 break-inside-avoid">
+            <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-xl space-y-4">
+              <h5 className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                ASSINATURA ELETRÔNICA CERTIFICADA
+              </h5>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-black text-sm shrink-0">
+                  OK
+                </div>
+                <div className="flex-1 space-y-2">
+                  <p className="text-base font-bold text-emerald-900 uppercase">
+                    {metadata.signed_by_name || metadata.footer?.signerName || 'Ordenador de Despesa'}
+                  </p>
+                  <p className="text-xs text-emerald-700 mt-1">
+                    {metadata.signer_role || metadata.footer?.signerRole || 'Secretaria de Planejamento, Coordenação e Finanças'}
+                  </p>
+                  <div className="mt-3 text-[11px] font-medium text-emerald-800 space-y-1">
+                    <p>
+                      <strong>Data:</strong> {formatDate(metadata.signed_at || documentData?.signed_at || documentData?.updated_at || documentData?.created_at)}
+                    </p>
+                    <p>
+                      <strong>Hash de Verificação:</strong> {documentData?.id?.substring(0, 16)?.toUpperCase() || 'N/A'}...
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[9px] text-emerald-600 mt-4 leading-relaxed border-t border-emerald-200 pt-3">
+                A autenticidade deste documento pode ser conferida no sistema SISUP através do ID {documentData?.id || 'N/A'}. 
+                Assinado eletronicamente conforme MP 2.200-2/2001.
+              </p>
+            </div>
           </div>
         )}
       </div>

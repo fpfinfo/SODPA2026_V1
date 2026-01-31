@@ -66,6 +66,13 @@ export const DocumentCreationWizard: React.FC<DocumentCreationWizardProps> = ({
   const [signNow, setSignNow] = useState(true);
   const [availableSigners, setAvailableSigners] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Editable footer fields
+  const [footerLocation, setFooterLocation] = useState('Belém');
+  const [footerDate, setFooterDate] = useState(new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }));
+  const [footerSignerName, setFooterSignerName] = useState('');
+  const [footerSignerRole, setFooterSignerRole] = useState('Ordenador de Despesa');
+  
   const { showToast } = useToast();
   
   // NEW: Signature modal state
@@ -197,9 +204,34 @@ Assunto: Solicitação de Providências
     }
   }, [selectedType, resolvedUser, availableSigners]);
 
+  // Update footer when signatory changes
+  useEffect(() => {
+    const signer = availableSigners.find(s => s.id === signatoryId);
+    if (signer) {
+      setFooterSignerName(signer.nome || '');
+      setFooterSignerRole(signer.cargo || signer.role || 'Ordenador de Despesa');
+    }
+  }, [signatoryId, availableSigners]);
+
   const fetchSigners = async () => {
     const { data } = await supabase.from('profiles').select('id, nome, role, cargo');
     if (data) setAvailableSigners(data);
+  };
+
+  // Filter signers based on context - AJSEFIN creating DECISAO should only see Ordenadores
+  const getFilteredSigners = () => {
+    const role = resolvedUser?.role?.toUpperCase();
+    
+    // AJSEFIN creating DECISAO: only show SEFIN/ORDENADOR (Ordenadores de Despesa)
+    if (role === 'AJSEFIN' && selectedType === 'DECISAO') {
+      return availableSigners.filter(s => 
+        s.role?.toUpperCase() === 'SEFIN' || 
+        s.role?.toUpperCase() === 'ORDENADOR'
+      );
+    }
+    
+    // Default: show all signers
+    return availableSigners;
   };
 
   // NEW: Handler when user clicks the save button
@@ -261,14 +293,22 @@ Assunto: Solicitação de Providências
             conteudo: content,
             created_by: resolvedUser?.id,
             url_storage: `mock://documents/${processId}/${Date.now()}.pdf`,
-            // Add signature metadata if signed
-            ...(isSigned && {
-              metadata: {
+            // ALWAYS include footer in metadata - this is the document footer that should be rendered
+            metadata: {
+              footer: {
+                location: footerLocation,
+                date: footerDate,
+                signerName: footerSignerName,
+                signerRole: footerSignerRole
+              },
+              // Add signature metadata if signed
+              ...(isSigned && {
                 signed_at: new Date().toISOString(),
                 signer_id: resolvedUser?.id,
-                signer_role: resolvedUser?.role
-              }
-            })
+                signer_role: resolvedUser?.role,
+                signed_by_name: resolvedUser?.nome || resolvedUser?.email // Save name explicitly
+              })
+            }
         };
 
         // Only include assigned_signer_id if delegating to another person
@@ -440,14 +480,55 @@ Assunto: Solicitação de Providências
                                     className="flex-1 w-full resize-none outline-none font-serif text-lg leading-relaxed text-slate-800"
                                     placeholder="Comece a redigir aqui..."
                                  />
-                                 <div className="mt-16 pt-8 border-t border-slate-100 flex flex-col items-center">
-                                     <div className="w-64 h-px bg-slate-800 mb-4"></div>
-                                     <p className="font-bold text-slate-900 uppercase">
-                                         {availableSigners.find(s => s.id === signatoryId)?.nome || 'Signatário'}
-                                     </p>
-                                     <p className="text-xs text-slate-500 uppercase tracking-widest">
-                                         {availableSigners.find(s => s.id === signatoryId)?.cargo || 'Cargo'}
-                                     </p>
+                                 
+                                 {/* Editable Footer Section */}
+                                 <div className="mt-16 pt-8 flex flex-col items-center space-y-6">
+                                     {/* Location and Date */}
+                                     <div className="flex items-center gap-1 text-slate-700 italic">
+                                         <input 
+                                             value={footerLocation}
+                                             onChange={e => setFooterLocation(e.target.value)}
+                                             className="text-right font-serif text-lg border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none bg-transparent transition-all w-24"
+                                             placeholder="Local"
+                                         />
+                                         <span>,</span>
+                                         <input 
+                                             value={footerDate}
+                                             onChange={e => setFooterDate(e.target.value)}
+                                             className="font-serif text-lg border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none bg-transparent transition-all w-64"
+                                             placeholder="Data"
+                                         />
+                                         <span>.</span>
+                                     </div>
+                                     
+                                     {/* Signature Line */}
+                                     <div className="w-80 border-t border-dashed border-slate-400 pt-2">
+                                         <p className="text-center text-blue-600 italic text-sm">
+                                             Assinatura Digital do Ordenador
+                                         </p>
+                                     </div>
+                                     
+                                     {/* Editable Signer Name and Role */}
+                                     <div className="flex flex-col items-center space-y-1">
+                                         <input 
+                                             value={footerSignerName}
+                                             onChange={e => setFooterSignerName(e.target.value)}
+                                             className="text-center font-bold text-slate-900 uppercase text-lg border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none bg-transparent transition-all"
+                                             placeholder="Nome do Signatário"
+                                         />
+                                         <input 
+                                             value={footerSignerRole}
+                                             onChange={e => setFooterSignerRole(e.target.value)}
+                                             className="text-center text-xs text-slate-500 uppercase tracking-widest border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none bg-transparent transition-all"
+                                             placeholder="Cargo"
+                                         />
+                                     </div>
+                                     
+                                     {/* System Footer */}
+                                     <div className="pt-8 text-center text-[10px] text-slate-400 uppercase tracking-wider space-y-1">
+                                         <p>DOCUMENTO GERADO PELO SISTEMA SISUP - TJPA</p>
+                                         <p>ID: PREVIEW • NUP: {protocolNup}</p>
+                                     </div>
                                  </div>
                              </div>
                         </div>
@@ -481,7 +562,7 @@ Assunto: Solicitação de Providências
                                                 }}
                                                 className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                                             >
-                                                {availableSigners.map(s => (
+                                                {getFilteredSigners().map(s => (
                                                     <option key={s.id} value={s.id}>{s.nome} - {s.role}</option>
                                                 ))}
                                             </select>

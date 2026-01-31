@@ -21,6 +21,7 @@ import { ContextDrawer, SimilarSearchType } from '../ContextDrawer'
 
 interface SefinExplorerViewProps {
   searchQuery?: string
+  darkMode?: boolean
 }
 
 // Pagination config
@@ -44,7 +45,7 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-export function SefinExplorerView({ searchQuery }: SefinExplorerViewProps) {
+export function SefinExplorerView({ searchQuery, darkMode = false }: SefinExplorerViewProps) {
   const { tasks, isLoading, filters, updateFilter } = useSefinCockpit({ autoRefresh: false })
   const [localSearch, setLocalSearch] = useState(searchQuery || '')
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })

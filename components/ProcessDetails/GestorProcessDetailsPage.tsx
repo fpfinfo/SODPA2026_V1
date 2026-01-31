@@ -30,6 +30,7 @@ interface GestorProcessDetailsPageProps {
   processId: string;
   onClose: () => void;
   currentUserId?: string;
+  onProcessUpdated?: () => void; // New callback
   
   // Action capabilities
   canTramitar?: boolean;
@@ -54,10 +55,12 @@ interface GestorProcessDetailsPageProps {
   hasOficioJustificativa?: boolean;
 }
 
+// Destructuring
 export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> = ({
   processId,
   onClose,
   currentUserId: passedUserId,
+  onProcessUpdated, // Destructured
   canTramitar,
   isTramitarDisabled,
   canGenerateAtesto,
@@ -394,6 +397,10 @@ export const GestorProcessDetailsPage: React.FC<GestorProcessDetailsPageProps> =
               processId={processId}
               processData={processData}
               currentUserId={currentUserId}
+              onDocumentDeleted={() => {
+                refetch();
+                if (onProcessUpdated) onProcessUpdated();
+              }}
             />
           )}
         </div>

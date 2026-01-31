@@ -97,14 +97,36 @@ export function useUserProfile(user: { id?: string; email?: string } | null): Us
 
         setUserProfile(mergedProfile);
 
-        // Determine Initial Role
-        const dbRole = (profileData?.role || servidorData?.role)?.toUpperCase() as AppRole;
-        console.log('[useUserProfile] DB Role:', profileData?.role, '-> Parsed:', dbRole, '-> Valid:', Object.values(AppRole).includes(dbRole));
-        if (dbRole && Object.values(AppRole).includes(dbRole)) {
-            setInitialRole(dbRole);
+        // Determine Initial Role with legacy role mapping
+        const rawRole = (profileData?.role || servidorData?.role)?.toUpperCase();
+        
+        // Map legacy roles to valid AppRole values
+        const legacyRoleMap: Record<string, AppRole> = {
+          // Direct matches (already valid)
+          'SUPRIDO': AppRole.SUPRIDO,
+          'GESTOR': AppRole.GESTOR,
+          'SOSFU': AppRole.SOSFU,
+          'SEFIN': AppRole.SEFIN,
+          'AJSEFIN': AppRole.AJSEFIN,
+          'SGP': AppRole.SGP,
+          'SODPA': AppRole.SODPA,
+          // Legacy mappings for roles stored in old format
+          'CHEFE_SOSFU': AppRole.GESTOR,  // Chefe da SOSFU atua como Gestor
+          'CHEFE': AppRole.GESTOR,         // Chefes são gestores
+          'ORDENADOR': AppRole.SEFIN,      // Ordenadores atuam no módulo SEFIN
+          'MAGISTRADO': AppRole.GESTOR,    // Magistrados são gestores de comarca
+          'JUIZ': AppRole.GESTOR,          // Juízes são gestores de comarca
+          'ANALISTA': AppRole.SOSFU,       // Analistas genéricos vão para SOSFU
+        };
+        
+        const mappedRole = rawRole ? legacyRoleMap[rawRole] : undefined;
+        console.log('[useUserProfile] DB Role:', profileData?.role, '-> Raw:', rawRole, '-> Mapped:', mappedRole);
+        
+        if (mappedRole) {
+            setInitialRole(mappedRole);
         } else {
-            // Fallback: se o role do banco não é válido, usa SUPRIDO
-            console.warn('[useUserProfile] Invalid or missing role, defaulting to SUPRIDO');
+            // Fallback: se o role do banco não é válido nem mapeável, usa SUPRIDO
+            console.warn('[useUserProfile] Invalid or missing role:', rawRole, ', defaulting to SUPRIDO');
             setInitialRole(AppRole.SUPRIDO);
         }
 

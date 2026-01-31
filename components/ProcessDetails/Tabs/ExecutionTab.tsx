@@ -98,101 +98,9 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
     });
   }, []);
 
-  const handleConfirmCertidao = async (pin: string): Promise<{ success: boolean; error?: string }> => {
-     if (!userProfile?.signature_pin) {
-        return { success: false, error: 'PIN não configurado no perfil.' };
-     }
-     
-     if (pin !== userProfile.signature_pin) {
-        return { success: false, error: 'PIN incorreto.' };
-     }
+  /* REMOVED: handleConfirmCertidao (Signature no longer required) */
 
-     try {
-       await generateDocument({ tipo: 'CERTIDAO_REGULARIDADE' });
-       return { success: true };
-     } catch (err: any) {
-       return { success: false, error: err.message || 'Erro ao gerar certidão.' };
-     }
-  };
-
-  // Safe parse function
-  const parseItens = (data: any): any[] => {
-    if (!data) return [];
-    if (Array.isArray(data)) return data;
-    if (typeof data === 'string') {
-      try {
-        const parsed = JSON.parse(data);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  };
-
-  const rawItens = enrichedProcessData?.itens_despesa || processData.items || processData.itens_despesa;
-  const itens = parseItens(rawItens);
-  const totalGeral = enrichedProcessData?.valor_total || processData.value || processData.valor_total || 0;
-
-  // ========================================
-  // EXCEÇÃO JÚRI - Bloqueio até Autorização do Ordenador
-  // ========================================
-  const LIMITE_POLICIAIS = 5;
-  const tipoProcesso = (processData.tipo || '').toString().toUpperCase();
-  const isJuriProcess = tipoProcesso.includes('JURI') || tipoProcesso.includes('JÚRI') || tipoProcesso.includes('SESSAO');
-  
-  // Parse participantes do júri
-  const juriParticipants = enrichedProcessData?.juri_participants || processData.juri_participants || {};
-  const quantidadePoliciais = typeof juriParticipants === 'object' ? 
-    (juriParticipants.policias || juriParticipants.policiais || 0) : 0;
-  
-  const hasExcepcaoPoliciais = isJuriProcess && quantidadePoliciais > LIMITE_POLICIAIS;
-  const statusProcesso = (processData.status || '').toUpperCase();
-  const isAutorizadoOrdenador = statusProcesso.includes('AUTORIZADO ORDENADOR');
-  
-  // Se tem exceção e NÃO foi autorizado pelo ordenador, bloqueia execução
-  const isBlockedByExceptionalFlow = hasExcepcaoPoliciais && !isAutorizadoOrdenador;
-
-  // ========================================
-  // HELPERS
-  // ========================================
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
-  const getDocumentStatus = (tipo: string): 'PENDENTE' | 'GERADO' | 'ASSINADO' => {
-    const doc = documents.find(d => d.tipo === tipo);
-    
-    // VISUAL FIX: Se a SEFIN já assinou (status global), força status visual ASSINADO para documentos do Bloco A
-    // Isso corrige casos onde o backend atualizou o workflow mas ainda não sincronizou o status individual dos docs
-    if (isSignedBySefin && ['PORTARIA', 'CERTIDAO_REGULARIDADE', 'NOTA_EMPENHO'].includes(tipo)) {
-        return 'ASSINADO';
-    }
-
-    return doc?.status || 'PENDENTE';
-  };
-
-  const canGenerateDoc = (tipo: string): boolean => {
-    // BLOQUEIO: Processos Júri com exceção de policiais aguardando autorização do Ordenador
-    if (isBlockedByExceptionalFlow) return false;
-    
-    switch (tipo) {
-      case 'PORTARIA': return canGeneratePortaria;
-      case 'CERTIDAO_REGULARIDADE': return canGenerateCertidao;
-      case 'NOTA_EMPENHO': return canGenerateNE;
-      case 'NOTA_LIQUIDACAO': return canGenerateDL && isSignedBySefin;
-      case 'ORDEM_BANCARIA': return canGenerateOB && isSignedBySefin;
-      default: return false;
-    }
-  };
-
-  // ========================================
-  // HANDLERS
-  // ========================================
-  const handlePortariaSubmit = async (formData: any) => {
-    generateDocument({ tipo: 'PORTARIA', formData });
-    setShowPortariaModal(false);
-  };
+  // ...
 
   const handleGenerateCertidao = async () => {
     const { data: pendenciasCheck } = await checkPendencias();
@@ -200,22 +108,9 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
       alert(`❌ Servidor possui pendências:\n\n${(pendenciasCheck.detalhes || []).join('\n')}\n\nRegularize antes de gerar a certidão.`);
       return;
     }
-    if (pendenciasCheck?.has_pendencias) {
-      alert(`❌ Servidor possui pendências:\n\n${(pendenciasCheck.detalhes || []).join('\n')}\n\nRegularize antes de gerar a certidão.`);
-      return;
-    }
     
-    // Check if user has PIN configured
-    if (!userProfile?.signature_pin) {
-        showToast({
-            title: 'PIN não configurado',
-            message: 'Configure seu PIN de assinatura no perfil para gerar certidões.',
-            type: 'error'
-        });
-        return;
-    }
-
-    setIsSignatureModalOpen(true);
+    // DIRECT GENERATION - No signature required (will be signed by SEFIN)
+    generateDocument({ tipo: 'CERTIDAO_REGULARIDADE' });
   };
 
   const handleNESubmit = async (formData: any) => {
@@ -507,26 +402,22 @@ export const ExecutionTab: React.FC<ExecutionTabProps> = ({
       )}
 
       {/* ======================================== */}
-      {/* BLOCO B: Liquidação e Pagamento (Pós-SEFIN) */}
+      {/* BLOCO B: Liquidação e Pagamento */}
       {/* ======================================== */}
-      <div className={`bg-white rounded-2xl border overflow-hidden shadow-sm transition-all ${
-        isBlockBLocked ? 'opacity-50 border-slate-200' : 'border-emerald-200 ring-2 ring-emerald-100'
-      }`}>
+      <div className="bg-white rounded-2xl border overflow-hidden shadow-sm transition-all border-slate-200">
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h4 className="text-sm font-black text-slate-700 uppercase flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                isBlockBLocked ? 'bg-slate-400 text-white' : 'bg-emerald-600 text-white'
-              }`}>B</span>
+              <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-emerald-600 text-white">B</span>
               Liquidação e Pagamento
             </h4>
             <p className="text-xs text-slate-500 mt-1">
-              {isBlockBLocked ? 'Aguardando retorno da SEFIN para liberar' : 'Documentos de pagamento liberados!'}
+              {isWaitingSefin ? 'Você pode gerar os documentos enquanto aguarda a assinatura' : 'Documentos de liquidação e ordem bancária'}
             </p>
           </div>
-          {isSignedBySefin && !isBlockBLocked && (
+          {isSignedBySefin && (
             <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Liberado
+              <Sparkles className="w-3 h-3" /> SEFIN Assinou
             </span>
           )}
         </div>

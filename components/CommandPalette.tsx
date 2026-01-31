@@ -46,6 +46,9 @@ export function CommandPalette({
     return () => document.removeEventListener('keydown', down);
   }, [open, onOpenChange]);
 
+  // Don't render the dialog at all when closed to avoid backdrop issues
+  if (!open) return null;
+
   return (
     <Command.Dialog
       open={open}

@@ -70,13 +70,14 @@ export function useSefinTeamMembers(options: UseSefinTeamMembersOptions = {}) {
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, email, nome, cargo, avatar_url, capacidade_diaria')
-        .or('role.eq.ORDENADOR,email.in.(ordenador01@tjpa.jus.br,ordenador02@tjpa.jus.br)')
+        .or('role.ilike.SEFIN,role.ilike.ORDENADOR,email.in.(ordenador01@tjpa.jus.br,ordenador02@tjpa.jus.br)')
+
+      let finalMembers: SefinTeamMember[] = SEFIN_TEAM_FALLBACK
 
       if (error) {
         console.warn('Error fetching SEFIN team from profiles, using fallback:', error)
-        setTeamMembers(SEFIN_TEAM_FALLBACK)
       } else if (profiles && profiles.length > 0) {
-        const mappedMembers: SefinTeamMember[] = profiles.map(p => ({
+        finalMembers = profiles.map(p => ({
           id: p.id,
           email: p.email || '',
           nome: p.nome || 'Ordenador',
@@ -84,33 +85,39 @@ export function useSefinTeamMembers(options: UseSefinTeamMembersOptions = {}) {
           avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.nome || 'O')}&background=f59e0b&color=fff`,
           capacidade_diaria: p.capacidade_diaria || 30
         }))
-        setTeamMembers(mappedMembers)
-      } else {
-        setTeamMembers(SEFIN_TEAM_FALLBACK)
       }
+      
+      setTeamMembers(finalMembers)
 
-      // Fetch task counts per member
-      const memberIds = teamMembers.map(m => m.id)
+      // Fetch task counts per member using the fetched IDs (not stale state)
+      const memberIds = finalMembers.map(m => m.id)
       if (memberIds.length > 0) {
-        const { data: tasks } = await supabase
-          .from('sefin_tasks')
-          .select('assigned_to, status, signed_at')
-          .in('assigned_to', memberIds)
+        // Only query if we have valid UUIDs (not fallback placeholder IDs)
+        const hasValidUuids = memberIds.every(id => id.includes('-'))
+        
+        if (hasValidUuids) {
+          const { data: tasks, error: taskError } = await supabase
+            .from('sefin_tasks')
+            .select('assigned_to, status, assinado_em')
+            .in('assigned_to', memberIds)
 
-        if (tasks) {
-          const counts: Record<string, { assigned: number; pending: number; signedToday: number }> = {}
-          const today = new Date().toISOString().split('T')[0]
+          if (taskError) {
+            console.warn('Error fetching task counts:', taskError)
+          } else if (tasks) {
+            const counts: Record<string, { assigned: number; pending: number; signedToday: number }> = {}
+            const today = new Date().toISOString().split('T')[0]
 
-          memberIds.forEach(id => {
-            const memberTasks = tasks.filter(t => t.assigned_to === id)
-            counts[id] = {
-              assigned: memberTasks.length,
-              pending: memberTasks.filter(t => t.status === 'PENDING').length,
-              signedToday: memberTasks.filter(t => t.status === 'SIGNED' && t.signed_at?.startsWith(today)).length
-            }
-          })
+            memberIds.forEach(id => {
+              const memberTasks = tasks.filter(t => t.assigned_to === id)
+              counts[id] = {
+                assigned: memberTasks.length,
+                pending: memberTasks.filter(t => t.status === 'PENDING').length,
+                signedToday: memberTasks.filter(t => t.status === 'SIGNED' && t.assinado_em?.startsWith(today)).length
+              }
+            })
 
-          setTaskCounts(counts)
+            setTaskCounts(counts)
+          }
         }
       }
     } catch (err) {

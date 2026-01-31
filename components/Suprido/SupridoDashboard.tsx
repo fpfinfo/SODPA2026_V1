@@ -74,6 +74,7 @@ import { DocumentSigningModal } from './DocumentSigningModal';
 import { SupridoHome } from './SupridoHome';
 import { PinSettingsModal } from './PinSettingsModal';
 import { JuriExceptionInlineAlert } from '../ui/JuriExceptionInlineAlert';
+import { SignatureModal } from '../ui/SignatureModal';
 
 const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
 
@@ -286,6 +287,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
   // =============================
   const [pendingConfirmations, setPendingConfirmations] = useState<any[]>([]);
   const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
+  const [showReceiptSignature, setShowReceiptSignature] = useState(false);
+  const [receiptProcessId, setReceiptProcessId] = useState<string | null>(null);
 
   // Buscar processos pendentes de confirmação
   useEffect(() => {
@@ -326,10 +329,36 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     fetchPendingConfirmations();
   }, [currentUserId]);
 
-  // Handler para confirmar recebimento
-  const handleConfirmReceipt = async (processId: string) => {
+  // Handler para abrir modal de confirmação
+  const handleConfirmReceipt = (processId: string) => {
+    // Verificar se o usuário já tem PIN configurado
+    if (!profileData?.signature_pin) {
+      showToast({ 
+        type: 'warning', 
+        title: 'PIN não configurado', 
+        message: 'Por favor, configure seu PIN de assinatura antes de confirmar o recebimento.' 
+      });
+      setShowPinModal(true);
+      return;
+    }
+
+    setReceiptProcessId(processId);
+    setShowReceiptSignature(true);
+  };
+
+  // Handler executado após assinatura correta do PIN
+  const handleReceiptSignatureConfirm = async (pin: string) => {
+    if (!receiptProcessId) return { success: false, error: 'Processo inválido' };
+    
+    // Validate PIN
+    if (pin !== profileData?.signature_pin) {
+      return { success: false, error: 'PIN Incorreto' };
+    }
+
     setIsConfirmingReceipt(true);
     try {
+      const processId = receiptProcessId;
+      
       // Buscar data_fim do evento para calcular prazo (Art. 4° Portaria)
       const { data: solicitacao } = await supabase
         .from('solicitacoes')
@@ -344,7 +373,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         prazoDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       }
       
-      await supabase.from('solicitacoes').update({
+      const { error: updateError } = await supabase.from('solicitacoes').update({
         status: 'PRESTANDO CONTAS',
         status_workflow: 'AWAITING_ACCOUNTABILITY',
         data_confirmacao_recebimento: new Date().toISOString(),
@@ -352,8 +381,11 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         updated_at: new Date().toISOString()
       }).eq('id', processId);
 
+      if (updateError) throw updateError;
+
       const prazoFormatado = prazoDate.toLocaleDateString('pt-BR');
-      await supabase.from('historico_tramitacao').insert({
+      
+      const { error: histError } = await supabase.from('historico_tramitacao').insert({
         solicitacao_id: processId,
         origem: 'SUPRIDO',
         destino: 'PRESTAÇÃO DE CONTAS',
@@ -362,6 +394,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         observacao: `Suprido confirmou recebimento. Prazo: ${prazoFormatado} (Art. 4°).`,
         created_at: new Date().toISOString()
       });
+
+      if (histError) throw histError;
 
       // Mark notification as read immediately using the hook (optimistic + persistence)
       await notifications.markReadByMetadata('process_id', processId);
@@ -375,6 +409,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         message: `Prazo para prestação de contas: ${prazoFormatado}`,
         type: 'success'
       });
+      
+      return { success: true };
     } catch (error: any) {
       console.error('Error confirming receipt:', error);
       showToast({
@@ -382,6 +418,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
         message: error.message || 'Tente novamente',
         type: 'error'
       });
+      return { success: false, error: error.message || 'Erro ao processar' };
     } finally {
       setIsConfirmingReceipt(false);
     }
@@ -437,16 +474,23 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({ forceView, o
     const aprovadas = history.filter((s: any) => 
       s.status === 'CONCEDIDO' || 
       s.status === 'PRESTANDO CONTAS' ||
-      s.status_workflow === 'AWAITING_SUPRIDO_CONFIRMATION' // Money is available
+      s.status === 'EXECUÇÃO INICIADA' || // Após confirmação de recurso
+      s.status_workflow === 'AWAITING_SUPRIDO_CONFIRMATION' || // Aguardando confirmação
+      s.status_workflow === 'ACCOUNTABILITY_OPEN' // Recurso confirmado, pronto para PC
     );
     const pendentes = history.filter((s: any) => s.status === 'PENDENTE' || s.status === 'PENDENTE ANÁLISE' || s.status === 'PENDENTE ATESTO');
-    const prestando = history.filter((s: any) => s.status === 'PRESTANDO CONTAS' || s.status_workflow === 'AWAITING_ACCOUNTABILITY');
+    const prestando = history.filter((s: any) => 
+      s.status === 'PRESTANDO CONTAS' || 
+      s.status === 'EXECUÇÃO INICIADA' || // Após confirmar recurso
+      s.status_workflow === 'AWAITING_ACCOUNTABILITY' ||
+      s.status_workflow === 'ACCOUNTABILITY_OPEN' // Recurso confirmado, pronto para PC
+    );
     const rascunhos = history.filter((s: any) => s.status === 'RASCUNHO');
     
     // Saldo Disponível: Sum of approved values
     const saldoDisponivel = aprovadas.reduce((acc: number, s: any) => acc + (s.val || 0), 0);
     
-    // A Prestar Contas: Sum of values in 'PRESTANDO CONTAS' status
+    // A Prestar Contas: Sum of values in prestação de contas / execução
     const aPrestarContas = prestando.reduce((acc: number, s: any) => acc + (s.val || 0), 0);
     
     // Adiantamentos Ativos
@@ -3475,11 +3519,11 @@ Documento gerado automaticamente pelo Sistema SISUP - TJPA`;
       // Notify parent to refresh global state
       if (onProfileUpdate) onProfileUpdate();
 
-      alert('Foto de perfil atualizada!');
+      showToast({ type: 'success', title: 'Sucesso', message: 'Foto de perfil atualizada!' });
 
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      alert('Erro ao fazer upload da imagem. Verifique se o arquivo é menor que 2MB.');
+      showToast({ type: 'error', title: 'Erro', message: 'Erro ao fazer upload da imagem. Verifique se o arquivo é menor que 2MB.' });
     } finally {
       setIsUploading(false);
     }
@@ -4673,6 +4717,14 @@ Assinado eletronicamente pelo servidor suprido.`,
         onSuccess={(newPin) => {
           setProfileData((prev: any) => ({ ...prev, signature_pin: newPin }));
         }}
+      />
+
+      <SignatureModal
+        isOpen={showReceiptSignature}
+        onClose={() => setShowReceiptSignature(false)}
+        onConfirm={handleReceiptSignatureConfirm}
+        title="Confirmar Recebimento"
+        description="Digite seu PIN de 4 dígitos para confirmar o crédito"
       />
     </div>
   );

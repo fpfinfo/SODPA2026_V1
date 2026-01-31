@@ -28,6 +28,10 @@ import { useSODPAMyDesk } from '../hooks/useSODPAMyDesk';
 import { SODPATabView, ProcessoSODPA } from '../types';
 import { InboxPanel } from './SODPA/InboxPanel';
 import { MyDeskPanel } from './SODPA/MyDeskPanel';
+import { GestaoDiariasPanel } from './SODPA/GestaoDiariasPanel';
+import { GestaoPassagensPanel } from './SODPA/GestaoPassagensPanel';
+import { RelatoriosPanel } from './SODPA/RelatoriosPanel';
+import { ConfiguracoesPanel } from './SODPA/ConfiguracoesPanel';
 
 interface DashboardSODPAProps {
   onOpenProcess?: (processId: string, tipo: 'DIARIA' | 'PASSAGEM') => void;
@@ -381,22 +385,6 @@ export function DashboardSODPA({ onOpenProcess }: DashboardSODPAProps) {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                <Plane className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 tracking-tight">SODPA TJPA</h1>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Serviço de Diárias e Passagens</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* User info would go here */}
-            </div>
-          </div>
-
           {/* Tab Navigation */}
           <nav className="flex gap-1 -mb-px overflow-x-auto">
             {tabs.map((tab) => (
@@ -424,25 +412,13 @@ export function DashboardSODPA({ onOpenProcess }: DashboardSODPAProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'PAINEL' && renderPanelContent()}
 
-        {activeTab === 'DIARIAS' && renderPlaceholder(
-          <Calendar className="h-8 w-8 text-gray-400" />,
-          'Gestão de Diárias'
-        )}
+        {activeTab === 'DIARIAS' && <GestaoDiariasPanel onOpenProcess={onOpenProcess} />}
 
-        {activeTab === 'PASSAGENS' && renderPlaceholder(
-          <Plane className="h-8 w-8 text-gray-400" />,
-          'Gestão de Passagens'
-        )}
+        {activeTab === 'PASSAGENS' && <GestaoPassagensPanel onOpenProcess={onOpenProcess} />}
 
-        {activeTab === 'RELATORIOS' && renderPlaceholder(
-          <BarChart3 className="h-8 w-8 text-gray-400" />,
-          'Relatórios'
-        )}
+        {activeTab === 'RELATORIOS' && <RelatoriosPanel />}
 
-        {activeTab === 'CONFIG' && renderPlaceholder(
-          <Settings className="h-8 w-8 text-gray-400" />,
-          'Configurações'
-        )}
+        {activeTab === 'CONFIG' && <ConfiguracoesPanel />}
       </main>
 
       {/* Footer */}

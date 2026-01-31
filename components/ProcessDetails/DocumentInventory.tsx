@@ -180,11 +180,27 @@ export const DocumentInventory: React.FC<DocumentInventoryProps> = ({
                     <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
                       {doc.titulo || doc.nome || 'Documento'}
                     </h4>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
-                      doc.status === 'ASSINADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {doc.status || 'MINUTA'}
-                    </span>
+                    {(() => {
+                      const noSignatureTypes = ['NOTA_LIQUIDACAO', 'ORDEM_BANCARIA', 'LIQUIDACAO', 'OB'];
+                      const isNoSig = noSignatureTypes.includes(doc.tipo);
+                      
+                      let label = doc.status || 'MINUTA';
+                      let className = 'bg-amber-100 text-amber-700';
+
+                      if (doc.status === 'ASSINADO') {
+                        className = 'bg-emerald-100 text-emerald-700';
+                      } else if (isNoSig && (doc.status === 'PENDENTE_ASSINATURA' || doc.status === 'MINUTA')) {
+                        // DL and OB don't need signature, show as generated/valid
+                        label = 'GERADO';
+                        className = 'bg-blue-50 text-blue-700';
+                      }
+
+                      return (
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${className}`}>
+                          {label}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-slate-400">
                     <span className="flex items-center gap-1">

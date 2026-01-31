@@ -44,7 +44,8 @@ const getStatusConfig = (status: string) => {
 };
 
 const ELEMENTO_LABELS: Record<string, string> = {
-  '3.3.90.30': 'Material de Consumo',
+  '3.3.90.30.01': 'Consumo Geral',
+  '3.3.90.30.02': 'Combustível',
   '3.3.90.33': 'Passagens e Locomoção',
   '3.3.90.36': 'Serviços PF',
   '3.3.90.39': 'Serviços PJ',

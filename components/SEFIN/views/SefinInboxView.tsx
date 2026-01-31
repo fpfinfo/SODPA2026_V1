@@ -253,11 +253,15 @@ function FilterPills({ activeType, onTypeChange }: FilterPillsProps) {
 }
 
 export function SefinInboxView({ searchQuery }: SefinInboxViewProps) {
-  const { tasks, filteredTasks, isLoading, filters, updateFilter, signTask, signMultipleTasks, returnTask } = useSefinCockpit()
+  const [signModalOpen, setSignModalOpen] = useState(false)
+  
+  // CRÍTICO: Pausar auto-refresh quando modal de assinatura está aberto para evitar loops visuais
+  const { tasks, filteredTasks, isLoading, filters, updateFilter, signTask, signMultipleTasks, returnTask } = useSefinCockpit({
+    autoRefresh: !signModalOpen  // Pausa refresh quando modal está aberto
+  })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [selectedTask, setSelectedTask] = useState<SefinTask | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [signModalOpen, setSignModalOpen] = useState(false)
   const [signModalMode, setSignModalMode] = useState<'single' | 'batch'>('batch')
   const [taskToSign, setTaskToSign] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('priority')

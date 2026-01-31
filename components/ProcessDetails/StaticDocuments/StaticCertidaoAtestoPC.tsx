@@ -69,7 +69,7 @@ export const StaticCertidaoAtestoPC: React.FC<StaticCertidaoAtestoPCProps> = ({
       {/* Certidão Title */}
       <div className="text-center mb-8">
         <h3 className="text-xl font-bold text-slate-900 uppercase tracking-wide mb-2">
-          Certidão de Atesto da Prestação de Contas
+          Certidão de Análise e Aprovação da Prestação de Contas
         </h3>
         <p className="text-sm text-slate-500">
           Nº {anoCertidao}/PC-{numeroCertidao}
@@ -79,10 +79,9 @@ export const StaticCertidaoAtestoPC: React.FC<StaticCertidaoAtestoPCProps> = ({
       {/* Body */}
       <div className="space-y-6 text-justify">
         <p className="leading-loose">
-          <strong>CERTIFICO</strong>, no uso das minhas atribuições legais e em conformidade com o Regulamento de 
-          Suprimento de Fundos do Tribunal de Justiça do Estado do Pará (Resolução nº 15/2013-GP), que examinei 
-          a <strong>Prestação de Contas</strong> apresentada pelo servidor <strong>{supridoNome}</strong> (CPF: {supridoCpf}) 
-          referente ao processo <strong>{nup}</strong>.
+          <strong>CERTIFICO</strong>, para os devidos fins de regularidade fiscal e administrativa, que procedi à análise minuciosa 
+          da documentação comprobatória apresentada na <strong>Prestação de Contas</strong> do servidor <strong>{supridoNome}</strong> (CPF: {supridoCpf}), 
+          relativa à aplicação dos recursos concedidos nos autos do processo <strong>{nup}</strong>.
         </p>
 
         {/* Resumo Financeiro */}
@@ -119,25 +118,25 @@ export const StaticCertidaoAtestoPC: React.FC<StaticCertidaoAtestoPCProps> = ({
 
           <div className="pt-3 border-t border-slate-200 text-sm">
             <p className="text-xs text-slate-500 mb-1">Comprovantes Anexados</p>
-            <p className="font-bold text-slate-800">{quantidadeComprovantes} documento(s)</p>
+            <p className="font-bold text-slate-800">{quantidadeComprovantes} documento(s) fiscal(is)</p>
           </div>
         </div>
 
         <p className="leading-loose">
-          <strong>DECLARO</strong> que os comprovantes de despesa apresentados são idôneos, compatíveis com os 
-          valores informados, e os gastos realizados estão em conformidade com os elementos de despesa autorizados 
-          na Portaria de concessão e com a legislação pertinente.
+          <strong>DECLARO</strong> a idoneidade dos documentos fiscais apresentados e a correta aplicação dos recursos 
+          nas finalidades institucionais autorizadas, confirmando que não houve desvio de finalidade ou infringência 
+          às normas estabelecidas na Resolução nº 15/2013-GP e legislação correlata.
         </p>
 
         <p className="leading-loose">
-          <strong>ATESTO</strong> que o servidor aplicou corretamente os recursos do suprimento de fundos, 
-          tendo apresentado documentação fiscal regular e promovido as devoluções necessárias ao erário, 
-          estando a prestação de contas <strong className="text-emerald-700">APROVADA</strong> para prosseguimento.
+          <strong>ATESTO</strong>, diante do exposto, que a presente Prestação de Contas encontra-se <strong>REGULAR</strong> e 
+          <strong>APROVADA</strong> no âmbito desta Unidade Gestora, tendo sido verificadas as eventuais retenções tributárias 
+          e o recolhimento de saldo remanescente, quando exigível.
         </p>
 
         <p className="leading-loose pt-4">
-          Encaminhe-se ao <strong>Serviço de Suprimento de Fundos (SOSFU)</strong> para análise técnica final, 
-          consolidação e posterior envio ao Tribunal de Contas dos Municípios/TCE para fins de homologação.
+          Remetam-se os autos à <strong>Secretaria de Orçamento e Finanças (SEFIN) / SOSFU</strong> para análise técnica conclusiva 
+          e providências de baixa contábil/SIAFE.
         </p>
 
         {/* GDRs info if applicable */}

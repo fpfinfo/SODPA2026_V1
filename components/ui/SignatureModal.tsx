@@ -27,7 +27,7 @@ export function SignatureModal({
   description = "Digite seu PIN para assinar digitalmente",
   documentsCount
 }: SignatureModalProps) {
-  const [pin, setPin] = useState(['', '', '', '', '', ''])
+  const [pin, setPin] = useState(['', '', '', ''])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -36,7 +36,7 @@ export function SignatureModal({
   // Reset state on open
   useEffect(() => {
     if (isOpen) {
-      setPin(['', '', '', '', '', ''])
+      setPin(['', '', '', ''])
       setError(null)
       setSuccess(false)
       setIsLoading(false)
@@ -50,15 +50,15 @@ export function SignatureModal({
   const handleChange = (index: number, value: string) => {
     if (value.length > 1) {
       // Handle paste
-      const digits = value.replace(/\D/g, '').slice(0, 6).split('')
+      const digits = value.replace(/\D/g, '').slice(0, 4).split('')
       const newPin = [...pin]
       digits.forEach((digit, i) => {
-        if (index + i < 6) {
+        if (index + i < 4) {
           newPin[index + i] = digit
         }
       })
       setPin(newPin)
-      const nextIndex = Math.min(index + digits.length, 5)
+      const nextIndex = Math.min(index + digits.length, 3)
       inputRefs.current[nextIndex]?.focus()
       return
     }
@@ -70,7 +70,7 @@ export function SignatureModal({
     setPin(newPin)
 
     // Move to next input
-    if (value && index < 5) {
+    if (value && index < 3) {
       inputRefs.current[index + 1]?.focus()
     }
   }
@@ -90,8 +90,8 @@ export function SignatureModal({
 
   const handleSubmit = async () => {
     const pinString = pin.join('')
-    if (pinString.length !== 6) {
-      setError('Digite todos os 6 dígitos do PIN')
+    if (pinString.length !== 4) {
+      setError('Digite todos os 4 dígitos do PIN')
       return
     }
 
@@ -109,7 +109,7 @@ export function SignatureModal({
       } else {
         setError(result.error || 'Erro ao assinar documento')
         setIsLoading(false)
-        setPin(['', '', '', '', '', ''])
+        setPin(['', '', '', ''])
         inputRefs.current[0]?.focus()
       }
     } catch (err) {
@@ -172,7 +172,7 @@ export function SignatureModal({
               {/* PIN Input */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-slate-700 mb-3 text-center">
-                  Digite seu PIN de 6 dígitos
+                  Digite seu PIN de 4 dígitos
                 </label>
                 <div className="flex justify-center gap-2">
                   {pin.map((digit, index) => (
@@ -220,12 +220,12 @@ export function SignatureModal({
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={isLoading || pin.join('').length !== 6}
+                  disabled={isLoading || pin.join('').length !== 4}
                   className={`
                     flex-1 px-4 py-3 rounded-lg font-medium
                     flex items-center justify-center gap-2
                     transition-all
-                    ${pin.join('').length === 6 && !isLoading
+                    ${pin.join('').length === 4 && !isLoading
                       ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }

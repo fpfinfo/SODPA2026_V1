@@ -44,9 +44,10 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
           {(() => {
             // Configuração de identificação por módulo
             const moduleConfig: Record<AppRole, { sigla: string; cor: string; subtitulo: string; corPulse: string }> = {
-              [AppRole.SUPRIDO]: { sigla: 'SCS', cor: 'text-emerald-600', subtitulo: 'Portal do Suprido', corPulse: 'bg-emerald-500' },
+              [AppRole.SUPRIDO]: { sigla: 'SDP', cor: 'text-emerald-600', subtitulo: 'Portal do Suprido', corPulse: 'bg-emerald-500' },
               [AppRole.GESTOR]: { sigla: 'GESTOR', cor: 'text-indigo-600', subtitulo: 'Gestão de Suprimentos', corPulse: 'bg-indigo-500' },
-              [AppRole.SOSFU]: { sigla: 'SOSFU', cor: 'text-blue-600', subtitulo: 'Suprimento de Fundos', corPulse: 'bg-blue-500' },
+              [AppRole.SOSFU]: { sigla: 'SDP', cor: 'text-blue-600', subtitulo: 'Serviço de Diárias e Passagens', corPulse: 'bg-blue-500' },
+              [AppRole.SODPA]: { sigla: 'SDP', cor: 'text-blue-600', subtitulo: 'Serviço de Diárias e Passagens', corPulse: 'bg-blue-500' },
               [AppRole.SEFIN]: { sigla: 'SEFIN', cor: 'text-amber-600', subtitulo: 'Secretaria de Planejamento, Coordenação e Finanças', corPulse: 'bg-amber-500' },
               [AppRole.AJSEFIN]: { sigla: 'AJSEFIN', cor: 'text-purple-600', subtitulo: 'Assessoria Jurídica SEFIN', corPulse: 'bg-purple-500' },
               [AppRole.SGP]: { sigla: 'SGP', cor: 'text-teal-600', subtitulo: 'Secretaria de Gestão de Pessoas', corPulse: 'bg-teal-500' },

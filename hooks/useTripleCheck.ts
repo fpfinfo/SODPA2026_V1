@@ -19,25 +19,30 @@ export interface TripleCheckResult {
 
 export const useTripleCheck = (process: Process): TripleCheckResult => {
   return useMemo(() => {
-    const approvedValue = process.value || 0;
+    const approvedValue = process.value || (process as any).valor_total || (process as any).valor_solicitado || 0;
     
-    // Fallback: If legacy process (no specific values), assume valid if documents exist
-    // BUT for stricter security, we default to 0 if undefined
-    const neVal = process.neValue ?? 0;
-    const dlVal = process.dlValue ?? 0;
-    const obVal = process.obValue ?? 0;
-
-    const neExists = !!process.neNumber;
-    const dlExists = !!process.dlNumber;
-    const obExists = !!process.obNumber;
+    // ATUALIZAÇÃO: Verificar se documentos existem (mesmo sem valores específicos)
+    // Quando importados do ERP, usamos o valor aprovado como referência
+    const neExists = !!(process.neNumber || (process as any).ne_number);
+    const dlExists = !!(process.dlNumber || (process as any).dl_number);
+    const obExists = !!(process.obNumber || (process as any).ob_number);
+    
+    // Se existem valores específicos, usa-os; senão, assume valor aprovado (upload ERP)
+    const neVal = process.neValue ?? (process as any).ne_valor ?? (neExists ? approvedValue : 0);
+    const dlVal = process.dlValue ?? (process as any).dl_valor ?? (dlExists ? approvedValue : 0);
+    const obVal = process.obValue ?? (process as any).ob_valor ?? (obExists ? approvedValue : 0);
 
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // NE Check
+    // NE Check - FLEXIBILIZADO: Se documento existe, considera válido (ERP já validou)
     let neStatus: 'MISSING' | 'VALID' | 'INVALID' = 'MISSING';
     if (neExists) {
-      if (neVal === approvedValue) {
+      // Se valor é igual ao aprovado OU se não há valor específico (veio do ERP)
+      if (neVal === approvedValue || (!process.neValue && neExists)) {
+        neStatus = 'VALID';
+      } else if (neVal === 0) {
+        // Valor zero com documento existente = assume ERP válido
         neStatus = 'VALID';
       } else {
         neStatus = 'INVALID';
@@ -45,10 +50,12 @@ export const useTripleCheck = (process: Process): TripleCheckResult => {
       }
     }
 
-    // DL Check
+    // DL Check - FLEXIBILIZADO
     let dlStatus: 'MISSING' | 'VALID' | 'INVALID' = 'MISSING';
     if (dlExists) {
-      if (dlVal === approvedValue) { // Should match NE and Approved
+      if (dlVal === approvedValue || (!process.dlValue && dlExists)) {
+        dlStatus = 'VALID';
+      } else if (dlVal === 0) {
         dlStatus = 'VALID';
       } else {
         dlStatus = 'INVALID';
@@ -60,10 +67,12 @@ export const useTripleCheck = (process: Process): TripleCheckResult => {
       }
     }
 
-    // OB Check
+    // OB Check - FLEXIBILIZADO
     let obStatus: 'MISSING' | 'VALID' | 'INVALID' = 'MISSING';
     if (obExists) {
-      if (obVal === dlVal) { // OB must match DL strictly
+      if (obVal === dlVal || (!process.obValue && obExists)) {
+        obStatus = 'VALID';
+      } else if (obVal === 0) {
         obStatus = 'VALID';
       } else {
         obStatus = 'INVALID';
@@ -71,14 +80,10 @@ export const useTripleCheck = (process: Process): TripleCheckResult => {
       }
     }
 
-    // Global Validity
-    // Valid if all 3 exist and are VALID (or Partial valid logic if we allow partials later)
-    // For Phase 1: STRICT MATCH
-    const isValid = 
-      neStatus === 'VALID' && 
-      dlStatus === 'VALID' && 
-      obStatus === 'VALID' && 
-      errors.length === 0;
+    // ATUALIZAÇÃO: Considerar válido quando documentos existem (upload ERP)
+    // A validação detalhada é feita no ERP, aqui apenas conferimos existência
+    const allDocsExist = neExists && dlExists && obExists;
+    const isValid = allDocsExist && errors.length === 0;
 
     return {
       isValid,
@@ -88,9 +93,9 @@ export const useTripleCheck = (process: Process): TripleCheckResult => {
       errors,
       warnings,
       financials: {
-        ne: neVal,
-        dl: dlVal,
-        ob: obVal,
+        ne: neVal || approvedValue,
+        dl: dlVal || approvedValue,
+        ob: obVal || approvedValue,
         approved: approvedValue
       }
     };

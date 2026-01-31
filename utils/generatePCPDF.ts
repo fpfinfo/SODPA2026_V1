@@ -30,27 +30,59 @@ interface TotaisPDF {
 const formatBRL = (val: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-export const generatePCPDF = (
+export const generatePCPDF = async (
   pcData: PCData,
   comprovantes: ComprovantePDF[],
   totais: TotaisPDF
 ) => {
   const doc = new jsPDF();
   
+  // Helper to load image
+  const loadImage = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.src = url;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject('No context');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+    });
+  };
+
   // Configs
   const pageWidth = doc.internal.pageSize.width;
   const margin = 14;
   let currentY = 20;
 
-  // 1. Cabeçalho
+  // 1. Cabeçalho com Brasão
+  try {
+     const brasaoUrl = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png';
+     const brasaoBase64 = await loadImage(brasaoUrl);
+     const imgWidth = 20;
+     const imgHeight = 20;
+     const x = (pageWidth - imgWidth) / 2;
+     doc.addImage(brasaoBase64, 'PNG', x, currentY, imgWidth, imgHeight);
+     currentY += 25; // Space after image
+  } catch (e) {
+     console.error('Erro loading brasao', e);
+     currentY += 10;
+  }
+
+  // 1. Cabeçalho Texto
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ', pageWidth / 2, currentY, { align: 'center' });
   currentY += 6;
   doc.setFontSize(10);
-  doc.text('SECRETARIA DE FINANÇAS - SEFIN', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 6;
-  doc.text('COORDENADORIA DE CONTROLE INTERNO', pageWidth / 2, currentY, { align: 'center' });
+  doc.text('SECRETARIA DE PLANEJAMENTO, COORDENAÇÃO E FINANÇAS', pageWidth / 2, currentY, { align: 'center' });
+  // Removed COORDENADORIA DE CONTROLE INTERNO
   currentY += 15;
 
   doc.setFontSize(14);

@@ -6,10 +6,15 @@ import {
   BadgeCheck, 
   ThumbsDown, 
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Inbox,
+  ArrowRight,
+  Sparkles
 } from 'lucide-react'
 import { useGestorProcesses, useGestorKPIs } from '../../../hooks/useGestorProcesses'
 import { TimelineRadar } from '../TimelineRadar'
+import { useUserProfile } from '../../../hooks/useUserProfile'
+import { useAuth } from '../../../lib/AuthContext'
 
 export function GestorDashboardView() {
   const { data: pendingProcesses = [], isLoading, refetch } = useGestorProcesses()
@@ -18,6 +23,11 @@ export function GestorDashboardView() {
   const atestadosNoMes = kpis?.atestadosNoMes ?? 0
   const devolucoes = kpis?.devolucoes ?? 0
   const pendingCount = pendingProcesses.length
+  
+  // Get user name for welcome card
+  const { user } = useAuth()
+  const { userProfile } = useUserProfile(user)
+  const firstName = userProfile?.nome?.split(' ')[0] || 'Gestor'
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
@@ -43,6 +53,42 @@ export function GestorDashboardView() {
           Atualizar
         </button>
       </div>
+
+      {/* Welcome Card - Shows when there are pending items */}
+      {pendingCount > 0 && (
+        <div className="mb-6 bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-700 p-6 rounded-[28px] shadow-xl relative overflow-hidden group">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <Sparkles className="absolute top-4 right-4 text-white/20" size={32} />
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                <span className="text-2xl">👋</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white">Olá, {firstName}!</h2>
+                <p className="text-blue-100 text-sm font-medium mt-0.5">
+                  Você tem <span className="font-black text-white">{pendingCount} solicitaç{pendingCount === 1 ? 'ão' : 'ões'}</span> aguardando seu atesto.
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => {
+                // Navigate to inbox - find and click the inbox tab
+                const inboxBtn = document.querySelector('[data-view="inbox"]') as HTMLButtonElement;
+                if (inboxBtn) inboxBtn.click();
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-xl font-black text-sm hover:bg-blue-50 shadow-lg transition-all transform hover:scale-105 active:scale-95"
+            >
+              <Inbox size={18} />
+              Ir para Caixa de Entrada
+              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Radar de Prazos */}
       <TimelineRadar />
@@ -75,7 +121,7 @@ export function GestorDashboardView() {
               <span className="text-[10px] font-black text-emerald-600/80 uppercase tracking-widest">Este Mês</span>
             </div>
             <p className="text-4xl font-black text-slate-800 tracking-tighter loading-none">{atestadosNoMes}</p>
-            <p className="text-xs font-bold text-emerald-600/80 mt-1 uppercase tracking-wide">Atestados Enviaos</p>
+            <p className="text-xs font-bold text-emerald-600/80 mt-1 uppercase tracking-wide">Atestados Enviados</p>
           </div>
         </div>
 

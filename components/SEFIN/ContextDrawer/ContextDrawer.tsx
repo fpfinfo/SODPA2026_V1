@@ -19,10 +19,14 @@ import {
   RotateCcw,
   KeyRound,
   Search,
-  Loader2
+  Loader2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
 import { SefinTask } from '../../../hooks/useSefinCockpit'
 import { supabase } from '../../../lib/supabaseClient'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 // Import Static Document Components for unified rendering
 import { StaticPortaria } from '../../ProcessDetails/StaticDocuments/StaticPortaria'
@@ -95,7 +99,10 @@ function InfoRow({ icon: Icon, label, value }: {
 
 export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewSimilar }: ContextDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
+  const documentContentRef = useRef<HTMLDivElement>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [realDocumentData, setRealDocumentData] = useState<any>(null)
+  const [isDownloading, setIsDownloading] = useState(false)
   const [enrichedProcessData, setEnrichedProcessData] = useState<any>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
 
@@ -270,7 +277,10 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
       'CERTIDAO_REGULARIDADE': 'Certidão de Regularidade',
       'NOTA_EMPENHO': 'Nota de Empenho',
       'NOTA_LIQUIDACAO': 'Nota de Liquidação',
-      'ORDEM_BANCARIA': 'Ordem Bancária'
+      'ORDEM_BANCARIA': 'Ordem Bancária',
+      'DECISAO': 'Decisão AJSEFIN',
+      'PARECER': 'Parecer Jurídico',
+      'AUTORIZACAO_ORDENADOR': 'Autorização do Ordenador'
     }
     return labels[tipo] || tipo
   }
@@ -471,10 +481,126 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
       date: formatDate(new Date(new Date(task.created_at).getTime() - 86400000).toISOString()), 
       time: '16:45', 
       action: 'Solicitação aprovada pelo Gestor', 
-      actor: 'Gestor',
-      status: 'completed' as const
     }
   ]
+
+  // Handle Print - Improved Margins
+  const handlePrint = () => {
+    if (!documentContentRef.current) return
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Imprimir Documento - SISUP</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              @page { size: A4; margin: 10mm; } /* Standard margin for printing */
+              body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
+              /* Ensure formatting is preserved */
+              .print-content { transform: none !important; margin: 0 auto !important; box-shadow: none !important; }
+              /* Hide scrollbars in print */
+              ::-webkit-scrollbar { display: none; }
+            </style>
+          </head>
+          <body>
+            <div class="print-content" style="width: 100%; max-width: 210mm; padding: 10mm;">
+              ${documentContentRef.current.innerHTML}
+            </div>
+          </body>
+        </html>
+      `)
+      printWindow.document.close()
+      printWindow.focus()
+      // Wait for images/styles to load
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 500)
+    }
+  }
+
+  // Handle Download PDF - Fix for distorted text (clone strategy)
+  // ==========================================================================
+  // HANDLERS
+  // ==========================================================================
+
+  const handleDownload = async () => {
+    if (!documentContentRef.current) return;
+    
+    setIsDownloading(true);
+    
+    try {
+      // 1. Clone the content to a "clean" container (no transforms, full width)
+      const original = documentContentRef.current;
+      const clone = original.cloneNode(true) as HTMLElement;
+      
+      // 2. Setup container - invisible but rendered
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.top = '-9999px';
+      container.style.left = '0';
+      container.style.width = '210mm'; // A4 width
+      container.style.minHeight = '297mm'; // A4 height
+      container.style.backgroundColor = 'white';
+      container.style.zIndex = '-1';
+      container.appendChild(clone);
+      document.body.appendChild(container);
+
+      // 3. Wait for images in clone to load (if any)
+      const images = Array.from(clone.querySelectorAll('img'));
+      await Promise.all(images.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }));
+
+      // 4. Update Header in Clone (Specific for Portaria)
+      // We want the PDF to be crisp, so we might force some styles or rely on the clone
+      // The clone inherits classes, so Tailwind works if styles are loaded.
+
+      // 5. Generate Canvas from Clone
+      const canvas = await html2canvas(clone, {
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 794 // A4 width in px at 96 DPI
+      });
+
+      // 6. Generate PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${task.processo?.nup || 'documento'}_${task.tipo}.pdf`);
+
+      // 7. Cleanup
+      document.body.removeChild(container);
+
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      showToast({
+        title: 'Erro no Download',
+        message: 'Não foi possível gerar o PDF. Tente novamente.',
+        type: 'error'
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+
 
   return (
     <>
@@ -485,9 +611,10 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
       <div
         ref={drawerRef}
         className={`
-          fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl z-50
-          transform transition-transform duration-300 ease-in-out
+          fixed right-0 top-0 h-full w-full bg-white shadow-2xl z-50
+          transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : 'translate-x-full'}
+          ${isExpanded ? 'max-w-5xl' : 'max-w-lg'}
         `}
       >
         {/* Header */}
@@ -501,12 +628,21 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
               <p className="text-xs text-slate-500">{task.processo?.nup || 'N/A'}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
-          >
-            <X size={20} className="text-slate-500" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-500 hover:text-blue-600"
+              title={isExpanded ? 'Restaurar Tamanho' : 'Expandir Visualização'}
+            >
+              {isExpanded ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              <X size={20} className="text-slate-500" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -515,10 +651,19 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
           <div className="flex items-center justify-between mb-4">
             {getStatusBadge(task.status)}
             <div className="flex items-center gap-2">
-              <button className="p-1.5 hover:bg-slate-100 rounded text-slate-500">
-                <Download size={16} />
+              <button
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="p-1.5 hover:bg-slate-100 rounded text-slate-500 disabled:opacity-50"
+                title="Baixar PDF"
+              >
+                {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
               </button>
-              <button className="p-1.5 hover:bg-slate-100 rounded text-slate-500">
+              <button
+                onClick={handlePrint}
+                className="p-1.5 hover:bg-slate-100 rounded text-slate-500"
+                title="Imprimir"
+              >
                 <Printer size={16} />
               </button>
             </div>
@@ -538,16 +683,15 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
                   className="origin-top-left"
                   style={{ transform: 'scale(0.5)', transformOrigin: 'top left', width: '200%' }}
                 >
-                  <div className="w-[820px] bg-white p-12 min-h-[500px] text-[#000] font-sans">
+                  <div ref={documentContentRef} className="w-[820px] bg-white p-12 min-h-[500px] text-[#000] font-sans">
                     {/* Unified Header with Brasão - like Dossiê Digital */}
                     <div className="flex flex-col items-center justify-center mb-8 space-y-2">
                       <img src={BRASAO_TJPA_URL} alt="Brasão" className="w-16 opacity-90" />
-                      <h1 className="text-sm font-bold text-slate-900 uppercase tracking-widest text-center">
-                        TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ
-                      </h1>
-                      <p className="text-xs text-slate-500">Secretaria de Finanças - SEFIN</p>
+                      <div className="text-center">
+                        <h1 className="text-lg font-bold text-slate-900 tracking-wider">TRIBUNAL DE JUSTIÇA DO ESTADO DO PARÁ</h1>
+                        <h2 className="text-sm text-slate-600 font-medium">Secretaria de Planejamento, Coordenação e Finanças</h2>
+                      </div>
                     </div>
-
                     {/* Render Content Based on Document Type */}
                     {task.tipo === 'PORTARIA' ? (
                       <StaticPortaria 
@@ -614,16 +758,73 @@ export function ContextDrawer({ task, isOpen, onClose, onSign, onReturn, onViewS
                         />
                       )
                     ) : (
-                      /* Fallback for other document types */
-                      <div className="text-center py-8">
-                        <h2 className="text-xl font-bold uppercase tracking-widest mb-4">
-                          {getTypeLabel(task.tipo)}
+                      /* Render REAL document content from database when available */
+                      <div className="py-8">
+                        {/* Document Header - Use real titulo if available */}
+                        <h2 className="text-xl font-bold uppercase tracking-widest text-center mb-8">
+                          {realDocumentData?.titulo || getTypeLabel(task.tipo)}
                         </h2>
-                        <p className="text-sm text-slate-600">
-                          Processo: {task.processo?.nup || 'N/A'}<br/>
-                          Suprido: {task.processo?.suprido_nome || 'N/A'}<br/>
-                          Valor: {formatCurrency(task.processo?.valor_total || 0)}
-                        </p>
+                        
+                        {/* Document Body - Use real conteudo if available */}
+                        {realDocumentData?.conteudo ? (
+                          <div className="text-sm leading-relaxed whitespace-pre-wrap text-justify">
+                            {realDocumentData.conteudo}
+                          </div>
+                        ) : (task.tipo === 'DECISAO' || task.tipo === 'PARECER' || task.tipo === 'AUTORIZACAO_ORDENADOR') ? (
+                          <div className="text-sm leading-relaxed space-y-4 text-justify">
+                            <p className="font-medium">
+                              <strong>Processo nº:</strong> {task.processo?.nup || 'N/A'}
+                            </p>
+                            <p>
+                              <strong>Interessado:</strong> {task.processo?.suprido_nome || 'N/A'}
+                            </p>
+                            <p>
+                              <strong>Lotação:</strong> {task.processo?.lotacao_nome || 'N/A'}
+                            </p>
+                            <p>
+                              <strong>Valor:</strong> {formatCurrency(task.processo?.valor_total || 0)}
+                            </p>
+                            
+                            <div className="border-t border-slate-300 pt-4 mt-6">
+                              <p className="font-medium uppercase text-center mb-4">
+                                {task.tipo === 'DECISAO' ? 'DECISÃO' : task.tipo === 'PARECER' ? 'PARECER JURÍDICO' : 'AUTORIZAÇÃO'}
+                              </p>
+                              <p className="text-xs text-slate-600 mt-4">
+                                {task.tipo === 'DECISAO' 
+                                  ? 'A Assessoria Jurídica da SEFIN, após análise do processo acima identificado, DECIDE pela autorização do pagamento, nos termos da legislação vigente.'
+                                  : task.tipo === 'PARECER'
+                                  ? 'A Assessoria Jurídica da SEFIN, após análise do processo acima identificado, OPINA pelo deferimento do pedido, nos termos da legislação vigente.'
+                                  : 'O Ordenador de Despesas, após análise do processo acima identificado, AUTORIZA a realização da despesa nos termos da legislação vigente.'
+                                }
+                              </p>
+                            </div>
+                            
+                            <div className="text-right text-xs text-slate-500 mt-8">
+                              Belém-PA, {formatDate(task.created_at)}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-600 text-center">
+                            Processo: {task.processo?.nup || 'N/A'}<br/>
+                            Suprido: {task.processo?.suprido_nome || 'N/A'}<br/>
+                            Valor: {formatCurrency(task.processo?.valor_total || 0)}
+                          </p>
+                        )}
+                        
+                        {/* Document Footer from metadata if available */}
+                        {realDocumentData?.metadata?.footer && (
+                          <div className="mt-8 pt-4 border-t border-slate-200 text-center">
+                            <p className="text-xs text-slate-500 mb-4">
+                              {realDocumentData.metadata.footer.location}, {realDocumentData.metadata.footer.date}
+                            </p>
+                            <p className="font-bold text-sm text-slate-800">
+                              {realDocumentData.metadata.footer.signerName}
+                            </p>
+                            <p className="text-xs text-slate-600">
+                              {realDocumentData.metadata.footer.signerRole}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

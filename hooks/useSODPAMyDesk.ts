@@ -68,7 +68,7 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
           observacoes,
           created_at,
           updated_at,
-          atribuido_a,
+          assigned_to_id,
           profiles!diarias_servidor_id_fkey (
             id,
             nome,
@@ -76,7 +76,7 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
             cargo
           )
         `)
-        .eq('atribuido_a', user.id)
+        .eq('assigned_to_id', user.id)
         .order('updated_at', { ascending: false });
 
       if (diariasError) throw diariasError;
@@ -96,7 +96,7 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
           justificativa,
           created_at,
           updated_at,
-          atribuido_a,
+          assigned_to_id,
           profiles!passagens_servidor_id_fkey (
             id,
             nome,
@@ -104,7 +104,7 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
             cargo
           )
         `)
-        .eq('atribuido_a', user.id)
+        .eq('assigned_to_id', user.id)
         .order('updated_at', { ascending: false });
 
       if (passagensError) throw passagensError;
@@ -125,7 +125,7 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
         dataFim: d.data_fim,
         destino: d.destino,
         observacoes: d.observacoes,
-        atribuidoA: d.atribuido_a,
+        atribuidoA: d.assigned_to_id,
         createdAt: d.created_at,
         updatedAt: d.updated_at,
       }));
@@ -144,7 +144,7 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
         tipoPassagem: p.tipo_passagem,
         classeTarifa: p.classe_tarifa,
         justificativa: p.justificativa,
-        atribuidoA: p.atribuido_a,
+        atribuidoA: p.assigned_to_id,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
       }));
@@ -277,7 +277,7 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
       const { error: updateError } = await supabase
         .from(table)
         .update({ 
-          atribuido_a: toMemberId,
+          assigned_to_id: toMemberId,
           updated_at: new Date().toISOString()
         })
         .eq('id', processId);

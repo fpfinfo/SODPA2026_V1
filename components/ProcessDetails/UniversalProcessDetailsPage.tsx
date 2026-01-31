@@ -12,7 +12,9 @@ import {
   RefreshCw,
   Scale,
   AlertTriangle,
-  FileText
+  FileText,
+  Database,
+  Briefcase
 } from 'lucide-react';
 import { useProcessDetails } from '../../hooks/useProcessDetails';
 import { DetailsTab } from './Tabs/DetailsTab';
@@ -25,9 +27,13 @@ import { JuriExceptionInlineAlert } from '../ui/JuriExceptionInlineAlert';
 import { DocumentCreationWizard } from '../DocumentCreationWizard';
 import { TramitarModal } from '../TramitarModal';
 import { useToast } from '../ui/ToastProvider';
+import { PrestacaoContasTab } from '../SOSFU/PrestacaoContasTab';
+import { BaixaSiafeModal } from '../SOSFU/BaixaSiafeModal';
+import { useExecutionDocuments } from '../../hooks/useExecutionDocuments';
+import { AccountStatus, ProcessType } from '../../types';
 
 
-type TabType = 'overview' | 'dossier' | 'execution' | 'analysis' | 'juriAdjust';
+type TabType = 'overview' | 'dossier' | 'execution' | 'analysis' | 'juriAdjust' | 'prestacao';
 
 // Helper to detect Júri/Extra-Júri processes
 const isJuriProcess = (processData: any): boolean => {
@@ -106,6 +112,22 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
   const [showTramitarModal, setShowTramitarModal] = useState(false);
   const [hasDespacho, setHasDespacho] = useState(false);
   const [isTramiting, setIsTramiting] = useState(false);
+  const [showBaixaSiafeModal, setShowBaixaSiafeModal] = useState(false);
+
+  // Fetch execution documents for Portaria date (like in ProcessDetailsModal)
+  const { documents: executionDocuments } = useExecutionDocuments(processId);
+
+  // Robust PC Phase Check
+  const statusWorkflow = (processData as any)?.status_workflow || '';
+  const isPCPhase = statusWorkflow.startsWith('PC_') || 
+    statusWorkflow.startsWith('TCE_') ||
+    statusWorkflow === 'AWAITING_ACCOUNTABILITY' ||
+    statusWorkflow === 'AGUARDANDO_ATESTO_GESTOR' ||
+    processData?.status === AccountStatus.AUDIT ||
+    (processData as any)?.tipo === 'ACCOUNTABILITY' || 
+    (processData?.status as string)?.includes('PRESTA') || 
+    (processData?.status as string)?.toUpperCase().includes('PC') ||
+    (viewerRole === 'SOSFU' && activeTab === 'prestacao'); // Allow viewing if explicitly navigated
 
   // Fetch current user ID if not passed
   useEffect(() => {
@@ -172,12 +194,29 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
     ] : []),
     { id: 'execution' as TabType, label: 'Execução da Despesa', icon: Receipt },
     { id: 'analysis' as TabType, label: 'Análise Técnica', icon: Search },
+    // Add PC Tab if applicable
+    ...(isPCPhase ? [{ id: 'prestacao' as TabType, label: 'Prestação de Contas', icon: Database }] : [])
   ];
 
   // Filter tabs based on visibleTabs prop (default: show all)
-  const tabs = visibleTabs 
-    ? allTabs.filter(tab => visibleTabs.includes(tab.id))
-    : allTabs;
+  // CRÍTICO: SUPRIDO não deve ver as abas "Execução da Despesa" e "Análise Técnica"
+  const hiddenTabsForRole: Record<string, TabType[]> = {
+    'SUPRIDO': ['execution', 'analysis'],
+  };
+  
+  const tabs = (() => {
+    let filteredTabs = visibleTabs 
+      ? allTabs.filter(tab => visibleTabs.includes(tab.id))
+      : allTabs;
+    
+    // Aplicar restrições por role
+    const hiddenTabs = hiddenTabsForRole[viewerRole] || [];
+    if (hiddenTabs.length > 0) {
+      filteredTabs = filteredTabs.filter(tab => !hiddenTabs.includes(tab.id));
+    }
+    
+    return filteredTabs;
+  })();
 
   // Format currency helper
   const formatCurrency = (value: number) => {
@@ -479,6 +518,43 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
             <TechnicalAnalysisTab 
               processData={processData}
               enrichedProcessData={processData}
+            />
+          )}
+
+          {activeTab === 'prestacao' && isPCPhase && (
+             <div className="animate-in fade-in">
+               <PrestacaoContasTab
+                 solicitacaoId={processId}
+                 processData={{
+                   nup: processData.nup,
+                   valorConcedido: processData.valor_total || 0,
+                   supridoNome: processData.suprido_nome || (processData as any).profiles?.nome || 'Suprido',
+                   dataFim: (processData as any)?.data_fim,
+                   portariaData: executionDocuments.find(d => d.tipo === 'PORTARIA')?.generated_at  
+                     || executionDocuments.find(d => d.tipo === 'PORTARIA')?.created_at,
+                   prazoPrestacao: (processData as any)?.prazo_prestacao
+                 }}
+                 onBaixaSiafe={() => setShowBaixaSiafeModal(true)}
+                 onDevolver={() => refetch()}
+               />
+             </div>
+          )}
+          
+          {/* Modal de Baixa SIAFE */}
+          {showBaixaSiafeModal && (
+            <BaixaSiafeModal
+              solicitacaoId={processId}
+              processData={{
+                nup: processData.nup,
+                supridoNome: processData.suprido_nome || 'Suprido',
+                valorConcedido: processData.valor_total || 0,
+                portariaNumero: (processData as any)?.portaria_numero
+              }}
+              onClose={() => setShowBaixaSiafeModal(false)}
+              onSuccess={() => {
+                setShowBaixaSiafeModal(false);
+                refetch();
+              }}
             />
           )}
           

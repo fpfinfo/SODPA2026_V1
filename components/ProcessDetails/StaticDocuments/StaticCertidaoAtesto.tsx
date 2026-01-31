@@ -60,10 +60,9 @@ export const StaticCertidaoAtesto: React.FC<StaticCertidaoAtestoProps> = ({
           critérios de conveniência e oportunidade desta unidade judiciária.
         </p>
 
-        <p className="leading-loose">
-          <strong>DECLARO</strong> que verifiquei a disponibilidade orçamentária da unidade e a adequação dos 
-          itens solicitados às necessidades do serviço, conforme detalhamento abaixo:
-        </p>
+        <p className="text-justify leading-relaxed indent-12 mb-6">
+        <strong>DECLARO</strong> que verifiquei a adequação dos itens solicitados às necessidades do serviço, conforme detalhamento abaixo:
+      </p>
 
         {/* Metadata Box */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 my-6">

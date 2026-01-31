@@ -19,7 +19,11 @@ import { SefinGeoMap } from '../charts/SefinGeoMap'
 
 type GeoTab = 'COMARCA' | 'ENTRANCIA' | 'POLE' | 'REGION'
 
-export function SefinIntelligenceView() {
+interface SefinIntelligenceViewProps {
+  darkMode?: boolean
+}
+
+export function SefinIntelligenceView({ darkMode = false }: SefinIntelligenceViewProps) {
   const { 
     budget,
     byElement,
