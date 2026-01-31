@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { INSSTable } from '../types';
-import { INSS_TABLE_2025 } from '../constants';
+import { useINSSTables } from '../hooks/useINSSTables';
+import { useToast } from './ui/ToastProvider';
 import { 
   ArrowLeft, 
   Plus, 
@@ -10,37 +11,49 @@ import {
   Trash2, 
   Power, 
   PowerOff,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 
 interface INSSTableManagerProps {
   onBack: () => void;
 }
 
-const MOCK_TABLES: INSSTable[] = [
-  INSS_TABLE_2025,
-  {
-    year: 2024,
-    ceiling: 7786.02,
-    active: false,
-    ranges: [
-      { label: 'Faixa 1', min: 0, max: 1412.00, rate: 7.5 },
-      { label: 'Faixa 2', min: 1412.01, max: 2666.68, rate: 9 },
-      { label: 'Faixa 3', min: 2666.69, max: 4000.03, rate: 12 },
-      { label: 'Faixa 4', min: 4000.04, max: 7786.02, rate: 14 },
-    ]
-  }
-];
-
 export const INSSTableManager: React.FC<INSSTableManagerProps> = ({ onBack }) => {
-  const [tables, setTables] = useState<INSSTable[]>(MOCK_TABLES);
+  const { showToast } = useToast();
+  const { tables, isLoading, toggleActive, deleteTable, refresh } = useINSSTables();
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
   
-  const handleToggleActive = (year: number) => {
-    setTables(prev => prev.map(t => ({
-      ...t,
-      active: t.year === year ? !t.active : false // Only one can be active in this simplified logic
-    })));
+  const handleToggleActive = async (year: number) => {
+    try {
+      await toggleActive(year);
+      showToast({ type: 'success', title: 'Tabela ativada!', message: `Tabela INSS ${year} agora está ativa.` });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Erro', message: (err as Error).message });
+    }
   };
+
+  const handleDelete = async (year: number) => {
+    if (!confirm(`Confirma exclusão da Tabela INSS ${year}?`)) return;
+    
+    setIsDeleting(year);
+    try {
+      await deleteTable(year);
+      showToast({ type: 'success', title: 'Excluída!', message: `Tabela INSS ${year} removida.` });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Erro', message: (err as Error).message });
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-y-auto custom-scrollbar pb-10">
@@ -98,8 +111,13 @@ export const INSSTableManager: React.FC<INSSTableManagerProps> = ({ onBack }) =>
                 <button className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors">
                   <Edit3 size={14} /> Editar
                 </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 border border-red-100 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors">
-                  <Trash2 size={14} /> Excluir
+                <button 
+                  onClick={() => handleDelete(table.year)}
+                  disabled={isDeleting === table.year}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-red-100 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {isDeleting === table.year ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Excluir
                 </button>
               </div>
             </div>

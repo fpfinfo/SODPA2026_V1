@@ -110,6 +110,7 @@ export function useUserProfile(user: { id?: string; email?: string } | null): Us
           'AJSEFIN': AppRole.AJSEFIN,
           'SGP': AppRole.SGP,
           'SODPA': AppRole.SODPA,
+          'PRESIDENCIA': AppRole.PRESIDENCIA,
           // Legacy mappings for roles stored in old format
           'CHEFE_SOSFU': AppRole.GESTOR,  // Chefe da SOSFU atua como Gestor
           'CHEFE': AppRole.GESTOR,         // Chefes são gestores

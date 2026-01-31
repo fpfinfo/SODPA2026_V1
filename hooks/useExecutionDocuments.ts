@@ -87,7 +87,14 @@ export function useExecutionDocuments(solicitacaoId: string) {
 
       if (updateError) throw updateError;
       
-      // TODO: Criar registro de tramitação para SEFIN
+      // Criar registro de tramitação para SEFIN
+      await supabase.from('sefin_tasks').insert({
+        solicitacao_id: solicitacaoId,
+        status: 'PENDING',
+        priority: 'NORMAL',
+        origin_setor: 'SOSFU',
+        created_at: new Date().toISOString()
+      });
       
       return { success: true };
     } catch (err) {

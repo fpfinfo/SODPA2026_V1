@@ -42,7 +42,7 @@ interface ProjectionItem {
 interface JuriAdjustmentTabProps {
   processData: any;
   onRefresh?: () => void;
-  viewerRole?: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN';
+  viewerRole?: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
 }
 
 const PARTICIPANT_LABELS: Record<string, string> = {

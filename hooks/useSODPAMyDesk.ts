@@ -222,7 +222,15 @@ export function useSODPAMyDesk(): UseSODPAMyDeskReturn {
         p.id === processId ? { ...p, status: 'AGUARDANDO_SEFIN' as any } : p
       ));
 
-      // TODO: Create sefin_tasks entry for SEFIN inbox
+      // Create sefin_tasks entry for SEFIN inbox
+      await supabase.from('sefin_tasks').insert({
+        process_id: processId,
+        process_type: tipo === 'DIARIA' ? 'diarias' : 'passagens',
+        status: 'PENDING',
+        priority: 'NORMAL',
+        origin_setor: 'SODPA',
+        created_at: new Date().toISOString()
+      });
       
       return true;
     } catch (err) {

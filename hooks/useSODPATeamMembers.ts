@@ -38,20 +38,34 @@ export function useSODPATeamMembers() {
       const membersWithStats: TeamMemberWithStats[] = await Promise.all(
         (servidores || []).map(async (s) => {
           // Count diárias assigned (not completed)
-          const { count: diariasCount } = await supabase
+          const { data: diariasData, count: diariasCount } = await supabase
             .from('diarias')
-            .select('*', { count: 'exact', head: true })
+            .select('created_at', { count: 'exact' })
             .eq('assigned_to_id', s.user_id || s.id)
             .not('status', 'in', '("PAGA","CANCELADA")');
 
           // Count passagens assigned (not completed)
-          const { count: passagensCount } = await supabase
+          const { data: passagensData, count: passagensCount } = await supabase
             .from('passagens')
-            .select('*', { count: 'exact', head: true })
+            .select('created_at', { count: 'exact' })
             .eq('assigned_to_id', s.user_id || s.id)
             .not('status', 'in', '("UTILIZADA","CANCELADA")');
 
-          // Count overdue items (simplified - would need SLA field)
+          // Calculate SLA overdue (5 business days = ~7 calendar days)
+          const SLA_DAYS = 7;
+          const now = new Date();
+          let overdueCount = 0;
+          (diariasData || []).forEach((d: any) => {
+            const created = new Date(d.created_at);
+            const diffDays = Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays > SLA_DAYS) overdueCount++;
+          });
+          (passagensData || []).forEach((p: any) => {
+            const created = new Date(p.created_at);
+            const diffDays = Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays > SLA_DAYS) overdueCount++;
+          });
+
           const totalTasks = (diariasCount || 0) + (passagensCount || 0);
           const capacidade = s.capacidade_diaria || 10;
           const ocupacao = Math.round((totalTasks / capacidade) * 100);
@@ -64,7 +78,7 @@ export function useSODPATeamMembers() {
             avatarUrl: s.avatar_url,
             capacidadeDiaria: capacidade,
             taskCount: totalTasks,
-            atrasados: 0, // TODO: Implementar cálculo de SLA
+            atrasados: overdueCount,
             setor: s.setor,
             ativo: s.ativo,
             ocupacaoPercent: Math.min(ocupacao, 100),

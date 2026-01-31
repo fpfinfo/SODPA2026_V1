@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { JuriException, formatExceptionType, formatExceptionValue } from '../../../hooks/useExceptionDetection';
 
-type UserRole = 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'ORDENADOR';
+type UserRole = 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'ORDENADOR' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
 type AuthorizationStatus = 'PENDING' | 'AWAITING_GESTOR' | 'AWAITING_SOSFU' | 'AWAITING_AJSEFIN' | 'AWAITING_ORDENADOR' | 'AUTHORIZED';
 
 interface ContextualExceptionBannerProps {

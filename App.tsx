@@ -16,7 +16,6 @@ import { CommandPalette } from './components/CommandPalette';
 // Lazy load heavy dashboard components for better initial load performance
 const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').then(m => ({ default: m.DashboardSOSFU })));
 const SupridoDashboard = React.lazy(() => import('./components/Suprido/SupridoDashboard').then(m => ({ default: m.SupridoDashboard })));
-const GestorCockpit = React.lazy(() => import('./components/Gestor/GestorCockpit').then(m => ({ default: m.GestorCockpit })));
 const SefinCockpit = React.lazy(() => import('./components/SEFIN/SefinCockpit').then(m => ({ default: m.SefinCockpit })));
 const AjsefinDashboard = React.lazy(() => import('./components/AjsefinDashboard').then(m => ({ default: m.AjsefinDashboard })));
 const DashboardSODPA = React.lazy(() => import('./components/DashboardSODPA').then(m => ({ default: m.DashboardSODPA })));
@@ -172,12 +171,11 @@ const AppContent: React.FC = () => {
             processId={selectedProcessId}
             onClose={handleCloseProcess}
             viewerRole={returnToRole === AppRole.SOSFU ? 'SOSFU' : 
-                        returnToRole === AppRole.GESTOR ? 'GESTOR' : 
-                        returnToRole === AppRole.SEFIN ? 'SEFIN' :
                         returnToRole === AppRole.SEFIN ? 'SEFIN' :
                         returnToRole === AppRole.AJSEFIN ? 'AJSEFIN' : 
                         returnToRole === AppRole.SODPA ? 'SODPA' : 
-                        returnToRole === AppRole.SUPRIDO ? 'SUPRIDO' : 'SOSFU'}
+                        returnToRole === AppRole.SUPRIDO ? 'SUPRIDO' : 
+                        returnToRole === AppRole.PRESIDENCIA ? 'PRESIDENCIA' : 'SOSFU'}
           />
         ) : (
         <>
@@ -194,9 +192,6 @@ const AppContent: React.FC = () => {
               }
             }}
           />
-        )}
-        {activeRole === AppRole.GESTOR && (
-          <GestorCockpit />
         )}
         {activeRole === AppRole.SOSFU && (
           <DashboardSOSFU 

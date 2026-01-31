@@ -1,64 +1,70 @@
-import React, { useMemo, useState } from 'react';
-import { Users, AlertOctagon, CheckCircle2, Search, FileSearch, UserCheck, CreditCard, ExternalLink, UserPlus, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, AlertOctagon, CheckCircle2, Search, FileSearch, UserCheck, CreditCard, ExternalLink, UserPlus, X, Loader2 } from 'lucide-react';
 import StatCard from './StatCard';
 import SgpAnalysisModal from './SgpAnalysisModal';
 import { SgpTeamPanel } from './SgpTeamPanel';
-import { MOCK_SGP_REQUESTS, SGP_TEAM, SgpRequest, SgpAnalyst } from './types';
+import { useSgpProcesses, SgpProcess } from '../../hooks/useSgpProcesses';
+import { useToast } from '../ui/ToastProvider';
 
 export const SgpCockpit: React.FC = () => {
-  const [requests, setRequests] = useState<SgpRequest[]>(MOCK_SGP_REQUESTS);
-  const [team, setTeam] = useState<SgpAnalyst[]>(SGP_TEAM);
-  const [selectedRequest, setSelectedRequest] = useState<SgpRequest | null>(null);
+  const { showToast } = useToast();
+  const {
+    processes,
+    pendingValidation,
+    analysts,
+    stats,
+    isLoading,
+    currentUserEmail,
+    assignToAnalyst,
+    validateProcess,
+    issueGlosa,
+    returnToSOSFU,
+    refresh
+  } = useSgpProcesses();
+
+  const [selectedRequest, setSelectedRequest] = useState<SgpProcess | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assigningRequestId, setAssigningRequestId] = useState<string | null>(null);
 
-  // Mock current user
-  const currentUserEmail = 'sgp01@tjpa.jus.br';
+  // SGP Queue
+  const sgpQueue = pendingValidation;
 
-  // Filter for SGP Queue
-  const sgpQueue = useMemo(() => {
-    return requests.filter(r => r.status === 'EM_ANALISE_SGP');
-  }, [requests]);
-
-  // Stats
-  const stats = useMemo(() => {
-    const waiting = sgpQueue.length;
-    const conflicts = sgpQueue.filter(r => r.erpStatus !== 'ACTIVE').length;
-    const registered = requests.filter(r => r.status === 'APROVADO').length;
-    const bankErrors = sgpQueue.filter(r => r.erpStatus === 'BANK_ERROR').length;
-
-    return { waiting, conflicts, registered, bankErrors };
-  }, [sgpQueue, requests]);
-
-  // Update team stats based on assigned requests
-  const teamWithStats = useMemo(() => {
-    return team.map(analyst => {
-      const assignedRequests = requests.filter(r => r.assignedTo === analyst.id && r.status === 'EM_ANALISE_SGP');
-      return {
-        ...analyst,
-        activeProcesses: assignedRequests.length,
-        capacity: Math.min(100, assignedRequests.length * 20)
-      };
-    });
-  }, [team, requests]);
+  // Map analysts to team format
+  const teamWithStats = analysts.map(a => ({
+    id: a.id,
+    name: a.name,
+    email: a.email,
+    cargo: a.cargo,
+    avatarUrl: a.avatarUrl,
+    activeProcesses: a.activeProcesses,
+    capacity: Math.min(100, a.activeProcesses * 20)
+  }));
 
   // Handlers
-  const handleOpenAnalysis = (req: SgpRequest) => {
+  const handleOpenAnalysis = (req: SgpProcess) => {
     setSelectedRequest(req);
     setIsModalOpen(true);
   };
 
-  const handleValidate = (requestId: string) => {
-    setRequests(prev => prev.map(r => 
-      r.id === requestId ? { ...r, status: 'APROVADO' } : r
-    ));
+  const handleValidate = async (requestId: string) => {
+    try {
+      await validateProcess(requestId);
+      showToast({ type: 'success', title: 'Servidor validado!', message: 'Processo encaminhado para SOSFU.' });
+      setIsModalOpen(false);
+    } catch (err) {
+      showToast({ type: 'error', title: 'Erro ao validar', message: (err as Error).message });
+    }
   };
 
-  const handleReject = (requestId: string, reason: string) => {
-    setRequests(prev => prev.map(r => 
-      r.id === requestId ? { ...r, status: 'REJEITADO', description: r.description + ` [SGP: ${reason}]` } : r
-    ));
+  const handleReject = async (requestId: string, reason: string) => {
+    try {
+      await returnToSOSFU(requestId, reason);
+      showToast({ type: 'info', title: 'Processo devolvido', message: 'Servidor irregular - devolvido para SOSFU.' });
+      setIsModalOpen(false);
+    } catch (err) {
+      showToast({ type: 'error', title: 'Erro ao devolver', message: (err as Error).message });
+    }
   };
 
   // Assignment
@@ -67,44 +73,61 @@ export const SgpCockpit: React.FC = () => {
     setIsAssignModalOpen(true);
   };
 
-  const handleAssignTo = (analystId: string) => {
+  const handleAssignTo = async (analystId: string) => {
     if (assigningRequestId) {
-      setRequests(prev => prev.map(r => 
-        r.id === assigningRequestId ? { ...r, assignedTo: analystId } : r
-      ));
-      setIsAssignModalOpen(false);
-      setAssigningRequestId(null);
+      try {
+        await assignToAnalyst(assigningRequestId, analystId);
+        showToast({ type: 'success', title: 'Processo atribuído!' });
+        setIsAssignModalOpen(false);
+        setAssigningRequestId(null);
+      } catch (err) {
+        showToast({ type: 'error', title: 'Erro ao atribuir', message: (err as Error).message });
+      }
     }
   };
 
   const getAnalystName = (analystId?: string) => {
     if (!analystId) return null;
-    const analyst = team.find(a => a.id === analystId);
+    const analyst = analysts.find(a => a.id === analystId);
     return analyst?.name?.split(' ').slice(0, 2).join(' ') || null;
   };
 
   const getStatusBadge = (erpStatus?: string) => {
     switch (erpStatus) {
-      case 'VACATION':
+      case 'IRREGULAR':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-100 text-[10px] font-bold uppercase animate-pulse">
-            <AlertOctagon size={10} /> Em Férias
+            <AlertOctagon size={10} /> Irregular
           </span>
         );
-      case 'BANK_ERROR':
+      case 'GLOSA':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-100 text-[10px] font-bold uppercase">
-            <CreditCard size={10} /> Conta Inválida
+            <CreditCard size={10} /> Glosa
           </span>
         );
-      default:
+      case 'REGULAR':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-100 text-[10px] font-bold uppercase">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Regular
           </span>
         );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-200 text-[10px] font-bold uppercase">
+            <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div> Pendente
+          </span>
+        );
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
@@ -142,7 +165,7 @@ export const SgpCockpit: React.FC = () => {
           <StatCard 
             title="Aguardando Validação"
             subtitle="Fila de Entrada"
-            count={stats.waiting}
+            count={stats.pendingValidation}
             icon={Users}
             colorClass="border-l-indigo-500"
             iconBgClass="bg-indigo-50"
@@ -153,7 +176,7 @@ export const SgpCockpit: React.FC = () => {
           <StatCard 
             title="Conflitos Detectados"
             subtitle="Férias / Licenças"
-            count={stats.conflicts}
+            count={stats.glosaIssued}
             icon={AlertOctagon}
             colorClass="border-l-red-500"
             iconBgClass="bg-red-50"
@@ -162,9 +185,9 @@ export const SgpCockpit: React.FC = () => {
           />
 
           <StatCard 
-            title="Afastamentos Reg."
-            subtitle="Validados Hoje"
-            count={stats.registered}
+            title="Validados"
+            subtitle="Aprovados"
+            count={stats.validated}
             icon={UserCheck} 
             colorClass="border-l-green-500"
             iconBgClass="bg-green-50"
@@ -173,14 +196,18 @@ export const SgpCockpit: React.FC = () => {
           />
 
           <StatCard 
-            title="Dados Bancários"
-            subtitle="Contas Inválidas"
-            count={stats.bankErrors}
+            title="Glosas Emitidas"
+            subtitle="Valor Total"
+            count={stats.glosaIssued}
             icon={CreditCard}
             colorClass="border-l-yellow-500"
             iconBgClass="bg-yellow-50"
             iconColorClass="text-yellow-600"
-            footer={<span className="text-gray-400 text-xs">Pendência cadastral</span>}
+            footer={
+              <span className="text-gray-600 text-xs font-bold">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalGlosaValue)}
+              </span>
+            }
           />
         </div>
 
@@ -205,7 +232,7 @@ export const SgpCockpit: React.FC = () => {
           {/* Table Header */}
           <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr_auto] gap-4 px-6 py-3 bg-white border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider items-center">
             <div>Servidor / Matrícula</div>
-            <div>Período da Viagem</div>
+            <div>Data Solicitação</div>
             <div>Status no ERP</div>
             <div>Solicitação</div>
             <div>Responsável</div>
@@ -225,15 +252,14 @@ export const SgpCockpit: React.FC = () => {
                   
                   <div>
                     <div className="font-bold text-gray-800 text-sm">{req.requesterName}</div>
-                    <div className="text-xs text-gray-500 font-medium">Mat. {req.requesterMatricula || '550192-3'} • {req.requesterSector}</div>
+                    <div className="text-xs text-gray-500 font-medium">Mat. {req.requesterMatricula || 'N/A'}</div>
                   </div>
 
                   <div>
                     <div className="font-medium text-gray-700 text-sm flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                      {new Date(req.dateCreated).toLocaleDateString('pt-BR')}
+                      {new Date(req.created_at).toLocaleDateString('pt-BR')}
                     </div>
-                    <div className="text-xs text-gray-400 pl-3">até {req.deadline ? new Date(req.deadline).toLocaleDateString('pt-BR') : '?'}</div>
                   </div>
 
                   <div>
@@ -299,7 +325,7 @@ export const SgpCockpit: React.FC = () => {
             </div>
             <div className="p-6 space-y-3">
               <p className="text-sm text-gray-500 mb-4">Selecione o analista responsável:</p>
-              {team.map(analyst => (
+              {analysts.map(analyst => (
                 <button
                   key={analyst.id}
                   onClick={() => handleAssignTo(analyst.id)}

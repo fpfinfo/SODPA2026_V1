@@ -1,60 +1,50 @@
-import React, { useMemo, useState } from 'react';
-import { Globe, Clock, Plane, TrendingUp, Map, CheckSquare, FileCheck, Calendar, Gavel, AlertTriangle, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Globe, Clock, Plane, TrendingUp, Map, CheckSquare, FileCheck, Calendar, Gavel, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
 import StatCard from './StatCard';
 import PresidencyBriefingModal from './PresidencyBriefingModal';
 import RepresentationMapModal from './RepresentationMapModal';
-import { MOCK_PRESIDENCY_REQUESTS, ACTIVE_TRAVELERS } from './types';
-import { Request } from '../../types';
+import { usePresidencyProcesses, PresidencyProcess } from '../../hooks/usePresidencyProcesses';
+import { useToast } from '../ui/ToastProvider';
 
 export const PresidencyCockpit: React.FC = () => {
-  const [requests, setRequests] = useState<Request[]>(MOCK_PRESIDENCY_REQUESTS);
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const { showToast } = useToast();
+  const {
+    pendingList,
+    activeTravelers,
+    stats,
+    isLoading,
+    authorizeProcess,
+    rejectProcess,
+    refresh
+  } = usePresidencyProcesses();
+
+  const [selectedRequest, setSelectedRequest] = useState<PresidencyProcess | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
 
-  // Stats Calculation
-  const stats = useMemo(() => {
-    const pending = requests.filter(r => r.status === 'EM_ANALISE_PRESIDENCIA').length;
-    const inTransit = ACTIVE_TRAVELERS.length;
-    const riskyLocations = ACTIVE_TRAVELERS.filter(t => t.status === 'RISK').length;
-    
-    // Urgent: Pending with deadline within 3 days
-    const today = new Date();
-    const urgent = requests.filter(r => {
-      if (r.status !== 'EM_ANALISE_PRESIDENCIA' || !r.deadline) return false;
-      const travelDate = new Date(r.deadline);
-      const diffDays = Math.ceil((travelDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return diffDays <= 3;
-    }).length;
-
-    const monthlyCost = requests
-      .filter(r => r.status === 'APROVADO')
-      .reduce((acc, curr) => acc + (curr.value || 0), 0);
-
-    return { pending, inTransit, urgent, monthlyCost, riskyLocations };
-  }, [requests]);
-
-  const pendingList = requests.filter(r => r.status === 'EM_ANALISE_PRESIDENCIA');
-
-  const handleOpenBriefing = (req: Request) => {
+  const handleOpenBriefing = (req: PresidencyProcess) => {
     setSelectedRequest(req);
     setIsModalOpen(true);
   };
 
-  const handleAuthorize = (requestId: string) => {
-    setRequests(prev => prev.map(r => 
-      r.id === requestId 
-        ? { ...r, status: 'APROVADO' } 
-        : r
-    ));
+  const handleAuthorize = async (requestId: string) => {
+    try {
+      await authorizeProcess(requestId);
+      showToast({ type: 'success', title: 'Autorizado!', message: 'Deslocamento aprovado pela Presidência.' });
+      setIsModalOpen(false);
+    } catch (err) {
+      showToast({ type: 'error', title: 'Erro', message: (err as Error).message });
+    }
   };
 
-  const handleReject = (requestId: string, reason: string) => {
-    setRequests(prev => prev.map(r => 
-      r.id === requestId 
-        ? { ...r, status: 'REJEITADO', description: r.description + ` [Presidência: ${reason}]` } 
-        : r
-    ));
+  const handleReject = async (requestId: string, reason: string) => {
+    try {
+      await rejectProcess(requestId, reason);
+      showToast({ type: 'info', title: 'Indeferido', message: 'Solicitação devolvida à SODPA.' });
+      setIsModalOpen(false);
+    } catch (err) {
+      showToast({ type: 'error', title: 'Erro', message: (err as Error).message });
+    }
   };
 
   const getDaysUntilTravel = (deadline?: string) => {
@@ -64,6 +54,14 @@ export const PresidencyCockpit: React.FC = () => {
     const diffDays = Math.ceil((travelDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-amber-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
@@ -186,8 +184,7 @@ export const PresidencyCockpit: React.FC = () => {
                       </div>
                       <div>
                         <h4 className="font-bold text-slate-800 text-base">{req.requesterName}</h4>
-                        <p className="text-xs text-amber-600 uppercase font-bold tracking-wide">{req.category || 'Magistrado'}</p>
-                        <p className="text-xs text-gray-400">{req.requesterSector}</p>
+                        <p className="text-xs text-amber-600 uppercase font-bold tracking-wide">Magistrado</p>
                       </div>
                     </div>
 
@@ -195,7 +192,7 @@ export const PresidencyCockpit: React.FC = () => {
                     <div className="flex-1 border-l-2 border-gray-100 pl-6">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <Plane size={14} className="text-amber-500" />
-                        <span className="font-bold text-slate-800">{req.destination}</span>
+                        <span className="font-bold text-slate-800">{req.destination || 'Destino'}</span>
                         <span className="text-gray-300">•</span>
                         <span className="text-sm text-gray-600 flex items-center gap-1">
                           <Calendar size={12} />

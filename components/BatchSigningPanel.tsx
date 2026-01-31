@@ -3,7 +3,7 @@
  * Interface for Ordenador to sign multiple batches in one action
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   FileSignature,
   Package,
@@ -18,63 +18,35 @@ import {
   CheckCircle,
   AlertTriangle,
   Eye,
-  Calendar,
   MapPin,
 } from 'lucide-react';
 import {
-  Quarter,
   QUARTER_CONFIG,
   BatchSummary,
   formatCurrency,
 } from '../types/batch';
+import { useBatchSigning } from '../hooks/useBatchSigning';
+import { useToast } from './ui/ToastProvider';
 
 interface BatchSigningPanelProps {
   onSign?: (batchId: string) => Promise<void>;
 }
 
-// Mock batch data
-const MOCK_BATCHES: BatchSummary[] = [
-  {
-    id: 'batch-2026-1q',
-    year: 2026,
-    quarter: '1Q',
-    total_processos: 144,
-    total_valor: 2000000,
-    total_documentos: 432,
-    status: 'GERADO',
-    comarcas_regulares: 138,
-    comarcas_excluidas: 6,
-    generated_by: 'Maria Silva (SOSFU)',
-    generated_at: '2026-01-14T21:30:00Z',
-  },
-  {
-    id: 'batch-2025-3q',
-    year: 2025,
-    quarter: '3Q',
-    total_processos: 140,
-    total_valor: 1900000,
-    total_documentos: 420,
-    status: 'ASSINADO',
-    comarcas_regulares: 140,
-    comarcas_excluidas: 4,
-    generated_by: 'Maria Silva (SOSFU)',
-    generated_at: '2025-09-10T14:20:00Z',
-    signed_by: 'João Mendes (Ordenador)',
-    signed_at: '2025-09-10T16:45:00Z',
-  },
-];
-
 export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) => {
-  const [batches, setBatches] = useState<BatchSummary[]>(MOCK_BATCHES);
+  const { showToast } = useToast();
+  const { 
+    batches, 
+    pendingBatches, 
+    signedBatches, 
+    isLoading, 
+    signBatch 
+  } = useBatchSigning();
+  
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
   const [signingBatchId, setSigningBatchId] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [tokenPin, setTokenPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [pendingBatchId, setPendingBatchId] = useState<string | null>(null);
-
-  const pendingBatches = useMemo(() => batches.filter(b => b.status === 'GERADO'), [batches]);
-  const signedBatches = useMemo(() => batches.filter(b => b.status !== 'GERADO'), [batches]);
 
   const getStatusBadge = (status: BatchSummary['status']) => {
     switch (status) {
@@ -89,14 +61,12 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
     }
   };
 
-  // Open PIN modal before signing
   const handleSign = (batchId: string) => {
     setPendingBatchId(batchId);
     setTokenPin('');
     setPinError('');
   };
 
-  // Validate PIN and then sign
   const handlePinConfirm = () => {
     if (tokenPin !== '123456') {
       setPinError('Senha do token inválida. Tente novamente.');
@@ -110,29 +80,16 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
     performSign(batchToSign);
   };
 
-  // Actual signing logic
   const performSign = async (batchId: string) => {
     setSigningBatchId(batchId);
-    setMessage(null);
     
     try {
-      // Simulate signing delay
       await new Promise(resolve => setTimeout(resolve, 2500));
-      
       if (onSign) await onSign(batchId);
-      
-      // Update batch status
-      setBatches(prev => prev.map(b => 
-        b.id === batchId 
-          ? { ...b, status: 'ASSINADO' as const, signed_by: 'Ordenador Atual', signed_at: new Date().toISOString() }
-          : b
-      ));
-      
-      setMessage({ type: 'success', text: 'Lote assinado com sucesso! Processos liberados para execução.' });
-      setTimeout(() => setMessage(null), 5000);
+      await signBatch(batchId, 'Ordenador Atual');
+      showToast({ type: 'success', title: 'Lote assinado!', message: 'Processos liberados para execução.' });
     } catch (error) {
-      setMessage({ type: 'error', text: 'Erro ao assinar lote. Tente novamente.' });
-      setTimeout(() => setMessage(null), 5000);
+      showToast({ type: 'error', title: 'Erro ao assinar', message: (error as Error).message });
     } finally {
       setSigningBatchId(null);
     }
@@ -147,6 +104,14 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
       minute: '2-digit',
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={48} className="animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -176,18 +141,6 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
         </div>
       </div>
 
-      {/* Success/Error Message */}
-      {message && (
-        <div className={`flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg animate-in slide-in-from-top-2 ${
-          message.type === 'success' 
-            ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-          <span className="text-sm font-bold">{message.text}</span>
-        </div>
-      )}
-
       {/* Pending Batches */}
       {pendingBatches.length > 0 && (
         <div className="space-y-4">
@@ -198,7 +151,6 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
           
           {pendingBatches.map(batch => (
             <div key={batch.id} className="bg-white rounded-2xl border-2 border-amber-200 shadow-lg overflow-hidden">
-              {/* Batch Header */}
               <div className="p-6 bg-gradient-to-r from-amber-50 to-orange-50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -217,7 +169,6 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
                   {getStatusBadge(batch.status)}
                 </div>
 
-                {/* Stats Grid */}
                 <div className="grid grid-cols-4 gap-4 mt-6">
                   <div className="bg-white/70 rounded-xl p-4 text-center">
                     <Users size={20} className="mx-auto text-slate-400 mb-2" />
@@ -242,7 +193,6 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="p-6 bg-white flex items-center justify-between">
                 <button
                   onClick={() => setExpandedBatch(expandedBatch === batch.id ? null : batch.id)}
@@ -272,7 +222,6 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
                 </button>
               </div>
 
-              {/* Expanded Details */}
               {expandedBatch === batch.id && (
                 <div className="p-6 bg-slate-50 border-t border-slate-200 animate-in slide-in-from-top-2">
                   <div className="grid grid-cols-3 gap-6">
@@ -361,7 +310,7 @@ export const BatchSigningPanel: React.FC<BatchSigningPanelProps> = ({ onSign }) 
         </div>
       )}
 
-      {/* PIN Modal for Signature */}
+      {/* PIN Modal */}
       {pendingBatchId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95">

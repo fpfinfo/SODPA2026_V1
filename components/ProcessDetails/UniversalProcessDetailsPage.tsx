@@ -65,7 +65,7 @@ interface ProcessDetailsPageProps {
   currentUserId?: string;
   
   // Role of the user viewing the process (for contextual banners)
-  viewerRole?: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN';
+  viewerRole?: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
   
   // Action capabilities (role-dependent)
   canTramitar?: boolean;
