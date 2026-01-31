@@ -1,14 +1,21 @@
 import React, { useMemo, useState } from 'react';
-import { Landmark, TrendingUp, AlertTriangle, PenTool, Search, CheckSquare, Eye, Wallet, PieChart } from 'lucide-react';
+import { Landmark, TrendingUp, AlertTriangle, PenTool, Search, CheckSquare, Eye, Wallet, PieChart, UserPlus, X } from 'lucide-react';
 import StatCard from './StatCard';
 import SefinAuthorizationModal from './SefinAuthorizationModal';
-import { MOCK_SEFIN_REQUESTS, SefinRequest } from './types';
+import { SefinTeamPanel } from './SefinTeamPanel';
+import { MOCK_SEFIN_REQUESTS, SEFIN_ORDENADORES, SefinRequest, SefinOrdenador } from './types';
 
 export const SefinCockpit: React.FC = () => {
   const [requests, setRequests] = useState<SefinRequest[]>(MOCK_SEFIN_REQUESTS);
+  const [ordenadores, setOrdenadores] = useState<SefinOrdenador[]>(SEFIN_ORDENADORES);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeRequest, setActiveRequest] = useState<SefinRequest | null>(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assigningRequestId, setAssigningRequestId] = useState<string | null>(null);
+
+  // Mock current user (would come from auth context in production)
+  const currentUserEmail = 'ordenador01@tjpa.jus.br';
 
   // Filter logic: Show items waiting for SEFIN signature
   const pendingSignatures = useMemo(() => {
@@ -34,6 +41,18 @@ export const SefinCockpit: React.FC = () => {
       };
   }, [requests, pendingSignatures]);
 
+  // Update ordenadores stats based on assigned requests
+  const ordenadoresWithStats = useMemo(() => {
+    return ordenadores.map(ord => {
+      const assignedRequests = requests.filter(r => r.assignedTo === ord.id && r.status === 'AGUARDANDO_ASSINATURA_SEFIN');
+      return {
+        ...ord,
+        activeProcesses: assignedRequests.length,
+        capacity: Math.min(100, assignedRequests.length * 20)
+      };
+    });
+  }, [ordenadores, requests]);
+
   // Selection Handlers
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.checked) {
@@ -58,18 +77,20 @@ export const SefinCockpit: React.FC = () => {
   };
 
   const handleAuthorize = (requestId: string) => {
+      const currentOrdenador = ordenadores.find(o => o.email === currentUserEmail);
       setRequests(prev => prev.map(r => 
           r.id === requestId 
-          ? { ...r, status: 'APROVADO', expenseAuthorizedBy: 'Secretário SEFIN' } 
+          ? { ...r, status: 'APROVADO', expenseAuthorizedBy: currentOrdenador?.name || 'Ordenador SEFIN' } 
           : r
       ));
   };
 
   const handleBatchAuthorize = () => {
       if (confirm(`Confirma a assinatura em lote de ${selectedIds.length} processos?`)) {
+        const currentOrdenador = ordenadores.find(o => o.email === currentUserEmail);
         setRequests(prev => prev.map(r => 
             selectedIds.includes(r.id)
-            ? { ...r, status: 'APROVADO', expenseAuthorizedBy: 'Secretário SEFIN' }
+            ? { ...r, status: 'APROVADO', expenseAuthorizedBy: currentOrdenador?.name || 'Ordenador SEFIN' }
             : r
         ));
         setSelectedIds([]);
@@ -82,6 +103,41 @@ export const SefinCockpit: React.FC = () => {
         ? { ...r, status: 'REJEITADO', description: r.description + " [Devolvido p/ AJSEFIN]" } 
         : r
       ));
+  };
+
+  // Assignment Handlers
+  const openAssignModal = (requestId: string) => {
+    setAssigningRequestId(requestId);
+    setIsAssignModalOpen(true);
+  };
+
+  const handleAssignTo = (ordenadorId: string) => {
+    if (assigningRequestId) {
+      setRequests(prev => prev.map(r => 
+        r.id === assigningRequestId 
+        ? { ...r, assignedTo: ordenadorId } 
+        : r
+      ));
+      setIsAssignModalOpen(false);
+      setAssigningRequestId(null);
+    }
+  };
+
+  const handleBatchAssign = (ordenadorId: string) => {
+    if (selectedIds.length > 0) {
+      setRequests(prev => prev.map(r => 
+        selectedIds.includes(r.id)
+        ? { ...r, assignedTo: ordenadorId }
+        : r
+      ));
+      setSelectedIds([]);
+    }
+  };
+
+  const getOrdenadorName = (ordenadorId?: string) => {
+    if (!ordenadorId) return null;
+    const ord = ordenadores.find(o => o.id === ordenadorId);
+    return ord?.name?.split(' ').slice(0, 2).join(' ') || null;
   };
 
   return (
@@ -187,19 +243,42 @@ export const SefinCockpit: React.FC = () => {
           </div>
         </div>
 
+        {/* Team Panel */}
+        <SefinTeamPanel 
+          ordenadores={ordenadoresWithStats}
+          currentUserEmail={currentUserEmail}
+          onAssignTo={handleBatchAssign}
+        />
+
         {/* Signature Queue Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
                   <CheckSquare size={18} className="text-slate-600" /> Fila de Autorização
               </h3>
-              <span className="text-xs font-medium text-gray-500 bg-white px-3 py-1 rounded border border-gray-200">
-                  {pendingSignatures.length} Pendentes
-              </span>
+              <div className="flex items-center gap-3">
+                {selectedIds.length > 0 && (
+                  <div className="flex gap-2">
+                    {ordenadores.map(ord => (
+                      <button
+                        key={ord.id}
+                        onClick={() => handleBatchAssign(ord.id)}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded flex items-center gap-1"
+                      >
+                        <UserPlus size={12} />
+                        Atribuir a {ord.name.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <span className="text-xs font-medium text-gray-500 bg-white px-3 py-1 rounded border border-gray-200">
+                    {pendingSignatures.length} Pendentes
+                </span>
+              </div>
           </div>
 
           {/* Table Header */}
-          <div className="grid grid-cols-[auto_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-white border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider items-center">
+          <div className="grid grid-cols-[auto_1.2fr_1.2fr_1fr_0.8fr_1fr_auto] gap-4 px-6 py-3 bg-white border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider items-center">
               <div className="w-5">
                   <input 
                       type="checkbox" 
@@ -211,6 +290,7 @@ export const SefinCockpit: React.FC = () => {
               <div>Processo / Beneficiário</div>
               <div>Rota / Objeto</div>
               <div>Parecer</div>
+              <div>Responsável</div>
               <div className="text-right pr-4">Valor Total</div>
               <div className="text-right">Ações</div>
           </div>
@@ -224,7 +304,7 @@ export const SefinCockpit: React.FC = () => {
                   </div>
               ) : (
                   pendingSignatures.map(req => (
-                      <div key={req.id} className={`grid grid-cols-[auto_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-4 items-center hover:bg-slate-50 transition-colors ${selectedIds.includes(req.id) ? 'bg-green-50/30' : ''}`}>
+                      <div key={req.id} className={`grid grid-cols-[auto_1.2fr_1.2fr_1fr_0.8fr_1fr_auto] gap-4 px-6 py-4 items-center hover:bg-slate-50 transition-colors ${selectedIds.includes(req.id) ? 'bg-green-50/30' : ''}`}>
                           <div className="w-5">
                               <input 
                                   type="checkbox" 
@@ -241,13 +321,31 @@ export const SefinCockpit: React.FC = () => {
 
                           <div>
                               <div className="font-medium text-gray-700 text-sm">{req.destination || 'Deslocamento Interno'}</div>
-                              <div className="text-xs text-gray-400 truncate max-w-[200px]">{req.description}</div>
+                              <div className="text-xs text-gray-400 truncate max-w-[180px]">{req.description}</div>
                           </div>
 
                           <div>
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-100 text-[10px] font-bold uppercase">
                                   <Landmark size={12} /> Minuta Anexa
                               </span>
+                          </div>
+
+                          <div>
+                              {req.assignedTo ? (
+                                <button
+                                  onClick={() => openAssignModal(req.id)}
+                                  className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                                >
+                                  {getOrdenadorName(req.assignedTo)}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openAssignModal(req.id)}
+                                  className="text-xs font-medium text-gray-400 hover:text-blue-600 flex items-center gap-1"
+                                >
+                                  <UserPlus size={12} /> Atribuir
+                                </button>
+                              )}
                           </div>
 
                           <div className="text-right pr-4">
@@ -281,6 +379,7 @@ export const SefinCockpit: React.FC = () => {
         </div>
       </div>
 
+      {/* Authorization Modal */}
       <SefinAuthorizationModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -289,6 +388,35 @@ export const SefinCockpit: React.FC = () => {
         onReject={handleReject}
       />
 
+      {/* Assignment Modal */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm animate-fade-in p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800">Atribuir Documento</h3>
+              <button onClick={() => setIsAssignModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-sm text-gray-500 mb-4">Selecione o ordenador responsável:</p>
+              {ordenadores.map(ord => (
+                <button
+                  key={ord.id}
+                  onClick={() => handleAssignTo(ord.id)}
+                  className="w-full flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all text-left"
+                >
+                  <img src={ord.avatarUrl} alt={ord.name} className="w-12 h-12 rounded-full object-cover border-2 border-gray-100" />
+                  <div>
+                    <p className="font-bold text-gray-800">{ord.name}</p>
+                    <p className="text-xs text-gray-500">{ord.cargo}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
