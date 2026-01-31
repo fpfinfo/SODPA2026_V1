@@ -5,7 +5,8 @@ export enum AppRole {
   SEFIN = 'SEFIN',
   AJSEFIN = 'AJSEFIN',
   SGP = 'SGP',
-  SODPA = 'SODPA'
+  SODPA = 'SODPA',
+  PRESIDENCIA = 'PRESIDENCIA'
 }
 
 // Added Role enum for staff members
@@ -446,16 +447,53 @@ export interface ProcessoSODPA {
 
 export interface TeamMember {
   id: string;
-  nome: string;
-  email: string;
+  nome?: string;
+  name?: string; // Alias for compatibility with constants.ts
+  email?: string;
   role?: string;
   avatarUrl?: string;
   funcao?: string;
+  function?: string; // Alias for compatibility
   setor?: string;
   ativo?: boolean;
   taskCount?: number;
   atrasados?: number;
+  delayedItems?: number; // Alias for compatibility
   capacidadeDiaria?: number;
+  activeProcesses?: number; // Alias for compatibility
+  capacity?: number; // Alias for compatibility
 }
 
 export type SODPATabView = 'PAINEL' | 'DIARIAS' | 'PASSAGENS' | 'RELATORIOS' | 'CONFIG';
+
+// User interface for single user context (CURRENT_USER pattern in constants.ts)
+export interface User {
+  id: string;
+  name: string;
+  role: string;
+  registration: string;
+  position: string;
+  avatarUrl?: string;
+  isMagistrate?: boolean;
+}
+
+// Request interface for SODPA/SGP/PRESIDENCIA modules
+export interface Request {
+  id: string;
+  protocol: string;
+  type: 'PASSAGEM' | 'DIARIA' | string;
+  category?: string;
+  requesterName: string;
+  requesterSector: string;
+  dateCreated: string;
+  status: string;
+  description: string;
+  destination?: string;
+  isInterstate?: boolean;
+  value?: number;
+  deadline?: string;
+  legalOpinion?: string;
+  legalOpinionAuthor?: string;
+  expenseAuthorizedBy?: string;
+  returnDate?: string;
+}

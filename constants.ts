@@ -2,23 +2,24 @@ import { Request, TeamMember, User } from './types';
 
 // Usuário atual simulado (Alterne o ID/Role aqui para testar diferentes visões)
 export const CURRENT_USER: User = {
-  id: 'sgp_coord', 
-  name: 'Ana Neri', 
-  role: 'SGP', 
-  registration: '550123',
-  position: 'Coordenadora de Gestão de Pessoas',
-  avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop'
+  id: 'pres_chief', 
+  name: 'Des. Maria de Nazaré', 
+  role: 'PRESIDENCIA', 
+  registration: '1001-A',
+  position: 'Presidente do Tribunal',
+  avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop',
+  isMagistrate: true
 };
 
 /*
-// Previously used SEFIN User
-export const CURRENT_USER_SEFIN: User = {
-  id: 'sefin_sec', 
-  name: 'Dr. Machado de Assis', 
-  role: 'SEFIN', 
-  registration: '102030',
-  position: 'Secretário de Finanças',
-  avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop'
+// Previously used SGP User
+export const CURRENT_USER_OLD: User = {
+  id: 'sgp_analyst', 
+  name: 'Ana Neri', 
+  role: 'SGP', 
+  registration: '550123',
+  position: 'Analista de RH',
+  avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop'
 };
 */
 
@@ -90,23 +91,56 @@ export const AJSEFIN_TEAM: TeamMember[] = [
 ];
 
 export const MOCK_REQUESTS: Request[] = [
-  // 1. Fluxo Interestadual -> Vai para Presidência
+  // 1. Fluxo Interestadual -> Vai para Presidência (URGENTE)
   {
-    id: 'r1',
-    protocol: 'TJPA-EXT-2024-5001',
+    id: 'p1',
+    protocol: 'TJPA-EXT-2024-8821',
     type: 'PASSAGEM',
     category: 'MAGISTRADO',
     requesterName: 'Des. Antonio Santos',
     requesterSector: 'Gabinete Desembargador',
-    dateCreated: '2024-02-01T10:00:00Z',
+    dateCreated: '2024-02-05T10:00:00Z',
     status: 'EM_ANALISE_PRESIDENCIA',
-    description: 'Viagem para Brasília (CNJ).',
+    description: 'Participação na posse da nova diretoria do CNJ.',
     destination: 'Brasília - DF',
     isInterstate: true,
-    value: 2500.00,
+    value: 4500.00,
+    deadline: '2024-02-08',
+    legalOpinion: 'Regularidade certificada conforme portaria CNJ 23/2023.'
+  },
+  // 2. Fluxo Interestadual -> Presidência (NORMAL)
+  {
+    id: 'p2',
+    protocol: 'TJPA-EXT-2024-8840',
+    type: 'DIARIA',
+    category: 'MAGISTRADO',
+    requesterName: 'Juiz Roberto Valente',
+    requesterSector: 'Vara Agrária de Altamira',
+    dateCreated: '2024-02-04T14:30:00Z',
+    status: 'EM_ANALISE_PRESIDENCIA',
+    description: 'Workshop Internacional de Direito Ambiental.',
+    destination: 'São Paulo - SP',
+    isInterstate: true,
+    value: 3200.00,
     deadline: '2024-02-20'
   },
-  // 2. Fluxo Estadual com Passagem -> Vai para AJSEFIN
+  // 3. Em Trânsito (Mock)
+  {
+    id: 'p3',
+    protocol: 'TJPA-EXT-2024-8100',
+    type: 'PASSAGEM',
+    category: 'MAGISTRADO',
+    requesterName: 'Des. Lúcia Fátima',
+    requesterSector: 'Vice-Presidência',
+    dateCreated: '2024-01-20T09:00:00Z',
+    status: 'APROVADO',
+    description: 'Visita Institucional ao STF.',
+    destination: 'Brasília - DF',
+    isInterstate: true,
+    value: 2800.00,
+    deadline: '2024-02-05'
+  },
+  // 4. Fluxo Estadual com Passagem -> AJSEFIN
   {
     id: 'r2',
     protocol: 'TJPA-INT-2024-5002',
@@ -116,13 +150,13 @@ export const MOCK_REQUESTS: Request[] = [
     requesterSector: 'Secretaria Geral',
     dateCreated: '2024-02-02T14:30:00Z',
     status: 'EM_ANALISE_AJSEFIN',
-    description: 'Visita técnica urgente em Santarém (Aéreo Necessário).',
+    description: 'Visita técnica urgente em Santarém.',
     destination: 'Santarém - PA',
     isInterstate: false,
     value: 1200.00,
     deadline: '2024-02-15'
   },
-  // 3. Fluxo Estadual Apenas Diária -> Vai para SGP
+  // 5. Fluxo Estadual Apenas Diária -> SGP
   {
     id: 'r3',
     protocol: 'TJPA-DIA-2024-5003',
@@ -132,94 +166,26 @@ export const MOCK_REQUESTS: Request[] = [
     requesterSector: 'TI',
     dateCreated: '2024-02-03T09:00:00Z',
     status: 'EM_ANALISE_SGP',
-    description: 'Manutenção de servidores em Castanhal (Terrestre).',
+    description: 'Manutenção de servidores em Castanhal.',
     destination: 'Castanhal - PA',
     isInterstate: false,
     value: 250.00,
     deadline: '2024-02-10'
   },
-  // 3b. SGP Conflict Scenario (Vacation overlap)
+  // 6. Corregedoria -> Presidência
   {
-    id: 'r3b',
-    protocol: 'TJPA-DIA-2024-5015',
-    type: 'DIARIA',
-    category: 'ORDINÁRIO',
-    requesterName: 'Carlos Ferreira',
-    requesterSector: 'Comarca de Breves',
-    dateCreated: '2024-02-04T09:00:00Z',
-    status: 'EM_ANALISE_SGP',
-    description: 'Treinamento de equipe local.',
-    destination: 'Breves - PA',
-    isInterstate: false,
-    value: 600.00,
-    deadline: '2024-02-12'
-  },
-  // 3c. SGP Banking Error Scenario
-  {
-    id: 'r3c',
-    protocol: 'TJPA-DIA-2024-5018',
-    type: 'DIARIA',
-    category: 'TÉCNICO',
-    requesterName: 'Amanda Lima',
-    requesterSector: 'Engenharia',
-    dateCreated: '2024-02-04T11:00:00Z',
-    status: 'EM_ANALISE_SGP',
-    description: 'Vistoria em obra parada.',
-    destination: 'Marituba - PA',
-    isInterstate: false,
-    value: 150.00,
-    deadline: '2024-02-08'
-  },
-  // 4. Fluxo Pós-AJSEFIN -> Vai para SEFIN assinar
-  {
-    id: 'r4',
-    protocol: 'TJPA-INT-2024-5004',
-    type: 'PASSAGEM',
-    category: 'ORDINÁRIO',
-    requesterName: 'Roberto Almeida',
-    requesterSector: 'Auditoria',
-    dateCreated: '2024-02-01T11:00:00Z',
-    status: 'AGUARDANDO_ASSINATURA_SEFIN',
-    description: 'Auditoria na Comarca de Marabá.',
-    destination: 'Marabá - PA',
-    isInterstate: false,
-    value: 1500.00,
-    deadline: '2024-02-25',
-    legalOpinion: 'MINUTA DE AUTORIZAÇÃO\n\nCertifico que a despesa atende aos requisitos legais.\n\nBelém, 04 de Fevereiro de 2024.',
-    legalOpinionAuthor: 'Dr. Carlos Drummond'
-  },
-  // 4b. Another Request waiting for SEFIN
-  {
-    id: 'r4b',
-    protocol: 'TJPA-INT-2024-5009',
+    id: 'p4',
+    protocol: 'TJPA-EXT-2024-8902',
     type: 'PASSAGEM',
     category: 'MAGISTRADO',
-    requesterName: 'Dra. Júlia Rocha',
-    requesterSector: 'Vara da Infância',
-    dateCreated: '2024-02-03T08:00:00Z',
-    status: 'AGUARDANDO_ASSINATURA_SEFIN',
-    description: 'Mutirão de Audiências em Altamira.',
-    destination: 'Altamira - PA',
-    isInterstate: false,
-    value: 3200.00,
-    deadline: '2024-02-28',
-    legalOpinion: 'MINUTA DE AUTORIZAÇÃO\n\nAutorizo a emissão das passagens.\n\nBelém, 05 de Fevereiro de 2024.',
-    legalOpinionAuthor: 'Dra. Cecília Meireles'
-  },
-  // SODPA Mock Data
-  {
-    id: 'r5',
-    protocol: 'TJPA-JURI-2024-2938',
-    type: 'DIARIA',
-    category: 'EXTRAORDINÁRIO',
-    requesterName: 'ADEMARIO SILVA DE JESUS TESTE',
-    requesterSector: '3ª Vara Cível',
-    dateCreated: '2023-10-25T10:00:00Z',
-    status: 'NOVO',
-    description: 'Participação em congresso jurídico em Brasília.',
-    destination: 'Brasília - DF',
+    requesterName: 'Des. Carlos Eduardo',
+    requesterSector: 'Corregedoria Geral',
+    dateCreated: '2024-02-06T08:00:00Z',
+    status: 'EM_ANALISE_PRESIDENCIA',
+    description: 'Reunião do Conselho Nacional de Corregedores.',
+    destination: 'Florianópolis - SC',
     isInterstate: true,
-    value: 820.00,
-    deadline: '2024-02-04'
+    value: 5200.00,
+    deadline: '2024-02-15'
   }
 ];

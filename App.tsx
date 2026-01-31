@@ -21,6 +21,7 @@ const SefinCockpit = React.lazy(() => import('./components/SEFIN/SefinCockpit').
 const AjsefinDashboard = React.lazy(() => import('./components/AjsefinDashboard').then(m => ({ default: m.AjsefinDashboard })));
 const DashboardSODPA = React.lazy(() => import('./components/DashboardSODPA').then(m => ({ default: m.DashboardSODPA })));
 const SgpDashboard = React.lazy(() => import('./components/SgpDashboard').then(m => ({ default: m.SgpDashboard })));
+const PresidencyDashboard = React.lazy(() => import('./components/PresidencyDashboard').then(m => ({ default: m.PresidencyDashboard })));
 const ProcessDetailsPage = React.lazy(() => import('./components/ProcessDetails/UniversalProcessDetailsPage').then(m => ({ default: m.ProcessDetailsPage })));
 
 // React Query client configuration
@@ -216,6 +217,9 @@ const AppContent: React.FC = () => {
         )}
         {activeRole === AppRole.SGP && (
           <SgpDashboard />
+        )}
+        {activeRole === AppRole.PRESIDENCIA && (
+          <PresidencyDashboard />
         )}
         </>
         )}
