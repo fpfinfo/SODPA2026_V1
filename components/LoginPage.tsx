@@ -82,7 +82,7 @@ export const LoginPage: React.FC = () => {
         {/* Glass Card */}
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-center">
+          <div className="bg-gradient-to-r from-indigo-700 to-purple-800 p-8 text-center">
             <div className="flex justify-center mb-4">
               <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
                 <img 
@@ -93,10 +93,10 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              SCS <span className="text-blue-200">TJPA</span>
+              SDP <span className="text-indigo-200">TJPA</span>
             </h1>
-            <p className="text-blue-200/80 text-sm mt-1">
-              {showForgotPassword ? 'Recuperação de Senha' : 'Sistema de Concessão de Suprimentos'}
+            <p className="text-indigo-200/80 text-sm mt-1">
+              {showForgotPassword ? 'Recuperação de Senha' : 'Sistema de Diárias e Passagens'}
             </p>
           </div>
 
@@ -113,13 +113,13 @@ export const LoginPage: React.FC = () => {
                     </div>
                     <h3 className="text-white font-bold text-lg">Email Enviado!</h3>
                     <p className="text-slate-400 text-sm mt-2">
-                      Enviamos um link de recuperação para <span className="text-blue-400">{recoveryEmail}</span>. 
+                      Enviamos um link de recuperação para <span className="text-indigo-400">{recoveryEmail}</span>. 
                       Verifique sua caixa de entrada e spam.
                     </p>
                   </div>
                   <button
                     onClick={resetRecoveryState}
-                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200"
+                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 transition-all duration-200"
                   >
                     Voltar ao Login
                   </button>
@@ -158,7 +158,7 @@ export const LoginPage: React.FC = () => {
                         onChange={(e) => setRecoveryEmail(e.target.value)}
                         placeholder="seu.email@tjpa.jus.br"
                         required
-                        className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -166,7 +166,7 @@ export const LoginPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={recoveryLoading}
-                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {recoveryLoading ? (
                       <>
@@ -203,7 +203,7 @@ export const LoginPage: React.FC = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="seu.email@tjpa.jus.br"
                       required
-                      className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                     />
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export const LoginPage: React.FC = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                     />
                   </div>
                 </div>
@@ -230,7 +230,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                  className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
                 >
                   Esqueceu sua senha?
                 </button>
@@ -239,7 +239,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>

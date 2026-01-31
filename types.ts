@@ -138,6 +138,8 @@ export interface UserProfile {
   role: AppRole;
   matricula: string;
   avatarUrl?: string;
+  position?: string; // Cargo: Juiz de Direito, Desembargador, etc.
+  isMagistrate?: boolean; // Identifica se é Juiz ou Desembargador
 }
 
 // StaffMember interface deprecated - usage replaced by teamMembers array (from servidores_tj)

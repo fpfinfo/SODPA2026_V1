@@ -516,19 +516,7 @@ export function GestaoPassagensPanel({ onOpenProcess }: GestaoPassagensPanelProp
                       required
                       placeholder="Ex: Brasília - DF"
                       className="w-full px-4 py-2 border border-blue-gray-200 border-gray-300 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
-                      style={{ backgroundColor: '#374151' }} // Dark bg specific for this input as per design if intended, else standard. Image shows dark gray input for destination? No, image checks out as standard or dark. Let's assume standard but image shows "Ex: Brasília" in dark box? 
-                      // Wait, image "Destino" input is dark grey with white text "Ex: Brasília - DF". 
-                      // And "Nome" is dark grey. "Setor" is dark grey.
-                      // Actually ALL inputs in the modal image seem to have a dark grey background #374151 or similar with white/light text?
-                      // Wait, let me check the image again.
-                      // "Nome do Interessado" -> Input background is dark grey.
-                      // "Setor" -> Dark grey.
-                      // "Categoria" -> White background.
-                      // "Destino" -> Dark grey.
-                      // "Data" -> Dark grey.
-                      // "Valor" -> Dark grey.
-                      // "Motivo" -> Dark grey.
-                      // Okay, I will apply a dark theme to these inputs to match the screenshot.
+                      style={{ backgroundColor: '#374151' }}
                       value={formData.destino}
                       onChange={e => setFormData({...formData, destino: e.target.value})}
                     />
