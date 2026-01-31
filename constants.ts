@@ -1,4 +1,43 @@
-import { Request, TeamMember, User, AllowanceRate } from './types';
+import { Request, TeamMember, User, AllowanceRate, INSSTable, BudgetDistribution, AdminBudget, BudgetRule, AnnualBudget } from './types';
+
+// Constantes stub para BudgetManager (módulo legado)
+export const MOCK_BUDGET_MATRIX: BudgetDistribution[] = [];
+export const MOCK_ADMIN_BUDGETS: AdminBudget[] = [];
+export const MOCK_BUDGET_RULES: BudgetRule[] = [];
+
+// Type e constante stub para BudgetPlanningDashboard (módulo legado)
+export type BudgetUnit = 'SOSFU' | 'COMIL' | 'ALL';
+export const UNIT_PTRES_MAP: Record<BudgetUnit, readonly string[]> = {
+  SOSFU: [],
+  COMIL: [],
+  ALL: []
+};
+
+// Constantes stub para DashboardSOSFU (módulo legado)
+export const CURRENT_USER_ID: string = '';
+export const INITIAL_BUDGET: AnnualBudget = {
+  year: 2026,
+  totalCap: 0,
+  executedOrdinary: 0,
+  executedExtraordinary: 0,
+  actions: []
+};
+
+
+
+// Tabela INSS 2025 (valores oficiais)
+export const INSS_TABLE_2025: INSSTable = {
+  year: 2025,
+  ceiling: 8157.41,
+  active: true,
+  ranges: [
+    { label: 'Faixa 1', min: 0, max: 1518.00, rate: 7.5 },
+    { label: 'Faixa 2', min: 1518.01, max: 2793.88, rate: 9 },
+    { label: 'Faixa 3', min: 2793.89, max: 4190.83, rate: 12 },
+    { label: 'Faixa 4', min: 4190.84, max: 8157.41, rate: 14 },
+  ]
+};
+
 
 // Usuário atual simulado (Alterne o ID/Role aqui para testar diferentes visões)
 export const CURRENT_USER: User = {

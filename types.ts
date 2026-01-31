@@ -99,6 +99,16 @@ export interface AdminBudget {
   executed: number; // Controle de saldo para Extra-Emergencial
 }
 
+// Regras de execução orçamentária
+export interface BudgetRule {
+  id: string;
+  name: string;
+  description?: string;
+  value?: number;
+  active?: boolean;
+}
+
+
 // Added ConcessionStatus enum for workflow steps
 export enum ConcessionStatus {
   TRIAGE = 'Triagem',
