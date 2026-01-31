@@ -12,11 +12,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  DollarSign,
+  Calendar
 } from 'lucide-react';
 import { useSODPATeamMembers } from '../../hooks/useSODPATeamMembers';
 import { useToast } from '../ui/ToastProvider';
-import { TeamMember } from '../../types';
+import { TeamMember, AllowanceUserType, TravelScope, AllowanceRate } from '../../types';
+import { MOCK_ALLOWANCE_RATES } from '../../constants';
+import AllowanceRateModal from '../AllowanceRateModal';
 
 // --- Sub-components for Settings Sections ---
 
@@ -367,15 +371,211 @@ const SLASettings = () => {
 
 import { Plane as PlaneIcon } from 'lucide-react';
 
-type SettingsTab = 'GERAL' | 'USUARIOS' | 'SLA' | 'NOTIFICACOES';
+// 4. TABELA DE DIÁRIAS
+const USER_TYPE_LABELS: Record<AllowanceUserType, string> = {
+    'desembargador_corregedor_juiz_auxiliar': 'Desembargador / Corregedor',
+    'juiz_direito': 'Juiz de Direito',
+    'cargos_comissionados_cjs': 'Cargo Comissionado (CJS)',
+    'cargos_comissionados_cji': 'Cargo Comissionado (CJI)',
+    'analista_judiciario': 'Analista Judiciário',
+    'oficial_justica_avaliador': 'Oficial de Justiça',
+    'cargos_nivel_medio': 'Nível Médio',
+    'cargos_nivel_fundamental': 'Nível Fundamental'
+};
+
+const TRAVEL_TYPE_LABELS: Record<TravelScope, string> = {
+    'NO_ESTADO': 'Estadual',
+    'NO_PAIS': 'Nacional',
+    'INTERNACIONAL': 'Internacional'
+};
+
+interface AllowanceTableSettingsProps {
+    allowanceRates: AllowanceRate[];
+    onAddRate: () => void;
+    onEditRate: (rate: AllowanceRate) => void;
+    onDeleteRate: (id: string) => void;
+    onToggleActive: (id: string) => void;
+}
+
+const AllowanceTableSettings: React.FC<AllowanceTableSettingsProps> = ({
+    allowanceRates,
+    onAddRate,
+    onEditRate,
+    onDeleteRate,
+    onToggleActive
+}) => {
+    const { showToast } = useToast();
+
+    const handleDelete = (rate: AllowanceRate) => {
+        if (window.confirm(`Deseja excluir o valor de diária para "${USER_TYPE_LABELS[rate.userType]}" (${TRAVEL_TYPE_LABELS[rate.travelType]})?`)) {
+            onDeleteRate(rate.id);
+            showToast({ type: 'success', title: 'Valor Excluído', message: 'O valor de diária foi removido com sucesso.' });
+        }
+    };
+
+    const handleToggle = (rate: AllowanceRate) => {
+        onToggleActive(rate.id);
+        showToast({ 
+            type: 'info', 
+            title: rate.active ? 'Valor Desativado' : 'Valor Ativado',
+            message: rate.active 
+                ? 'Este valor não será mais usado para novos cálculos.' 
+                : 'Este valor voltou a ser usado para novos cálculos.'
+        });
+    };
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-lg font-bold text-gray-900">Tabela de Valores de Diárias</h2>
+                    <p className="text-sm text-gray-500">Gerencie os valores vigentes para cálculo automático de diárias.</p>
+                </div>
+                <button 
+                    onClick={onAddRate}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 shadow-md flex items-center gap-2 transition-transform active:scale-95"
+                >
+                    <Plus size={16} /> Adicionar Valor
+                </button>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cargo / Função</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo Viagem</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Valor (R$)</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vigência</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {allowanceRates.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    <DollarSign className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+                                    <p className="font-medium">Nenhum valor cadastrado</p>
+                                    <p className="text-sm">Clique em "Adicionar Valor" para começar.</p>
+                                </td>
+                            </tr>
+                        ) : allowanceRates.map((rate) => (
+                            <tr key={rate.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-bold text-gray-800">{USER_TYPE_LABELS[rate.userType]}</div>
+                                    <div className="text-xs text-gray-400 font-mono">{rate.userType}</div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 py-1 rounded text-xs font-bold border ${
+                                        rate.travelType === 'NO_ESTADO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                        rate.travelType === 'NO_PAIS' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                        'bg-purple-50 text-purple-700 border-purple-200'
+                                    }`}>
+                                        {TRAVEL_TYPE_LABELS[rate.travelType]}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-bold text-green-700 bg-green-50 px-2 py-1 rounded w-fit border border-green-100">
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rate.value)}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <div className="flex items-center gap-1">
+                                        <Calendar size={14} className="text-gray-400" />
+                                        <span>{new Date(rate.validFrom).toLocaleDateString('pt-BR')}</span>
+                                        {rate.validTo && <span className="text-gray-400 text-xs"> até {new Date(rate.validTo).toLocaleDateString('pt-BR')}</span>}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <button 
+                                        onClick={() => handleToggle(rate)}
+                                        className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full items-center gap-1 border transition-all cursor-pointer ${
+                                            rate.active 
+                                            ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200' 
+                                            : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                                        }`}
+                                        title="Clique para alternar status"
+                                    >
+                                        <div className={`w-1.5 h-1.5 rounded-full ${rate.active ? 'bg-green-600' : 'bg-gray-400'}`}></div>
+                                        {rate.active ? 'Ativo' : 'Inativo'}
+                                    </button>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex justify-end gap-1">
+                                        <button 
+                                            onClick={() => onEditRate(rate)}
+                                            className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="Editar"
+                                        >
+                                            <Edit size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDelete(rate)}
+                                            className="text-gray-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Excluir"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+// --- Main Panel ---
+
+type SettingsTab = 'GERAL' | 'USUARIOS' | 'SLA' | 'DIARIAS' | 'NOTIFICACOES';
 
 export function ConfiguracoesPanel() {
     const [activeTab, setActiveTab] = useState<SettingsTab>('GERAL');
+    
+    // Allowance Table CRUD State
+    const [allowanceRates, setAllowanceRates] = useState<AllowanceRate[]>(MOCK_ALLOWANCE_RATES);
+    const [isAllowanceModalOpen, setIsAllowanceModalOpen] = useState(false);
+    const [editingRate, setEditingRate] = useState<AllowanceRate | null>(null);
+
+    // --- CRUD Handlers for Allowance Rates ---
+    const handleAddRate = () => {
+        setEditingRate(null);
+        setIsAllowanceModalOpen(true);
+    };
+
+    const handleEditRate = (rate: AllowanceRate) => {
+        setEditingRate(rate);
+        setIsAllowanceModalOpen(true);
+    };
+
+    const handleDeleteRate = (id: string) => {
+        setAllowanceRates(prev => prev.filter(r => r.id !== id));
+    };
+
+    const handleToggleActive = (id: string) => {
+        setAllowanceRates(prev => prev.map(r => 
+            r.id === id ? { ...r, active: !r.active } : r
+        ));
+    };
+
+    const handleSaveRate = (rate: AllowanceRate) => {
+        if (editingRate) {
+            // Update existing
+            setAllowanceRates(prev => prev.map(r => r.id === rate.id ? rate : r));
+        } else {
+            // Create new
+            setAllowanceRates(prev => [rate, ...prev]);
+        }
+    };
 
     const menuItems = [
         { id: 'GERAL', label: 'Geral', icon: Settings },
         { id: 'USUARIOS', label: 'Usuários e Permissões', icon: Users },
         { id: 'SLA', label: 'Prazos e SLA', icon: Clock },
+        { id: 'DIARIAS', label: 'Tabela de Diárias', icon: DollarSign },
         { id: 'NOTIFICACOES', label: 'Notificações', icon: Bell },
     ];
 
@@ -412,6 +612,15 @@ export function ConfiguracoesPanel() {
                 {activeTab === 'GERAL' && <GeneralSettings />}
                 {activeTab === 'USUARIOS' && <UserSettings />}
                 {activeTab === 'SLA' && <SLASettings />}
+                {activeTab === 'DIARIAS' && (
+                    <AllowanceTableSettings 
+                        allowanceRates={allowanceRates}
+                        onAddRate={handleAddRate}
+                        onEditRate={handleEditRate}
+                        onDeleteRate={handleDeleteRate}
+                        onToggleActive={handleToggleActive}
+                    />
+                )}
                 {activeTab === 'NOTIFICACOES' && (
                     <div className="text-center py-12 text-gray-500">
                         <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -420,6 +629,14 @@ export function ConfiguracoesPanel() {
                     </div>
                 )}
             </div>
+
+            {/* Allowance Rate CRUD Modal */}
+            <AllowanceRateModal 
+                isOpen={isAllowanceModalOpen}
+                onClose={() => setIsAllowanceModalOpen(false)}
+                initialData={editingRate}
+                onSave={handleSaveRate}
+            />
         </div>
     );
 }

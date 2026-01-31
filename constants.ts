@@ -1,4 +1,4 @@
-import { Request, TeamMember, User } from './types';
+import { Request, TeamMember, User, AllowanceRate } from './types';
 
 // Usuário atual simulado (Alterne o ID/Role aqui para testar diferentes visões)
 export const CURRENT_USER: User = {
@@ -138,7 +138,8 @@ export const MOCK_REQUESTS: Request[] = [
     destination: 'Brasília - DF',
     isInterstate: true,
     value: 2800.00,
-    deadline: '2024-02-05'
+    deadline: '2024-02-05',
+    returnDate: '2024-02-10' // Currently traveling
   },
   // 4. Fluxo Estadual com Passagem -> AJSEFIN
   {
@@ -187,5 +188,79 @@ export const MOCK_REQUESTS: Request[] = [
     isInterstate: true,
     value: 5200.00,
     deadline: '2024-02-15'
+  }
+];
+
+// Tabela de Valores de Diárias
+export const MOCK_ALLOWANCE_RATES: AllowanceRate[] = [
+  // Magistratura
+  {
+    id: 'val_01',
+    userType: 'desembargador_corregedor_juiz_auxiliar',
+    travelType: 'NO_ESTADO',
+    value: 850.00,
+    validFrom: '2023-01-01',
+    active: true,
+    notes: 'Reajuste Portaria 2023'
+  },
+  {
+    id: 'val_02',
+    userType: 'desembargador_corregedor_juiz_auxiliar',
+    travelType: 'NO_PAIS',
+    value: 1200.00,
+    validFrom: '2023-01-01',
+    active: true
+  },
+  {
+    id: 'val_03',
+    userType: 'juiz_direito',
+    travelType: 'NO_ESTADO',
+    value: 750.00,
+    validFrom: '2023-01-01',
+    active: true
+  },
+  {
+    id: 'val_04',
+    userType: 'juiz_direito',
+    travelType: 'NO_PAIS',
+    value: 1050.00,
+    validFrom: '2023-01-01',
+    active: true
+  },
+  // Servidores
+  {
+    id: 'val_05',
+    userType: 'analista_judiciario',
+    travelType: 'NO_ESTADO',
+    value: 450.00,
+    validFrom: '2023-01-01',
+    active: true
+  },
+  {
+    id: 'val_06',
+    userType: 'analista_judiciario',
+    travelType: 'NO_PAIS',
+    value: 650.00,
+    validFrom: '2023-01-01',
+    active: true
+  },
+  {
+    id: 'val_07',
+    userType: 'oficial_justica_avaliador',
+    travelType: 'NO_ESTADO',
+    value: 450.00,
+    validFrom: '2023-01-01',
+    active: true
+  },
+  // Antigo (Inativo)
+  {
+    id: 'val_old_01',
+    userType: 'analista_judiciario',
+    travelType: 'NO_ESTADO',
+    value: 400.00,
+    validFrom: '2020-01-01',
+    validTo: '2022-12-31',
+    active: false,
+    notes: 'Valor revogado'
   }
 ];

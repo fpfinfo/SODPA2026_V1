@@ -12,6 +12,8 @@ import { useUserProfile } from './hooks/useUserProfile';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { AppNavbar } from './components/Layout/AppNavbar';
 import { CommandPalette } from './components/CommandPalette';
+import { EditProfileModal } from './components/EditProfileModal';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Lazy load heavy dashboard components for better initial load performance
 const DashboardSOSFU = React.lazy(() => import('./components/DashboardSOSFU').then(m => ({ default: m.DashboardSOSFU })));
@@ -22,6 +24,7 @@ const DashboardSODPA = React.lazy(() => import('./components/DashboardSODPA').th
 const SgpDashboard = React.lazy(() => import('./components/SgpDashboard').then(m => ({ default: m.SgpDashboard })));
 const PresidencyDashboard = React.lazy(() => import('./components/PresidencyDashboard').then(m => ({ default: m.PresidencyDashboard })));
 const ProcessDetailsPage = React.lazy(() => import('./components/ProcessDetails/UniversalProcessDetailsPage').then(m => ({ default: m.ProcessDetailsPage })));
+const SettingsPage = React.lazy(() => import('./components/SettingsPage'));
 
 // React Query client configuration
 const queryClient = new QueryClient({
@@ -48,6 +51,7 @@ const AppContent: React.FC = () => {
   // Shared processes state for cross-module integration (e.g., SOSFU -> SEFIN)
   const [sharedProcesses, setSharedProcesses] = useState<Process[]>([]);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   
   // Process details page navigation state
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
@@ -84,13 +88,8 @@ const AppContent: React.FC = () => {
   }, [initialRole]);
 
   const handleAvatarClick = () => {
-    // Save current role before switching to profile view
-    if (activeRole !== AppRole.SUPRIDO) {
-      setPreviousActiveRole(activeRole);
-    }
-    // Switch to SUPRIDO module and show profile from any module
-    setActiveRole(AppRole.SUPRIDO);
-    setSupridoViewOverride('PROFILE');
+    // Open edit profile modal directly from any module
+    setIsEditProfileOpen(true);
   };
 
   // Check if user is currently viewing the SOSFU module (not just if their role is SOSFU)
@@ -232,6 +231,14 @@ const AppContent: React.FC = () => {
         onProfile={handleAvatarClick}
         onPreferences={handlePreferences}
       />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        userProfile={userProfile}
+        onProfileUpdate={refetchUser}
+      />
     </div>
   );
 };
@@ -241,9 +248,11 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <AuthProvider>
-          <AuthenticatedApp />
-        </AuthProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <AuthenticatedApp />
+          </AuthProvider>
+        </NotificationProvider>
       </ToastProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

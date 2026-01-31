@@ -497,3 +497,28 @@ export interface Request {
   expenseAuthorizedBy?: string;
   returnDate?: string;
 }
+
+// --- Allowance Configuration Types ---
+
+export type AllowanceUserType = 
+  | 'desembargador_corregedor_juiz_auxiliar'
+  | 'juiz_direito'
+  | 'cargos_comissionados_cjs'
+  | 'cargos_comissionados_cji'
+  | 'analista_judiciario'
+  | 'oficial_justica_avaliador'
+  | 'cargos_nivel_medio'
+  | 'cargos_nivel_fundamental';
+
+export type TravelScope = 'NO_ESTADO' | 'NO_PAIS' | 'INTERNACIONAL';
+
+export interface AllowanceRate {
+  id: string;
+  userType: AllowanceUserType;
+  travelType: TravelScope;
+  value: number;
+  validFrom: string;
+  validTo?: string | null;
+  active: boolean;
+  notes?: string;
+}

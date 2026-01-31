@@ -5,15 +5,8 @@ import {
   Clock, 
   ChevronRight, 
   CheckCircle2, 
-  Wallet, 
   ArrowLeft, 
-  AlertTriangle,
   Upload,
-  Calendar,
-  User,
-  Bell,
-  ChevronDown,
-  LogOut,
   Home,
   List,
   Gavel
@@ -35,35 +28,21 @@ interface SupridoDashboardProps {
   onRestoreModule?: () => void;
 }
 
-// Theme configuration based on user type
+// Theme configuration based on user type (simplified after header removal)
 const getMagistrateTheme = (isMagistrate: boolean) => isMagistrate 
   ? {
-      headerGradient: 'from-slate-900 via-slate-800 to-amber-900',
-      accentColor: 'text-amber-400',
       activeTab: 'border-amber-600 text-amber-700',
       hoverTab: 'hover:text-amber-600',
       primaryButton: 'from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 shadow-amber-200',
-      badge: 'bg-amber-500/20 border-amber-400/30 text-amber-200',
       iconBg: 'bg-amber-100 text-amber-600',
-      blobColor1: 'bg-amber-600',
-      blobColor2: 'bg-slate-600',
-      avatarBorder: 'border-amber-400',
       greeting: 'Olá, Excelência.',
-      portalTitle: 'Portal do Magistrado'
     }
   : {
-      headerGradient: 'from-indigo-700 via-indigo-800 to-purple-900',
-      accentColor: 'text-indigo-200',
       activeTab: 'border-indigo-600 text-indigo-600',
       hoverTab: 'hover:text-indigo-600',
       primaryButton: 'from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-200',
-      badge: 'bg-indigo-500/30 border-indigo-400/30 text-indigo-100',
       iconBg: 'bg-indigo-100 text-indigo-600',
-      blobColor1: 'bg-purple-500',
-      blobColor2: 'bg-blue-400',
-      avatarBorder: 'border-indigo-300',
       greeting: 'Olá, Servidor.',
-      portalTitle: 'Portal do Servidor'
     };
 
 // Quick stats card component
@@ -96,7 +75,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
   onProfileUpdate,
   onRestoreModule
 }) => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const { data: processos = [], isLoading, refetch } = useSupridoProcesses();
   
@@ -156,14 +135,6 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
     
     return { pending, approved, pendingPC, total: processos.length };
   }, [processos]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      showToast('Erro ao sair');
-    }
-  };
 
   const navigateTo = (view: SupridoView) => {
     setCurrentView(view);
@@ -353,74 +324,6 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
   // Main render with Portal Layout
   return (
     <div className={`min-h-screen bg-gradient-to-br ${isMagistrate ? 'from-slate-100 to-amber-50' : 'from-slate-50 to-indigo-50'}`}>
-      {/* Header with Dynamic Theme */}
-      <header className={`relative bg-gradient-to-r ${theme.headerGradient} text-white shadow-xl overflow-hidden`}>
-        {/* Decorative background blobs */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
-          <div className={`absolute -top-24 -left-24 w-96 h-96 rounded-full blur-3xl ${theme.blobColor1}`}></div>
-          <div className={`absolute top-1/2 right-0 w-64 h-64 rounded-full blur-3xl ${theme.blobColor2}`}></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center">
-                {isMagistrate ? (
-                  <Gavel size={28} className="text-amber-200" />
-                ) : (
-                  <Wallet size={28} className="text-white" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-lg font-bold">{theme.portalTitle}</h1>
-                <p className={`text-xs ${theme.accentColor}`}>Tribunal de Justiça do Estado do Pará</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Notifications */}
-              <button className={`relative p-2 ${theme.accentColor} hover:text-white hover:bg-white/10 rounded-full transition-colors`}>
-                <Bell size={20} />
-                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-400 border-2 border-slate-900 rounded-full"></span>
-              </button>
-
-              <div className="h-8 w-px bg-white/20"></div>
-
-              {/* Profile Info */}
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium">{userProfile?.nome || user?.email}</p>
-                  <div className="flex items-center justify-end gap-1 mt-0.5">
-                    {isMagistrate && (
-                      <span className={`text-[10px] px-1.5 rounded font-medium border ${theme.badge} flex items-center gap-1`}>
-                        <Gavel size={10} /> MAGISTRATURA
-                      </span>
-                    )}
-                    <span className={`text-[10px] px-1.5 rounded font-medium border ${theme.badge}`}>
-                      MAT. {userProfile?.matricula || '---'}
-                    </span>
-                  </div>
-                </div>
-                <div className="relative">
-                  <div className={`w-10 h-10 rounded-full ${theme.avatarBorder} border-2 bg-white/20 flex items-center justify-center`}>
-                    <User size={20} className="text-white" />
-                  </div>
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-slate-900 rounded-full"></div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleLogout}
-                className="ml-2 flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-red-500/20 rounded-lg transition-all text-sm font-medium"
-                title="Sair"
-              >
-                <LogOut size={18} />
-                <span className="hidden md:inline">Sair</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Navigation Tabs */}
       <nav className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
