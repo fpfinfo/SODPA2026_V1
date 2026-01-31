@@ -1,84 +1,294 @@
-import React from 'react';
-import { FileSignature, Users, FileText, TrendingUp, Clock, CheckCircle2, PenTool } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Landmark, TrendingUp, AlertTriangle, PenTool, Search, CheckSquare, Eye, Wallet, PieChart } from 'lucide-react';
+import StatCard from './StatCard';
+import SefinAuthorizationModal from './SefinAuthorizationModal';
+import { MOCK_SEFIN_REQUESTS, SefinRequest } from './types';
 
-interface SefinCockpitProps {}
+export const SefinCockpit: React.FC = () => {
+  const [requests, setRequests] = useState<SefinRequest[]>(MOCK_SEFIN_REQUESTS);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeRequest, setActiveRequest] = useState<SefinRequest | null>(null);
 
-export const SefinCockpit: React.FC<SefinCockpitProps> = () => {
+  // Filter logic: Show items waiting for SEFIN signature
+  const pendingSignatures = useMemo(() => {
+    return requests.filter(r => r.status === 'AGUARDANDO_ASSINATURA_SEFIN');
+  }, [requests]);
+
+  // Mock Budget Logic
+  const budgetStats = useMemo(() => {
+      const initialBudget = 2500000;
+      const authorizedTodayCount = requests.filter(r => r.status === 'APROVADO' && r.expenseAuthorizedBy).length;
+      const authorizedTodayValue = requests
+        .filter(r => r.status === 'APROVADO' && r.expenseAuthorizedBy)
+        .reduce((acc, curr) => acc + (curr.value || 0), 0);
+      
+      const retainedCount = requests.filter(r => r.status === 'REJEITADO').length;
+
+      return {
+          waiting: pendingSignatures.length,
+          balance: initialBudget - authorizedTodayValue,
+          authorizedTodayCount,
+          authorizedTodayValue,
+          retainedCount
+      };
+  }, [requests, pendingSignatures]);
+
+  // Selection Handlers
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.checked) {
+          setSelectedIds(pendingSignatures.map(r => r.id));
+      } else {
+          setSelectedIds([]);
+      }
+  };
+
+  const handleSelectOne = (id: string) => {
+      if (selectedIds.includes(id)) {
+          setSelectedIds(prev => prev.filter(item => item !== id));
+      } else {
+          setSelectedIds(prev => [...prev, id]);
+      }
+  };
+
+  // Action Handlers
+  const handleOpenModal = (req: SefinRequest) => {
+      setActiveRequest(req);
+      setIsModalOpen(true);
+  };
+
+  const handleAuthorize = (requestId: string) => {
+      setRequests(prev => prev.map(r => 
+          r.id === requestId 
+          ? { ...r, status: 'APROVADO', expenseAuthorizedBy: 'Secretário SEFIN' } 
+          : r
+      ));
+  };
+
+  const handleBatchAuthorize = () => {
+      if (confirm(`Confirma a assinatura em lote de ${selectedIds.length} processos?`)) {
+        setRequests(prev => prev.map(r => 
+            selectedIds.includes(r.id)
+            ? { ...r, status: 'APROVADO', expenseAuthorizedBy: 'Secretário SEFIN' }
+            : r
+        ));
+        setSelectedIds([]);
+      }
+  };
+
+  const handleReject = (requestId: string) => {
+      setRequests(prev => prev.map(r => 
+        r.id === requestId 
+        ? { ...r, status: 'REJEITADO', description: r.description + " [Devolvido p/ AJSEFIN]" } 
+        : r
+      ));
+  };
+
   return (
     <div className="flex-1 p-6 overflow-y-auto">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
-              <FileSignature size={28} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">Painel SEFIN</h1>
-              <p className="text-slate-500">Assinatura de documentos e ordenação de despesas</p>
-            </div>
+      <div className="max-w-7xl mx-auto space-y-8">
+      
+        {/* Executive Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+              <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-slate-800 text-slate-200 px-2 py-0.5 rounded text-xs font-bold uppercase border border-slate-700">
+                      Gabinete SEFIN
+                  </span>
+                  <span className="text-gray-400 text-xs font-medium"> &gt; Ordenação de Despesa</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">Painel do Ordenador</h2>
+          </div>
+          <div className="flex gap-3">
+              <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                      type="text" 
+                      placeholder="Buscar PCD..." 
+                      className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none w-64"
+                  />
+              </div>
+              <button 
+                  onClick={handleBatchAuthorize}
+                  disabled={selectedIds.length === 0}
+                  className="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 shadow-lg shadow-green-200 flex items-center gap-2 disabled:opacity-50 disabled:shadow-none transition-all"
+              >
+                  <PenTool size={18} />
+                  Assinar Lote ({selectedIds.length})
+              </button>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
-                <Clock size={22} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800">0</p>
-                <p className="text-xs text-slate-500 uppercase font-medium">Aguardando Assinatura</p>
-              </div>
-            </div>
+        {/* Financial KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="cursor-pointer">
+              <StatCard 
+                  title="Aguardando Assinatura"
+                  subtitle="Fluxo de Saída"
+                  count={budgetStats.waiting}
+                  icon={PenTool}
+                  colorClass="border-l-orange-500"
+                  iconBgClass="bg-orange-50"
+                  iconColorClass="text-orange-600"
+                  footer={<span className="text-orange-600 font-bold text-xs flex items-center gap-1"><AlertTriangle size={12}/> Prioridade Alta</span>}
+              />
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-                <CheckCircle2 size={22} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800">0</p>
-                <p className="text-xs text-slate-500 uppercase font-medium">Assinados Hoje</p>
-              </div>
-            </div>
+          
+          <div className="cursor-pointer">
+              <StatCard 
+                  title="Saldo da Dotação"
+                  subtitle="Disponível"
+                  count={0}
+                  icon={Wallet}
+                  colorClass="border-l-green-500"
+                  iconBgClass="bg-green-50"
+                  iconColorClass="text-green-600"
+                  footer={
+                      <div className="w-full">
+                          <div className="text-2xl font-bold text-green-700 -mt-8 mb-1">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(budgetStats.balance)}
+                          </div>
+                          <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-green-500 h-full w-[70%]"></div>
+                          </div>
+                      </div>
+                  }
+              />
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-                <PenTool size={22} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800">0</p>
-                <p className="text-xs text-slate-500 uppercase font-medium">Este Mês</p>
-              </div>
-            </div>
+
+          <div className="cursor-pointer">
+              <StatCard 
+                  title="Autorizados Hoje"
+                  subtitle={`${budgetStats.authorizedTodayCount} Processos`}
+                  count={0}
+                  icon={TrendingUp} 
+                  colorClass="border-l-blue-500"
+                  iconBgClass="bg-blue-50"
+                  iconColorClass="text-blue-600"
+                  footer={
+                      <div className="text-xl font-bold text-blue-700 -mt-8">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(budgetStats.authorizedTodayValue)}
+                      </div>
+                  }
+              />
           </div>
-          <div className="bg-gradient-to-br from-emerald-700 to-teal-800 p-5 rounded-xl shadow-sm text-white">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white/10 rounded-lg">
-                <TrendingUp size={22} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">R$ 0,00</p>
-                <p className="text-xs text-emerald-200 uppercase font-medium">Volume Assinado</p>
-              </div>
-            </div>
+
+          <div className="cursor-pointer">
+              <StatCard 
+                  title="Retidos / Devolvidos"
+                  subtitle="Controle Interno"
+                  count={budgetStats.retainedCount}
+                  icon={PieChart}
+                  colorClass="border-l-red-500"
+                  iconBgClass="bg-red-50"
+                  iconColorClass="text-red-600"
+                  footer={<span className="text-gray-400 text-xs">Necessitam ajuste</span>}
+              />
           </div>
         </div>
 
-        {/* Placeholder Content */}
-        <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-100 text-center">
-          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileSignature size={40} className="text-slate-400" />
+        {/* Signature Queue Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  <CheckSquare size={18} className="text-slate-600" /> Fila de Autorização
+              </h3>
+              <span className="text-xs font-medium text-gray-500 bg-white px-3 py-1 rounded border border-gray-200">
+                  {pendingSignatures.length} Pendentes
+              </span>
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Módulo SEFIN</h3>
-          <p className="text-slate-500 max-w-md mx-auto">
-            Este módulo está em desenvolvimento. Em breve você poderá assinar documentos e ordenar despesas.
-          </p>
+
+          {/* Table Header */}
+          <div className="grid grid-cols-[auto_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-white border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider items-center">
+              <div className="w-5">
+                  <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      onChange={handleSelectAll}
+                      checked={pendingSignatures.length > 0 && selectedIds.length === pendingSignatures.length}
+                  />
+              </div>
+              <div>Processo / Beneficiário</div>
+              <div>Rota / Objeto</div>
+              <div>Parecer</div>
+              <div className="text-right pr-4">Valor Total</div>
+              <div className="text-right">Ações</div>
+          </div>
+
+          {/* Table Body */}
+          <div className="divide-y divide-gray-50">
+              {pendingSignatures.length === 0 ? (
+                  <div className="p-12 text-center text-gray-500">
+                      <CheckSquare size={48} className="mx-auto text-gray-200 mb-4" />
+                      <p>Nenhum processo aguardando assinatura.</p>
+                  </div>
+              ) : (
+                  pendingSignatures.map(req => (
+                      <div key={req.id} className={`grid grid-cols-[auto_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-4 items-center hover:bg-slate-50 transition-colors ${selectedIds.includes(req.id) ? 'bg-green-50/30' : ''}`}>
+                          <div className="w-5">
+                              <input 
+                                  type="checkbox" 
+                                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                  checked={selectedIds.includes(req.id)}
+                                  onChange={() => handleSelectOne(req.id)}
+                              />
+                          </div>
+                          
+                          <div>
+                              <div className="font-bold text-gray-800 text-sm">{req.protocol}</div>
+                              <div className="text-xs text-gray-500 font-medium">{req.requesterName}</div>
+                          </div>
+
+                          <div>
+                              <div className="font-medium text-gray-700 text-sm">{req.destination || 'Deslocamento Interno'}</div>
+                              <div className="text-xs text-gray-400 truncate max-w-[200px]">{req.description}</div>
+                          </div>
+
+                          <div>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-100 text-[10px] font-bold uppercase">
+                                  <Landmark size={12} /> Minuta Anexa
+                              </span>
+                          </div>
+
+                          <div className="text-right pr-4">
+                              <div className="font-mono font-bold text-gray-900">
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(req.value || 0)}
+                              </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2">
+                              <button 
+                                  onClick={() => handleOpenModal(req)}
+                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                                  title="Visualizar Minuta"
+                              >
+                                  <Eye size={18} />
+                              </button>
+                              <button 
+                                  onClick={() => {
+                                      if(confirm('Confirmar assinatura individual?')) handleAuthorize(req.id);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                                  title="Assinar Rápido"
+                              >
+                                  <PenTool size={18} />
+                              </button>
+                          </div>
+                      </div>
+                  ))
+              )}
+          </div>
         </div>
       </div>
+
+      <SefinAuthorizationModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        request={activeRequest}
+        onConfirm={handleAuthorize}
+        onReject={handleReject}
+      />
+
     </div>
   );
 };
