@@ -1,117 +1,86 @@
-'use client'
+import React from 'react';
+import { FileSignature, Users, FileText, TrendingUp, Clock, CheckCircle2, PenTool } from 'lucide-react';
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { SefinHeader } from './SefinHeader'
-import { useSefinCockpit } from '../../hooks/useSefinCockpit'
+interface SefinCockpitProps {}
 
-// Views
-import { SefinControlPanelView } from './views/SefinControlPanelView'
-import { SefinExplorerView } from './views/SefinExplorerView'
-import { SefinIntelligenceView } from './views/SefinIntelligenceView'
-
-export type SefinViewType = 'control' | 'explorer' | 'intelligence'
-
-const SEEN_COUNT_KEY = 'sefin_last_seen_count'
-const DARK_MODE_KEY = 'sefin_dark_mode'
-
-export function SefinCockpit() {
-  const [activeView, setActiveView] = useState<SefinViewType>('control')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [lastSeenCount, setLastSeenCount] = useState<number>(0)
-  const [darkMode, setDarkMode] = useState<boolean>(false)
-  
-  // Get counts for header badges
-  const { tasks, kpis } = useSefinCockpit()
-  const pendingCount = tasks.filter(t => t.status === 'PENDING').length
-  const urgentCount = kpis.urgentCount
-
-  // Load preferences from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedCount = localStorage.getItem(SEEN_COUNT_KEY)
-      if (savedCount) {
-        setLastSeenCount(parseInt(savedCount, 10) || 0)
-      }
-      
-      const savedDarkMode = localStorage.getItem(DARK_MODE_KEY)
-      if (savedDarkMode) {
-        setDarkMode(savedDarkMode === 'true')
-      }
-    }
-  }, [])
-
-  // Calculate new processes since last view
-  const newCount = Math.max(0, pendingCount - lastSeenCount)
-
-  // Handle acknowledge - save current count
-  const handleAcknowledgeNew = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(SEEN_COUNT_KEY, pendingCount.toString())
-      setLastSeenCount(pendingCount)
-    }
-  }, [pendingCount])
-
-  // Handle dark mode toggle
-  const handleToggleDarkMode = useCallback(() => {
-    setDarkMode(prev => {
-      const next = !prev
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(DARK_MODE_KEY, next.toString())
-      }
-      return next
-    })
-  }, [])
-
-  // Keyboard shortcut for dark mode (D)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === 'd' || e.key === 'D') {
-        handleToggleDarkMode()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleToggleDarkMode])
-
-  // Render active view based on navigation
-  const renderActiveView = () => {
-    switch (activeView) {
-      case 'control':
-        return <SefinControlPanelView darkMode={darkMode} />
-      case 'explorer':
-        return <SefinExplorerView searchQuery={searchQuery} darkMode={darkMode} />
-      case 'intelligence':
-        return <SefinIntelligenceView darkMode={darkMode} />
-      default:
-        return <SefinControlPanelView darkMode={darkMode} />
-    }
-  }
-
+export const SefinCockpit: React.FC<SefinCockpitProps> = () => {
   return (
-    <div className={`h-full flex flex-col transition-colors duration-300 ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
-      {/* Header with Navigation */}
-      <SefinHeader
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        activeView={activeView}
-        onNavigate={setActiveView}
-        pendingCount={pendingCount}
-        urgentCount={urgentCount}
-        newCount={newCount}
-        onAcknowledgeNew={handleAcknowledgeNew}
-        darkMode={darkMode}
-        onToggleDarkMode={handleToggleDarkMode}
-      />
+    <div className="flex-1 p-6 overflow-y-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
+              <FileSignature size={28} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Painel SEFIN</h1>
+              <p className="text-slate-500">Assinatura de documentos e ordenação de despesas</p>
+            </div>
+          </div>
+        </div>
 
-      {/* Main Content - Full Width */}
-      <main className="flex-1 overflow-auto">
-        {renderActiveView()}
-      </main>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
+                <Clock size={22} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">0</p>
+                <p className="text-xs text-slate-500 uppercase font-medium">Aguardando Assinatura</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                <CheckCircle2 size={22} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">0</p>
+                <p className="text-xs text-slate-500 uppercase font-medium">Assinados Hoje</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                <PenTool size={22} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">0</p>
+                <p className="text-xs text-slate-500 uppercase font-medium">Este Mês</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-700 to-teal-800 p-5 rounded-xl shadow-sm text-white">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-white/10 rounded-lg">
+                <TrendingUp size={22} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">R$ 0,00</p>
+                <p className="text-xs text-emerald-200 uppercase font-medium">Volume Assinado</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Placeholder Content */}
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-100 text-center">
+          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileSignature size={40} className="text-slate-400" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">Módulo SEFIN</h3>
+          <p className="text-slate-500 max-w-md mx-auto">
+            Este módulo está em desenvolvimento. Em breve você poderá assinar documentos e ordenar despesas.
+          </p>
+        </div>
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default SefinCockpit
-
-
+export default SefinCockpit;
