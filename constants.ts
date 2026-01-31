@@ -2,23 +2,23 @@ import { Request, TeamMember, User } from './types';
 
 // Usuário atual simulado (Alterne o ID/Role aqui para testar diferentes visões)
 export const CURRENT_USER: User = {
+  id: 'sgp_coord', 
+  name: 'Ana Neri', 
+  role: 'SGP', 
+  registration: '550123',
+  position: 'Coordenadora de Gestão de Pessoas',
+  avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop'
+};
+
+/*
+// Previously used SEFIN User
+export const CURRENT_USER_SEFIN: User = {
   id: 'sefin_sec', 
   name: 'Dr. Machado de Assis', 
   role: 'SEFIN', 
   registration: '102030',
   position: 'Secretário de Finanças',
   avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop'
-};
-
-/*
-// Previously used AJSEFIN User
-export const CURRENT_USER_OLD: User = {
-  id: 'aj_coord', 
-  name: 'Dra. Clarice Lispector', 
-  role: 'AJSEFIN', 
-  registration: '882910',
-  position: 'Coordenadora Jurídica',
-  avatarUrl: 'https://picsum.photos/id/1062/200/200'
 };
 */
 
@@ -58,7 +58,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
 // Equipe Jurídica (6 Assessores)
 export const AJSEFIN_TEAM: TeamMember[] = [
     {
-      id: 'aj1', name: 'Dr. Carlos Drummond', role: 'SODPA', // Reusing Type structure
+      id: 'aj1', name: 'Dr. Carlos Drummond', role: 'SODPA',
       function: 'Assessor Jurídico I', activeProcesses: 12, capacity: 95, delayedItems: 3,
       avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop'
     },
@@ -138,7 +138,39 @@ export const MOCK_REQUESTS: Request[] = [
     value: 250.00,
     deadline: '2024-02-10'
   },
-  // 4. Fluxo Pós-AJSEFIN -> Vai para SEFIN assinar (EXISTING)
+  // 3b. SGP Conflict Scenario (Vacation overlap)
+  {
+    id: 'r3b',
+    protocol: 'TJPA-DIA-2024-5015',
+    type: 'DIARIA',
+    category: 'ORDINÁRIO',
+    requesterName: 'Carlos Ferreira',
+    requesterSector: 'Comarca de Breves',
+    dateCreated: '2024-02-04T09:00:00Z',
+    status: 'EM_ANALISE_SGP',
+    description: 'Treinamento de equipe local.',
+    destination: 'Breves - PA',
+    isInterstate: false,
+    value: 600.00,
+    deadline: '2024-02-12'
+  },
+  // 3c. SGP Banking Error Scenario
+  {
+    id: 'r3c',
+    protocol: 'TJPA-DIA-2024-5018',
+    type: 'DIARIA',
+    category: 'TÉCNICO',
+    requesterName: 'Amanda Lima',
+    requesterSector: 'Engenharia',
+    dateCreated: '2024-02-04T11:00:00Z',
+    status: 'EM_ANALISE_SGP',
+    description: 'Vistoria em obra parada.',
+    destination: 'Marituba - PA',
+    isInterstate: false,
+    value: 150.00,
+    deadline: '2024-02-08'
+  },
+  // 4. Fluxo Pós-AJSEFIN -> Vai para SEFIN assinar
   {
     id: 'r4',
     protocol: 'TJPA-INT-2024-5004',
@@ -153,10 +185,10 @@ export const MOCK_REQUESTS: Request[] = [
     isInterstate: false,
     value: 1500.00,
     deadline: '2024-02-25',
-    legalOpinion: 'MINUTA DE AUTORIZAÇÃO\n\nCertifico que a despesa consta no orçamento vigente e atende aos princípios da legalidade e economicidade. Opino pelo deferimento da compra das passagens aéreas.\n\nBelém, 04 de Fevereiro de 2024.',
-    legalOpinionAuthor: 'Dra. Clarice Lispector'
+    legalOpinion: 'MINUTA DE AUTORIZAÇÃO\n\nCertifico que a despesa atende aos requisitos legais.\n\nBelém, 04 de Fevereiro de 2024.',
+    legalOpinionAuthor: 'Dr. Carlos Drummond'
   },
-  // 4b. Another Request waiting for SEFIN (New for Demo)
+  // 4b. Another Request waiting for SEFIN
   {
     id: 'r4b',
     protocol: 'TJPA-INT-2024-5009',
@@ -171,8 +203,8 @@ export const MOCK_REQUESTS: Request[] = [
     isInterstate: false,
     value: 3200.00,
     deadline: '2024-02-28',
-    legalOpinion: 'MINUTA DE AUTORIZAÇÃO\n\nConforme solicitação e parecer jurídico favorável, autorizo a emissão das passagens para deslocamento da magistrada.\n\nBelém, 05 de Fevereiro de 2024.',
-    legalOpinionAuthor: 'Dr. Carlos Drummond'
+    legalOpinion: 'MINUTA DE AUTORIZAÇÃO\n\nAutorizo a emissão das passagens.\n\nBelém, 05 de Fevereiro de 2024.',
+    legalOpinionAuthor: 'Dra. Cecília Meireles'
   },
   // SODPA Mock Data
   {
