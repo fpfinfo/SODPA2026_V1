@@ -10,7 +10,7 @@ import {
   BarChart3 
 } from 'lucide-react';
 import { useSODPAProcesses } from '../../hooks/useSODPAProcesses';
-import { ProcessoSODPA, StatusDiaria } from '../../types';
+import StatCard from './StatCard';
 
 export function RelatoriosPanel() {
   const { processos, loading } = useSODPAProcesses();
@@ -45,9 +45,7 @@ export function RelatoriosPanel() {
       prestContas: yearProcesses.filter(p => ['PRESTACAO_CONTAS', 'PENDENTE_COMPROVACAO'].includes(p.status)).length,
     };
 
-    // Maiores Solicitantes (Mocked Logic as sector is not normalized yet, using Names for now or generic mocked sectors for visual match if needed. 
-    // Image shows 'Gabinete da Presidência', 'Corregedoria', etc. I will map some random names/process types to these for the visual if real data doesn't exist, 
-    // but better to aggregate by 'solicitanteCargo' or similar if available. Let's aggregate by Name for now.)
+    // Maiores Solicitantes (Top 4)
     const topSolicitantes = Object.entries(
       yearProcesses.reduce((acc, p) => {
         const name = p.solicitanteNome || 'Desconhecido';
@@ -87,7 +85,6 @@ export function RelatoriosPanel() {
 
   // Find max value for chart scaling
   const maxMonthlyValue = Math.max(...stats.monthlyData, 1); // Avoid div by zero
-
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   return (
@@ -115,64 +112,63 @@ export function RelatoriosPanel() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards using reusable StatCard */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Gasto Total */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-             <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-               <DollarSign size={20} />
-             </div>
-             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">GASTO TOTAL (ANO)</p>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalSpent)}</h3>
-          <div className="flex items-center gap-1 mt-1 text-xs text-emerald-600 font-medium">
-             <TrendingUp size={12} />
-             <span>+12% vs ano anterior</span>
-          </div>
-        </div>
+        <StatCard 
+          title="GASTO TOTAL (ANO)"
+          count={formatCurrency(stats.totalSpent)}
+          subtitle=""
+          icon={DollarSign}
+          colorClass="border-l-blue-500"
+          iconBgClass="bg-blue-50"
+          iconColorClass="text-blue-600"
+          footer={
+            <div className="flex items-center gap-1 text-emerald-600 font-medium">
+               <TrendingUp size={12} />
+               <span>+12% vs ano anterior</span>
+            </div>
+          }
+        />
+        
+        <StatCard 
+          title="TOTAL SOLICITAÇÕES"
+          count={stats.uniqueRequests}
+          icon={TrendingUp}
+          colorClass="border-l-purple-500"
+          iconBgClass="bg-purple-50"
+          iconColorClass="text-purple-600"
+          footer={
+            <div className="flex items-center gap-1 text-emerald-600 font-medium">
+               <TrendingUp size={12} />
+               <span>+5% vs ano anterior</span>
+            </div>
+          }
+        />
 
-        {/* Total Solicitações */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-             <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
-               <TrendingUp size={20} />
-             </div>
-             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">TOTAL SOLICITAÇÕES</p>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900">{stats.uniqueRequests}</h3>
-          <div className="flex items-center gap-1 mt-1 text-xs text-emerald-600 font-medium">
-             <TrendingUp size={12} />
-             <span>+5% vs ano anterior</span>
-          </div>
-        </div>
+        <StatCard 
+          title="TICKET MÉDIO"
+          count={formatCurrency(stats.avgTicket)}
+          icon={DollarSign}
+          colorClass="border-l-emerald-500"
+          iconBgClass="bg-emerald-50"
+          iconColorClass="text-emerald-600"
+          footer={
+            <div className="flex items-center gap-1 text-red-500 font-medium">
+               <TrendingDown size={12} />
+               <span>-2% vs ano anterior</span>
+            </div>
+          }
+        />
 
-        {/* Ticket Médio */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 relative overflow-hidden">
-           <div className="flex items-center gap-2 mb-2">
-             <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-               <DollarSign size={20} />
-             </div>
-             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">TICKET MÉDIO</p>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(stats.avgTicket)}</h3>
-          <div className="flex items-center gap-1 mt-1 text-xs text-red-500 font-medium">
-             <TrendingDown size={12} />
-             <span>-2% vs ano anterior</span>
-          </div>
-        </div>
-
-        {/* Tempo Médio */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-             <div className="p-2 bg-orange-50 rounded-lg text-orange-600">
-               <Clock size={20} />
-             </div>
-             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">TEMPO MÉDIO APROV.</p>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900">3.5 Dias</h3>
-          <p className="text-xs text-gray-400 mt-1">Meta: 3.0 Dias</p>
-        </div>
+        <StatCard 
+          title="TEMPO MÉDIO APROV."
+          count="3.5 Dias"
+          icon={Clock}
+          colorClass="border-l-orange-500"
+          iconBgClass="bg-orange-50"
+          iconColorClass="text-orange-600"
+          footer={<span className="text-gray-400">Meta: 3.0 Dias</span>}
+        />
       </div>
 
       {/* Charts Section */}
@@ -184,17 +180,20 @@ export function RelatoriosPanel() {
            
            <div className="h-64 flex items-end justify-between gap-2">
               {stats.monthlyData.map((value, index) => {
-                const heightPercentage = Math.round((value / maxMonthlyValue) * 100);
+                // Ensure at least 1% height for visibility if value is 0 but avoid weird look
+                const heightPercentage = value > 0 ? Math.round((value / maxMonthlyValue) * 100) : 0;
+                // Min display height 1px if 0 is awkward, let's keep it clean
+                
                 return (
-                  <div key={index} className="flex flex-col items-center gap-2 flex-1 group relative">
+                  <div key={index} className="flex flex-col items-center gap-2 flex-1 group relative cursor-pointer">
                     {/* Tooltip */}
-                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
+                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10 pointer-events-none">
                         {formatCurrency(value)}
                     </div>
                     {/* Bar */}
                     <div 
-                        className="w-full bg-blue-100 hover:bg-blue-500 transition-colors rounded-t-sm"
-                        style={{ height: `${heightPercentage || 1}%` }} // Min 1% to show empty bars
+                        className={`w-full transition-all duration-300 rounded-t-sm ${value > 0 ? 'bg-blue-100 group-hover:bg-blue-600' : 'bg-gray-50'}`}
+                        style={{ height: value > 0 ? `${heightPercentage}%` : '4px' }}
                     ></div>
                     {/* Label */}
                     <span className="text-[10px] text-gray-400 font-medium uppercase">{months[index]}</span>
@@ -271,25 +270,7 @@ export function RelatoriosPanel() {
                    </li>
                  ))
                ) : (
-                 // Fallback visuals if no data matches
-                 <>
-                   <li className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Gabinete da Presidência</span>
-                      <span className="font-bold text-gray-900">R$ 125k</span>
-                   </li>
-                    <li className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Corregedoria Geral</span>
-                      <span className="font-bold text-gray-900">R$ 98k</span>
-                   </li>
-                    <li className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Escola Judicial</span>
-                      <span className="font-bold text-gray-900">R$ 85k</span>
-                   </li>
-                    <li className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Secretaria de Informática</span>
-                      <span className="font-bold text-gray-900">R$ 62k</span>
-                   </li>
-                 </>
+                 <div className="text-sm text-gray-400 text-center py-2">Sem dados registrados</div>
                )}
              </ul>
            </div>

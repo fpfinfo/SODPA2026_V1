@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useSODPAProcesses } from '../../hooks/useSODPAProcesses';
 import { useToast } from '../ui/ToastProvider';
+import { DashboardFilterModal } from './DashboardFilterModal';
 
 interface GestaoPassagensPanelProps {
   onOpenProcess?: (processId: string, tipo: 'DIARIA' | 'PASSAGEM') => void;
@@ -34,6 +35,14 @@ export function GestaoPassagensPanel({ onOpenProcess }: GestaoPassagensPanelProp
   const [activeFilter, setActiveFilter] = useState<FilterType>('TODAS');
   const [searchTerm, setSearchTerm] = useState('');
   const { showToast } = useToast();
+
+  // Filter Modal State
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    status: [] as string[],
+    dateRange: { start: '', end: '' },
+    setor: ''
+  });
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -117,27 +126,60 @@ export function GestaoPassagensPanel({ onOpenProcess }: GestaoPassagensPanelProp
   // Filtering Logic
   const filteredPassagens = useMemo(() => {
     return passagens.filter(passagem => {
-      // Text Search
+      // 1. Text Search
       const searchMatch = 
         passagem.servidorNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         passagem.nup.toLowerCase().includes(searchTerm.toLowerCase());
 
       if (!searchMatch) return false;
 
-      // Tab Filter
-      switch (activeFilter) {
-        case 'AGUARD_COTACAO':
-          return ['SOLICITADA', 'COTACAO'].includes(passagem.status);
-        case 'EM_EMISSAO':
-          return ['APROVADA', 'AGUARDANDO_EMISSAO', 'EM_ANALISE'].includes(passagem.status);
-        case 'EMITIDAS':
-          return ['EMITIDA', 'CONCLUIDA', 'UTILIZADA'].includes(passagem.status);
-        case 'TODAS':
-        default:
-          return true;
+      // 2. Tab Filter
+      if (activeFilter !== 'TODAS') {
+        switch (activeFilter) {
+          case 'AGUARD_COTACAO':
+            if (!['SOLICITADA', 'COTACAO'].includes(passagem.status)) return false;
+            break;
+          case 'EM_EMISSAO':
+            if (!['APROVADA', 'AGUARDANDO_EMISSAO', 'EM_ANALISE'].includes(passagem.status)) return false;
+            break;
+          case 'EMITIDAS':
+             if (!['EMITIDA', 'CONCLUIDA', 'UTILIZADA'].includes(passagem.status)) return false;
+             break;
+        }
       }
+
+       // 3. Advanced Filters
+      // Status
+      if (advancedFilters.status.length > 0) {
+        if (!advancedFilters.status.includes(passagem.status)) return false;
+      }
+
+      // Date Range
+      if (advancedFilters.dateRange.start) {
+        const startDate = new Date(advancedFilters.dateRange.start);
+        const itemDate = new Date(passagem.createdAt);
+        if (itemDate < startDate) return false;
+      }
+      if (advancedFilters.dateRange.end) {
+        const endDate = new Date(advancedFilters.dateRange.end);
+        // Set end date to end of day
+        endDate.setHours(23, 59, 59, 999);
+        const itemDate = new Date(passagem.createdAt);
+        if (itemDate > endDate) return false;
+      }
+
+       // Setor
+      if (advancedFilters.setor) {
+         const subString = `Setor: ${advancedFilters.setor}`;
+         // Check both standard field (future proof) and observacoes (current hack)
+         if (!passagem.observacoes?.includes(subString)) { 
+             return false;
+         }
+      }
+
+      return true;
     });
-  }, [passagens, activeFilter, searchTerm]);
+  }, [passagens, activeFilter, searchTerm, advancedFilters]);
 
   // Helper to format currency
   const formatCurrency = (value: number) => {
@@ -198,10 +240,18 @@ export function GestaoPassagensPanel({ onOpenProcess }: GestaoPassagensPanelProp
         </div>
         <div className="flex gap-2">
            <button 
-             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+             onClick={() => setIsFilterModalOpen(true)}
+             className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                (advancedFilters.status.length > 0 || advancedFilters.dateRange.start || advancedFilters.setor) 
+                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                : 'border-gray-200 text-gray-700 bg-white hover:bg-gray-50'
+             }`}
            >
              <Filter className="h-4 w-4" />
              Filtros Avançados
+             {(advancedFilters.status.length > 0 || advancedFilters.dateRange.start || advancedFilters.setor) && (
+               <div className="w-2 h-2 rounded-full bg-blue-600 ml-1" />
+             )}
            </button>
            <button 
              className="flex items-center gap-2 px-4 py-2 bg-purple-600 rounded-lg text-sm font-medium text-white hover:bg-purple-700 transition-colors shadow-sm shadow-purple-600/20"
@@ -548,6 +598,13 @@ export function GestaoPassagensPanel({ onOpenProcess }: GestaoPassagensPanelProp
           </div>
         </div>
       )}
+      {/* FILTER MODAL */}
+      <DashboardFilterModal 
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        currentFilters={advancedFilters}
+        onApplyFilters={setAdvancedFilters}
+      />
     </div>
   );
 }

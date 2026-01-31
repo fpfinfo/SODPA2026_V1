@@ -68,6 +68,26 @@ BEGIN
       nome = EXCLUDED.nome,
       setor = EXCLUDED.setor,
       cargo = EXCLUDED.cargo;
+
+    -- Inserir/Atualizar no SERVIDORES_TJ (Para Hooks de Equipe)
+    INSERT INTO public.servidores_tj (
+      id, user_id, nome, email, funcao, 
+      setor, ativo, capacidade_diaria
+    ) VALUES (
+      v_user_id, -- Usando mesmo ID para simplificar (ou pode ser gen_random_uuid se id for PK separada)
+      v_user_id, 
+      v_name, 
+      v_email, 
+      'ANALISTA', 
+      'SODPA',
+      true,
+      10 -- Capacidade Padrão
+    )
+    ON CONFLICT (email) DO UPDATE SET
+      user_id = EXCLUDED.user_id,
+      nome = EXCLUDED.nome,
+      setor = 'SODPA',
+      ativo = true;
       
   END LOOP;
 
