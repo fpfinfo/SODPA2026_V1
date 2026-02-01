@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, FileText, Ban, Landmark, Coins, TrendingDown, PenTool, AlertTriangle } from 'lucide-react';
-import { SefinRequest } from './types';
+import { SefinProcess } from '../../hooks/useSefinProcesses';
 
 interface SefinAuthorizationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  request: SefinRequest | null;
+  request: SefinProcess | null;
   onConfirm: (requestId: string) => void;
   onReject: (requestId: string) => void;
 }
@@ -19,7 +19,8 @@ const SefinAuthorizationModal: React.FC<SefinAuthorizationModalProps> = ({
   if (!isOpen || !request) return null;
 
   // Mock Financial Data (derived from request value)
-  const budgetSource = request.type === 'PASSAGEM' ? '33.90.33 - Passagens e Despesas c/ Locomoção' : '33.90.14 - Diárias - Pessoal Civil';
+  const requestType = request.description?.toLowerCase().includes('passagem') ? 'PASSAGEM' : 'DIARIA';
+  const budgetSource = requestType === 'PASSAGEM' ? '33.90.33 - Passagens e Despesas c/ Locomoção' : '33.90.14 - Diárias - Pessoal Civil';
   const availableBalance = 1250000.00;
   const impactPercentage = ((request.value || 0) / availableBalance) * 100;
 
@@ -76,10 +77,10 @@ const SefinAuthorizationModal: React.FC<SefinAuthorizationModalProps> = ({
                             <p className="font-serif text-sm text-gray-500">Assessoria Jurídica da Secretaria de Finanças</p>
                         </div>
                         <div className="font-serif text-sm text-gray-800 leading-relaxed whitespace-pre-wrap text-justify">
-                            {request.legalOpinion || "Minuta de autorização não gerada. Favor retornar à AJSEFIN."}
+                            {(request as any).legalOpinion || "MINUTA DE AUTORIZAÇÃO\n\nReferência: Processo " + request.protocol + "\n\n1. Certifico a regularidade do pedido.\n\n2. A despesa está em conformidade com as normativas vigentes.\n\nBelém, " + new Date().toLocaleDateString('pt-BR')}
                         </div>
                         <div className="mt-12 pt-4 border-t border-gray-800 w-1/2 mx-auto text-center">
-                            <p className="font-serif font-bold text-gray-900 text-sm">{request.legalOpinionAuthor || 'Assessor Responsável'}</p>
+                            <p className="font-serif font-bold text-gray-900 text-sm">{(request as any).legalOpinionAuthor || 'Assessor Jurídico'}</p>
                             <p className="font-serif text-xs text-gray-500">OAB/PA 00.000</p>
                         </div>
                     </div>

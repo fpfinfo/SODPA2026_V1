@@ -26,6 +26,9 @@ export interface SefinOrdenador {
   avatarUrl: string;
   activeProcesses: number;
   capacity: number;
+  role: string;
+  delayedItems: number;
+  isActive?: boolean;
 }
 
 export interface SefinStats {
@@ -81,7 +84,10 @@ export const useSefinProcesses = () => {
         cargo: u.servidores_tj?.cargo || 'Ordenador de Despesa',
         avatarUrl: u.servidores_tj?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.servidores_tj?.nome || 'O')}&background=10b981&color=fff`,
         activeProcesses: 0,
-        capacity: 0
+        capacity: 0,
+        role: 'sefin',
+        delayedItems: 0,
+        isActive: true
       }));
 
       setOrdenadores(mapped);

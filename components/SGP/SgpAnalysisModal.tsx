@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, AlertOctagon, Calendar, User, CreditCard, Ban, Briefcase, FileSearch } from 'lucide-react';
-import { SgpRequest } from './types';
+import { SgpProcess } from '../../hooks/useSgpProcesses';
 
 interface SgpAnalysisModalProps {
   isOpen: boolean;
   onClose: () => void;
-  request: SgpRequest | null;
+  request: SgpProcess | null;
   onConfirm: (requestId: string) => void;
   onReject: (requestId: string, reason: string) => void;
 }
@@ -18,9 +18,9 @@ const SgpAnalysisModal: React.FC<SgpAnalysisModalProps> = ({
 
   if (!isOpen || !request) return null;
 
-  const erpStatus = request.erpStatus || 'ACTIVE';
-  const hasConflict = erpStatus === 'VACATION' || erpStatus === 'LEAVE';
-  const hasBankError = erpStatus === 'BANK_ERROR';
+  const erpStatus = request.erpStatus || 'REGULAR';
+  const hasConflict = erpStatus === 'IRREGULAR';
+  const hasBankError = erpStatus === 'GLOSA';
 
   const handleConfirm = () => {
     onConfirm(request.id);
@@ -64,21 +64,22 @@ const SgpAnalysisModal: React.FC<SgpAnalysisModalProps> = ({
                     <div className="grid grid-cols-2 gap-4 mt-2">
                         <div>
                             <span className="text-[10px] text-gray-400 font-bold uppercase">Matrícula</span>
-                            <p className="text-sm font-medium text-gray-700">{request.requesterMatricula || '550192-3'}</p>
+                            <p className="text-sm font-medium text-gray-700">{request.requesterMatricula || 'N/A'}</p>
                         </div>
                         <div>
                             <span className="text-[10px] text-gray-400 font-bold uppercase">Cargo/Função</span>
-                            <p className="text-sm font-medium text-gray-700">{request.category || 'Analista Judiciário'}</p>
+                            <p className="text-sm font-medium text-gray-700">Analista Judiciário</p>
                         </div>
                         <div>
                             <span className="text-[10px] text-gray-400 font-bold uppercase">Lotação</span>
-                            <p className="text-sm font-medium text-gray-700">{request.requesterSector}</p>
+                            <p className="text-sm font-medium text-gray-700">{request.destino_atual || 'TJPA'}</p>
                         </div>
                         <div>
                             <span className="text-[10px] text-gray-400 font-bold uppercase">Status ERP</span>
-                            {erpStatus === 'ACTIVE' && <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100">Ativo</span>}
-                            {erpStatus === 'VACATION' && <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-100">Férias Programadas</span>}
-                            {erpStatus === 'BANK_ERROR' && <span className="inline-flex items-center gap-1 text-xs font-bold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-100">Erro Bancário</span>}
+                            {erpStatus === 'REGULAR' && <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100">Regular</span>}
+                            {erpStatus === 'IRREGULAR' && <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-100">Irregular</span>}
+                            {erpStatus === 'PENDING' && <span className="inline-flex items-center gap-1 text-xs font-bold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-100">Pendente</span>}
+                            {erpStatus === 'GLOSA' && <span className="inline-flex items-center gap-1 text-xs font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">Glosa</span>}
                         </div>
                     </div>
                 </div>
@@ -119,12 +120,12 @@ const SgpAnalysisModal: React.FC<SgpAnalysisModalProps> = ({
                     {/* ERP Status Bar */}
                     <div className="relative h-12 flex items-center">
                         <div className={`w-24 text-xs font-bold mr-2 ${hasConflict ? 'text-red-700' : 'text-gray-500'}`}>
-                            {erpStatus === 'VACATION' ? 'Férias' : 'Afastamentos'}
+                            {hasConflict ? 'Pendência' : 'Afastamentos'}
                         </div>
                         <div className="flex-1 relative h-6 bg-gray-100 rounded-full overflow-hidden">
-                             {erpStatus === 'VACATION' ? (
+                             {hasConflict ? (
                                 <div className="absolute top-0 bottom-0 left-[35%] w-[65%] bg-red-400/80 rounded-l-full flex items-center pl-2 text-[10px] text-white font-bold border-l-2 border-red-600">
-                                    <AlertOctagon size={10} className="mr-1" /> Férias Regulamentares
+                                    <AlertOctagon size={10} className="mr-1" /> Situação Irregular
                                 </div>
                              ) : (
                                 <div className="absolute top-0 bottom-0 w-full flex items-center justify-center text-[10px] text-gray-400 italic">

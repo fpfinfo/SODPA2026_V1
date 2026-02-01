@@ -5,6 +5,7 @@ import PresidencyBriefingModal from './PresidencyBriefingModal';
 import RepresentationMapModal from './RepresentationMapModal';
 import { usePresidencyProcesses, PresidencyProcess } from '../../hooks/usePresidencyProcesses';
 import { useToast } from '../ui/ToastProvider';
+import { ApprovalPanel } from '../SODPA/ApprovalPanel';
 
 export const PresidencyCockpit: React.FC = () => {
   const { showToast } = useToast();
@@ -231,6 +232,15 @@ export const PresidencyCockpit: React.FC = () => {
               })
             )}
           </div>
+        </div>
+
+        {/* SODPA External Travel Authorization */}
+        <div className="mt-8">
+          <ApprovalPanel 
+            moduleName="PRESIDENCIA"
+            moduleLabel="Presidência"
+            moduleColor="purple"
+          />
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import SgpAnalysisModal from './SgpAnalysisModal';
 import { SgpTeamPanel } from './SgpTeamPanel';
 import { useSgpProcesses, SgpProcess } from '../../hooks/useSgpProcesses';
 import { useToast } from '../ui/ToastProvider';
+import { ApprovalPanel } from '../SODPA/ApprovalPanel';
 
 export const SgpCockpit: React.FC = () => {
   const { showToast } = useToast();
@@ -38,7 +39,10 @@ export const SgpCockpit: React.FC = () => {
     cargo: a.cargo,
     avatarUrl: a.avatarUrl,
     activeProcesses: a.activeProcesses,
-    capacity: Math.min(100, a.activeProcesses * 20)
+    capacity: Math.min(100, a.activeProcesses * 20),
+    role: 'sgp',
+    delayedItems: 0,
+    isActive: true
   }));
 
   // Handlers
@@ -217,6 +221,15 @@ export const SgpCockpit: React.FC = () => {
           currentUserEmail={currentUserEmail}
           onAssignTo={handleAssignTo}
         />
+
+        {/* SODPA Diárias Authorization */}
+        <div className="mt-8">
+          <ApprovalPanel 
+            moduleName="SGP"
+            moduleLabel="SGP"
+            moduleColor="emerald"
+          />
+        </div>
 
         {/* Queue Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

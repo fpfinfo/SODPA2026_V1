@@ -5,6 +5,7 @@ import SefinAuthorizationModal from './SefinAuthorizationModal';
 import { SefinTeamPanel } from './SefinTeamPanel';
 import { useSefinProcesses, SefinProcess, SefinOrdenador } from '../../hooks/useSefinProcesses';
 import { useToast } from '../ui/ToastProvider';
+import { ApprovalPanel } from '../SODPA/ApprovalPanel';
 
 export const SefinCockpit: React.FC = () => {
   const { showToast } = useToast();
@@ -374,6 +375,15 @@ export const SefinCockpit: React.FC = () => {
               ))
             )}
           </div>
+        </div>
+
+        {/* SODPA Passagens Authorization */}
+        <div className="mt-8">
+          <ApprovalPanel 
+            moduleName="SEFIN"
+            moduleLabel="SEFIN"
+            moduleColor="blue"
+          />
         </div>
       </div>
 

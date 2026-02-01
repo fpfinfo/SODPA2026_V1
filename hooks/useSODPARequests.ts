@@ -7,9 +7,26 @@ export interface SODPARequest {
   tipo: 'DIARIA' | 'PASSAGEM';
   status: string;
   nup?: string;
+  numero_portaria?: string;
+  // Solicitante info
+  solicitante_id?: string;
   solicitante_nome: string;
   solicitante_email: string;
+  solicitante_cpf?: string;
+  solicitante_matricula?: string;
+  solicitante_cargo?: string;
+  solicitante_vinculo?: string;
+  solicitante_telefone?: string;
   solicitante_lotacao: string;
+  solicitante_municipio?: string;
+  // Gestor info
+  gestor_nome?: string;
+  gestor_email?: string;
+  // Bank info
+  banco?: string;
+  agencia?: string;
+  conta_corrente?: string;
+  // Trip details
   tipo_destino: string;
   origem: string;
   destino: string;
@@ -17,12 +34,18 @@ export interface SODPARequest {
   data_fim: string;
   dias: number;
   motivo: string;
+  // Values
   valor_diaria?: number;
   valor_total?: number;
+  // Signature and tramitation
   assinatura_digital: boolean;
   data_assinatura?: string;
   destino_atual: string;
+  assigned_to_id?: string;
+  prioridade?: string;
+  // Timestamps
   created_at: string;
+  updated_at?: string;
 }
 
 // Hook for user's SODPA requests (viewer: the requester)

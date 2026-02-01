@@ -117,7 +117,8 @@ export const RequestWizard: React.FC<RequestWizardProps> = ({ onClose, onSuccess
         .from('sodpa_requests')
         .insert({
           tipo: formData.requestType,
-          status: 'NOVO',
+          status: 'ENVIADO',
+          destino_atual: 'SODPA', // Route to SODPA inbox
           solicitante_id: user?.id,
           solicitante_nome: formData.requester.nome,
           solicitante_email: formData.requester.email,
@@ -146,6 +147,41 @@ export const RequestWizard: React.FC<RequestWizardProps> = ({ onClose, onSuccess
         .single();
 
       if (error) throw error;
+
+      // Auto-generate Capa and Requerimento (Virtual Documents)
+      if (newRequest?.id) {
+        const autoDocs = [
+          {
+            request_id: newRequest.id,
+            file_name: 'CAPA_DO_PROCESSO.pdf',
+            file_path: 'AUTO_GENERATED/CAPA',
+            file_type: 'AUTO_CAPA',
+            file_size: 156000, // Simulated size
+            created_at: new Date(Date.now() - 2000).toISOString() // Created before attachments
+          },
+          {
+            request_id: newRequest.id,
+            file_name: `REQUERIMENTO_DE_${newRequest.tipo}_${new Date().getFullYear()}.pdf`,
+            file_path: 'AUTO_GENERATED/REQUERIMENTO',
+            file_type: 'AUTO_REQ',
+            file_size: 245000,
+            created_at: new Date(Date.now() - 1000).toISOString()
+          }
+        ];
+        
+        const { error: autoDocError } = await supabase
+          .from('sodpa_attachments')
+          .insert(autoDocs);
+          
+        if (autoDocError) {
+          console.error('Error generating auto-docs:', autoDocError);
+          showToast({
+            type: 'error',
+            title: 'Erro na geração automática',
+            message: 'Capa e Requerimento não foram criados. Contate o suporte.'
+          });
+        }
+      }
 
       // Upload attachments if any
       if (formData.attachments.length > 0 && newRequest?.id) {

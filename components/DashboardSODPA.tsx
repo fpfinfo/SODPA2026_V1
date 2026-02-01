@@ -33,6 +33,7 @@ import { GestaoPassagensPanel } from './SODPA/GestaoPassagensPanel';
 import { RelatoriosPanel } from './SODPA/RelatoriosPanel';
 import { ConfiguracoesPanel } from './SODPA/ConfiguracoesPanel';
 import { RequestWizard } from './SODPA/RequestWizard';
+import { StatsDashboard } from './SODPA/StatsDashboard';
 
 interface DashboardSODPAProps {
   onOpenProcess?: (processId: string, tipo: 'DIARIA' | 'PASSAGEM') => void;
@@ -380,6 +381,11 @@ export function DashboardSODPA({ onOpenProcess }: DashboardSODPAProps) {
 
             {renderKPICards()}
             {renderTeamManagement()}
+            
+            {/* Statistics Dashboard */}
+            <div className="mt-6">
+              <StatsDashboard />
+            </div>
           </>
         );
     }

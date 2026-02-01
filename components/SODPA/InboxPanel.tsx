@@ -1,28 +1,54 @@
 // ============================================================================
 // InboxPanel - Painel de Caixa de Entrada SODPA
-// Exibe processos não atribuídos aguardando análise
+// Versão 2.0 - Usa sodpa_requests como fonte de dados
 // ============================================================================
 
 import React, { useState } from 'react';
 import { 
   Inbox, 
-  Filter, 
   Calendar, 
   Plane, 
   RefreshCw,
   Users,
   Search,
   SortAsc,
-  ChevronDown
+  ChevronDown,
+  MapPin,
+  Clock,
+  User,
+  UserPlus,
+  ChevronRight,
+  AlertTriangle
 } from 'lucide-react';
-import { useSODPAInbox, InboxFilter, InboxSort } from '../../hooks/useSODPAInbox';
+import { useSODPAInbox, SODPAInboxProcess } from '../../hooks/useSODPAInbox';
 import { useSODPATeamMembers } from '../../hooks/useSODPATeamMembers';
-import { ProcessCard } from './ProcessCard';
-import { ProcessoSODPA } from '../../types';
+import { RequestDetailModal } from './RequestDetailModal';
+import { TramitarModal } from './TramitarModal';
+import { NewDocumentModal } from './NewDocumentModal';
 
 interface InboxPanelProps {
-  onOpenProcess?: (processo: ProcessoSODPA) => void;
+  onOpenProcess?: (processo: SODPAInboxProcess) => void;
 }
+
+// Format date helper
+const formatDate = (dateStr?: string): string => {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('pt-BR');
+};
+
+// Time ago helper
+const timeAgo = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffDays > 0) return `${diffDays}d atrás`;
+  if (diffHours > 0) return `${diffHours}h atrás`;
+  return 'agora';
+};
 
 export function InboxPanel({ onOpenProcess }: InboxPanelProps) {
   const {
@@ -44,8 +70,12 @@ export function InboxPanel({ onOpenProcess }: InboxPanelProps) {
   const { members } = useSODPATeamMembers();
 
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedProcess, setSelectedProcess] = useState<ProcessoSODPA | null>(null);
+  const [selectedProcess, setSelectedProcess] = useState<SODPAInboxProcess | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailProcess, setDetailProcess] = useState<SODPAInboxProcess | null>(null);
+  const [showTramitarModal, setShowTramitarModal] = useState(false);
+  const [showNewDocModal, setShowNewDocModal] = useState(false);
 
   // Filter by search term
   const filteredProcessos = processos.filter(p => {
@@ -53,30 +83,62 @@ export function InboxPanel({ onOpenProcess }: InboxPanelProps) {
     const search = searchTerm.toLowerCase();
     return (
       p.solicitanteNome.toLowerCase().includes(search) ||
-      p.protocoloNUP?.toLowerCase().includes(search) ||
+      p.nup?.toLowerCase().includes(search) ||
       p.destino?.toLowerCase().includes(search)
     );
   });
 
-  const handleAssignToMe = async (processo: ProcessoSODPA) => {
-    const success = await assignToMe(processo.id, processo.tipo);
+  const handleAssignToMe = async (processo: SODPAInboxProcess) => {
+    const success = await assignToMe(processo.id);
     if (success) {
       // TODO: Show toast success
     }
   };
 
-  const handleOpenAssignModal = (processo: ProcessoSODPA) => {
+  const handleOpenAssignModal = (processo: SODPAInboxProcess) => {
     setSelectedProcess(processo);
     setShowAssignModal(true);
   };
 
   const handleAssignToMember = async (memberId: string) => {
     if (!selectedProcess) return;
-    const success = await assignToMember(selectedProcess.id, selectedProcess.tipo, memberId);
+    const success = await assignToMember(selectedProcess.id, memberId);
     if (success) {
       setShowAssignModal(false);
       setSelectedProcess(null);
     }
+  };
+
+  const handleOpenDetail = (processo: SODPAInboxProcess) => {
+    setDetailProcess(processo);
+    setShowDetailModal(true);
+  };
+
+  // Convert SODPAInboxProcess to modal format
+  const getModalRequest = (p: SODPAInboxProcess | null) => {
+    if (!p) return null;
+    return {
+      id: p.id,
+      tipo: p.tipo,
+      status: p.status,
+      nup: p.nup,
+      solicitante_nome: p.solicitanteNome,
+      solicitante_email: p.solicitanteEmail,
+      solicitante_cargo: p.solicitanteCargo,
+      solicitante_lotacao: p.solicitanteLotacao,
+      tipo_destino: p.tipoDestino,
+      origem: p.origem,
+      destino: p.destino,
+      data_inicio: p.dataInicio,
+      data_fim: p.dataFim,
+      dias: p.dias,
+      motivo: p.motivo,
+      valor_total: p.valorTotal,
+      assinatura_digital: p.assinaturaDigital,
+      data_assinatura: p.dataAssinatura,
+      destino_atual: p.destinoAtual,
+      created_at: p.createdAt,
+    };
   };
 
   return (
@@ -166,7 +228,6 @@ export function InboxPanel({ onOpenProcess }: InboxPanelProps) {
             </span>
             <ChevronDown className="h-4 w-4" />
           </button>
-          {/* TODO: Dropdown menu for sort options */}
         </div>
       </div>
 
@@ -205,16 +266,108 @@ export function InboxPanel({ onOpenProcess }: InboxPanelProps) {
       {/* Process Grid */}
       {!loading && filteredProcessos.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredProcessos.map((processo) => (
-            <ProcessCard
-              key={processo.id}
-              processo={processo}
-              showAssignActions
-              onOpen={() => onOpenProcess?.(processo)}
-              onAssignToMe={() => handleAssignToMe(processo)}
-              onAssign={() => handleOpenAssignModal(processo)}
-            />
-          ))}
+          {filteredProcessos.map((processo) => {
+            const isDiaria = processo.tipo === 'DIARIA';
+            const Icon = isDiaria ? Calendar : Plane;
+            const iconBg = isDiaria ? 'bg-blue-50' : 'bg-purple-50';
+            const iconColor = isDiaria ? 'text-blue-600' : 'text-purple-600';
+            
+            return (
+              <div 
+                key={processo.id}
+                className="bg-white border border-gray-100 rounded-xl hover:shadow-md transition-all overflow-hidden"
+              >
+                {/* Header */}
+                <div className="p-4 border-b border-gray-50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 ${iconBg} rounded-xl`}>
+                        <Icon className={`h-5 w-5 ${iconColor}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900">
+                            {processo.solicitanteNome}
+                          </span>
+                          {processo.prioridade === 'URGENTE' && (
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {processo.solicitanteCargo || 'Servidor TJPA'}
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                      processo.status === 'ENVIADO' ? 'bg-blue-50 text-blue-700' :
+                      processo.status === 'EM_ANALISE' ? 'bg-amber-50 text-amber-700' :
+                      'bg-gray-50 text-gray-700'
+                    }`}>
+                      {processo.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin size={14} className="text-gray-400" />
+                    <span className="text-gray-600">{processo.origem}</span>
+                    <ChevronRight size={14} className="text-gray-300" />
+                    <span className="font-medium text-gray-900">{processo.destino}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar size={14} className="text-gray-400" />
+                    <span className="text-gray-600">
+                      {formatDate(processo.dataInicio)} - {formatDate(processo.dataFim)} ({processo.dias}d)
+                    </span>
+                  </div>
+                  <div className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+                    processo.tipoDestino === 'ESTADO' ? 'bg-green-100 text-green-700' :
+                    processo.tipoDestino === 'PAIS' ? 'bg-amber-100 text-amber-700' :
+                    'bg-purple-100 text-purple-700'
+                  }`}>
+                    {processo.tipoDestino === 'ESTADO' ? 'No Estado' : 
+                     processo.tipoDestino === 'PAIS' ? 'Fora do Estado' : 'Exterior'}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-4 py-3 bg-gray-50/50 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>{timeAgo(processo.createdAt)}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleAssignToMe(processo)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <User className="h-3.5 w-3.5" />
+                        Para mim
+                      </button>
+                      <button
+                        onClick={() => handleOpenAssignModal(processo)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Atribuir
+                      </button>
+                      <button
+                        onClick={() => handleOpenDetail(processo)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
+                      >
+                        Abrir
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -285,6 +438,60 @@ export function InboxPanel({ onOpenProcess }: InboxPanelProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Request Detail Modal */}
+      <RequestDetailModal
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setDetailProcess(null);
+        }}
+        request={getModalRequest(detailProcess)}
+        showActions={true}
+        onTramitar={() => {
+          setShowDetailModal(false);
+          setShowTramitarModal(true);
+        }}
+        onNovoDocumento={() => {
+          setShowDetailModal(false);
+          setShowNewDocModal(true);
+        }}
+      />
+
+      {/* Tramitar Modal */}
+      {detailProcess && (
+        <TramitarModal
+          isOpen={showTramitarModal}
+          onClose={() => setShowTramitarModal(false)}
+          request={{
+            id: detailProcess.id,
+            tipo: detailProcess.tipo,
+            tipo_destino: detailProcess.tipoDestino,
+            solicitante_nome: detailProcess.solicitanteNome,
+            destino: detailProcess.destino,
+            status: detailProcess.status
+          }}
+          onSuccess={() => {
+            setShowTramitarModal(false);
+            setDetailProcess(null);
+            refetch();
+          }}
+        />
+      )}
+
+      {/* New Document Modal */}
+      {detailProcess && (
+        <NewDocumentModal
+          isOpen={showNewDocModal}
+          onClose={() => setShowNewDocModal(false)}
+          requestId={detailProcess.id}
+          originModule="SODPA"
+          onSuccess={() => {
+            setShowNewDocModal(false);
+            refetch();
+          }}
+        />
       )}
     </div>
   );

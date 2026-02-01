@@ -18,9 +18,10 @@ import { useSupridoProcesses, SupridoProcess } from '../../hooks/useSupridoProce
 import { useSODPAMyRequests, useSODPAStats, SODPARequest } from '../../hooks/useSODPARequests';
 import NewRequestWizard from './NewRequestWizard';
 import AccountabilityModal from './AccountabilityModal';
+import { RequestDetailPage } from '../SODPA/RequestDetailPage';
 
 // View Types for state-based navigation
-type SupridoView = 'dashboard' | 'nova-solicitacao' | 'minhas-solicitacoes' | 'prestacao-contas';
+type SupridoView = 'dashboard' | 'nova-solicitacao' | 'minhas-solicitacoes' | 'prestacao-contas' | 'detalhes-solicitacao';
 
 interface SupridoDashboardProps {
   forceView: string | null;
@@ -89,6 +90,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
   const [selectedProcess, setSelectedProcess] = useState<SupridoProcess | null>(null);
   const [showAccountabilityModal, setShowAccountabilityModal] = useState(false);
   const [userProfile, setUserProfile] = useState<{ nome?: string; matricula?: string; cargo?: string } | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<SODPARequest | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Fetch user profile on mount
   useEffect(() => {
@@ -243,11 +246,15 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {/* SODPA Requests (new) */}
+            {/* SODPA Requests (new) - clickable for details */}
             {sodpaRequests.slice(0, 5).map((req) => (
               <div 
                 key={req.id}
-                className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                onClick={() => {
+                  setSelectedRequest(req);
+                  setCurrentView('detalhes-solicitacao');
+                }}
+                className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${
@@ -262,17 +269,20 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
                     <p className="text-sm text-slate-500">{req.origem} → {req.destino} • {req.dias} dia{req.dias > 1 ? 's' : ''}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    req.status === 'APROVADO' ? 'bg-emerald-100 text-emerald-700' :
-                    req.status === 'ENVIADO' ? 'bg-blue-100 text-blue-700' :
-                    'bg-amber-100 text-amber-700'
-                  }`}>
-                    {req.status?.replace(/_/g, ' ')}
-                  </span>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {new Date(req.created_at).toLocaleDateString('pt-BR')}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      req.status === 'APROVADO' ? 'bg-emerald-100 text-emerald-700' :
+                      req.status === 'ENVIADO' ? 'bg-blue-100 text-blue-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {req.status?.replace(/_/g, ' ')}
+                    </span>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {new Date(req.created_at).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                  <ChevronRight size={18} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                 </div>
               </div>
             ))}
@@ -299,7 +309,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-slate-800">
-                    R$ {(processo.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {(processo.val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     processo.status === 'APROVADO' ? 'bg-emerald-100 text-emerald-700' :
@@ -350,11 +360,11 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold text-slate-800">{processo.nup || 'Sem NUP'}</p>
-                  <p className="text-sm text-slate-500">{processo.status} • {new Date(processo.data_solicitacao || Date.now()).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-sm text-slate-500">{processo.status} • {processo.date}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-lg text-slate-800">
-                    R$ {(processo.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {(processo.val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     processo.status === 'APROVADO' ? 'bg-emerald-100 text-emerald-700' :
@@ -441,7 +451,7 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
           <div className="text-sm font-medium text-gray-500">
             &copy; {new Date().getFullYear()} Tribunal de Justiça do Estado do Pará
           </div>
-          <p className="text-xs text-gray-400">Sistema de Gestão de Diárias e Passagens - {theme.portalTitle} v2.0</p>
+          <p className="text-xs text-gray-400">Sistema de Gestão de Diárias e Passagens - v2.0</p>
         </div>
       </footer>
 
@@ -458,9 +468,53 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
             refetch();
             setShowAccountabilityModal(false);
             setSelectedProcess(null);
-            showToast('Prestação de contas enviada!');
+            showToast({ title: 'Sucesso', message: 'Prestação de contas enviada!', type: 'success' });
           }}
         />
+      )}
+
+      {/* Request Detail Modal */}
+      {/* Request Detail Page (Replaces Modal) */}
+      {currentView === 'detalhes-solicitacao' && selectedRequest && (
+        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+          <RequestDetailPage
+            request={{
+              id: selectedRequest.id,
+              tipo: selectedRequest.tipo,
+              status: selectedRequest.status,
+              nup: selectedRequest.nup,
+              solicitante_nome: selectedRequest.solicitante_nome,
+              solicitante_email: selectedRequest.solicitante_email,
+              solicitante_cpf: selectedRequest.solicitante_cpf,
+              solicitante_matricula: selectedRequest.solicitante_matricula,
+              solicitante_cargo: selectedRequest.solicitante_cargo,
+              solicitante_lotacao: selectedRequest.solicitante_lotacao,
+              solicitante_municipio: selectedRequest.solicitante_municipio,
+              solicitante_telefone: selectedRequest.solicitante_telefone,
+              gestor_nome: selectedRequest.gestor_nome,
+              gestor_email: selectedRequest.gestor_email,
+              banco: selectedRequest.banco,
+              agencia: selectedRequest.agencia,
+              conta_corrente: selectedRequest.conta_corrente,
+              tipo_destino: selectedRequest.tipo_destino,
+              origem: selectedRequest.origem,
+              destino: selectedRequest.destino,
+              data_inicio: selectedRequest.data_inicio,
+              data_fim: selectedRequest.data_fim,
+              dias: selectedRequest.dias,
+              motivo: selectedRequest.motivo,
+              valor_total: selectedRequest.valor_total,
+              assinatura_digital: selectedRequest.assinatura_digital,
+              data_assinatura: selectedRequest.data_assinatura,
+              destino_atual: selectedRequest.destino_atual,
+              created_at: selectedRequest.created_at,
+            }}
+            onBack={() => {
+              setCurrentView('dashboard');
+              setSelectedRequest(null);
+            }}
+          />
+        </div>
       )}
     </div>
   );

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, ShieldCheck, Globe, Calendar, PenTool, FileText, Ban, Loader2 } from 'lucide-react';
-import { Request } from '../../types';
+import { PresidencyProcess } from '../../hooks/usePresidencyProcesses';
 
 interface PresidencyBriefingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  request: Request | null;
+  request: PresidencyProcess | null;
   onConfirm: (requestId: string) => void;
   onReject: (requestId: string, reason: string) => void;
 }
@@ -70,7 +70,7 @@ const PresidencyBriefingModal: React.FC<PresidencyBriefingModalProps> = ({
               <p className="text-sm text-slate-500 mt-3">
                 <span className="font-bold text-slate-700">{request.requesterName}</span>
                 <span className="text-slate-400"> • </span>
-                {request.requesterSector}
+                {request.destino_atual || 'TJPA'}
               </p>
             </div>
           </div>
@@ -109,7 +109,7 @@ const PresidencyBriefingModal: React.FC<PresidencyBriefingModalProps> = ({
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Destino</span>
-                  <span className="font-bold text-slate-800">{request.destination}</span>
+                  <span className="font-bold text-slate-800">{request.destination || request.destino_atual}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Data da Viagem</span>
@@ -120,7 +120,7 @@ const PresidencyBriefingModal: React.FC<PresidencyBriefingModalProps> = ({
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Tipo</span>
-                  <span className="font-medium text-slate-700">{request.type}</span>
+                  <span className="font-medium text-slate-700">INTERESTADUAL</span>
                 </div>
               </div>
               
