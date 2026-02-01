@@ -26,6 +26,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     cpf: '',
     matricula: '',
     cargo: '',
+    vinculo: '',
     telefone: '',
     // Localização
     lotacao: '',
@@ -62,6 +63,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         cpf: userProfile.cpf || '',
         matricula: userProfile.matricula || '',
         cargo: userProfile.cargo || '',
+        vinculo: userProfile.vinculo || '',
         telefone: userProfile.telefone || '',
         lotacao: userProfile.lotacao || '',
         municipio: userProfile.municipio || '',
@@ -100,29 +102,70 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       const avatarToSave = isValidAvatarUrl ? formData.avatar_url : null;
       const now = new Date().toISOString();
 
-      // PRIMARY: Update servidores_tj (source of truth)
-      if (userProfile?.email) {
-        const { error: servidoresError } = await supabase
+      // PRIMARY: Update or Insert in servidores_tj (source of truth)
+      if (userProfile?.email && userProfile?.id) {
+        // First check if record exists by ID or email
+        const { data: existingRecord, error: selectError } = await supabase
           .from('servidores_tj')
-          .update({
-            nome: formData.nome,
-            cpf: formData.cpf || null,
-            cargo: formData.cargo,
-            telefone: formData.telefone || null,
-            lotacao: formData.lotacao || null,
-            municipio: formData.municipio || null,
-            gestor_nome: formData.gestor_nome || null,
-            gestor_email: formData.gestor_email || null,
-            banco: formData.banco || null,
-            agencia: formData.agencia || null,
-            conta_corrente: formData.conta_corrente || null,
-            ...(avatarToSave && { avatar_url: avatarToSave }),
-            updated_at: now
-          })
-          .ilike('email', userProfile.email);
+          .select('id')
+          .or(`id.eq.${userProfile.id},email.ilike.${userProfile.email}`)
+          .maybeSingle();
 
-        if (servidoresError) {
-          console.error('Error updating servidores_tj:', servidoresError);
+        console.log('[EditProfile] Checking servidores_tj for ID:', userProfile.id, 'or email:', userProfile.email);
+        console.log('[EditProfile] Existing record:', existingRecord, 'Error:', selectError);
+
+        const servidorPayload = {
+          nome: formData.nome,
+          email: userProfile.email.toLowerCase(),
+          cpf: formData.cpf || null,
+          cargo: formData.cargo || null,
+          vinculo: formData.vinculo || null,
+          telefone: formData.telefone || null,
+          lotacao: formData.lotacao || null,
+          municipio: formData.municipio || null,
+          gestor_nome: formData.gestor_nome || null,
+          gestor_email: formData.gestor_email || null,
+          banco: formData.banco || null,
+          agencia: formData.agencia || null,
+          conta_corrente: formData.conta_corrente || null,
+          ...(avatarToSave && { avatar_url: avatarToSave }),
+          updated_at: now,
+          ativo: true
+        };
+
+        if (existingRecord?.id) {
+          // Update existing record
+          console.log('[EditProfile] Updating record:', existingRecord.id);
+          const { error: servidoresError } = await supabase
+            .from('servidores_tj')
+            .update(servidorPayload)
+            .eq('id', existingRecord.id);
+
+          if (servidoresError) {
+            console.error('[EditProfile] Error updating servidores_tj:', servidoresError);
+          } else {
+            console.log('[EditProfile] Successfully updated servidores_tj');
+          }
+        } else {
+          // Insert new record using profile ID
+          console.log('[EditProfile] Inserting new record with ID:', userProfile.id);
+          
+          const { error: insertError, data: insertData } = await supabase
+            .from('servidores_tj')
+            .insert({
+              id: userProfile.id,
+              ...servidorPayload,
+              matricula: formData.matricula ? parseInt(formData.matricula) : null,
+              created_at: now
+            })
+            .select();
+
+          if (insertError) {
+            console.error('[EditProfile] Error inserting servidores_tj:', insertError);
+            showToast({ type: 'warning', title: 'Aviso', message: 'Perfil salvo parcialmente. Dados bancários podem não ter sido salvos.' });
+          } else {
+            console.log('[EditProfile] Successfully inserted:', insertData);
+          }
         }
       }
 
@@ -255,15 +298,30 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   </div>
               </div>
 
-              <div className="space-y-1">
-                  <label className={labelClass}><Phone size={14} /> Telefone</label>
-                  <input 
-                    type="tel" 
-                    placeholder="(91) 99999-9999"
-                    className={inputClass}
-                    value={formData.telefone}
-                    onChange={e => setFormData({...formData, telefone: e.target.value})}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                      <label className={labelClass}><Briefcase size={14} /> Tipo de Vínculo</label>
+                      <select 
+                        className={inputClass}
+                        value={formData.vinculo}
+                        onChange={e => setFormData({...formData, vinculo: e.target.value})}
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="Efetivo">Efetivo</option>
+                        <option value="Requisitado">Requisitado</option>
+                        <option value="Colaborador">Colaborador</option>
+                      </select>
+                  </div>
+                  <div className="space-y-1">
+                      <label className={labelClass}><Phone size={14} /> Telefone</label>
+                      <input 
+                        type="tel" 
+                        placeholder="(91) 99999-9999"
+                        className={inputClass}
+                        value={formData.telefone}
+                        onChange={e => setFormData({...formData, telefone: e.target.value})}
+                      />
+                  </div>
               </div>
            </div>
 
