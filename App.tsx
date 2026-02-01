@@ -12,7 +12,6 @@ import { useUserProfile } from './hooks/useUserProfile';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { AppNavbar } from './components/Layout/AppNavbar';
 import { CommandPalette } from './components/CommandPalette';
-import { EditProfileModal } from './components/EditProfileModal';
 import { NotificationProvider } from './contexts/NotificationContext';
 
 // Lazy load heavy dashboard components for better initial load performance
@@ -25,6 +24,7 @@ const SgpDashboard = React.lazy(() => import('./components/SgpDashboard').then(m
 const PresidencyDashboard = React.lazy(() => import('./components/PresidencyDashboard').then(m => ({ default: m.PresidencyDashboard })));
 const ProcessDetailsPage = React.lazy(() => import('./components/ProcessDetails/UniversalProcessDetailsPage').then(m => ({ default: m.ProcessDetailsPage })));
 const SettingsPage = React.lazy(() => import('./components/SettingsPage'));
+const ProfilePage = React.lazy(() => import('./components/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 // React Query client configuration
 const queryClient = new QueryClient({
@@ -164,8 +164,15 @@ const AppContent: React.FC = () => {
             </div>
           </div>
         }>
-        {/* Process Details Page - Full Screen Navigation */}
-        {selectedProcessId ? (
+        
+        {/* Profile Page - Full Screen Navigation */}
+        {isEditProfileOpen ? (
+          <ProfilePage
+            userProfile={userProfile}
+            onClose={() => setIsEditProfileOpen(false)}
+            onProfileUpdate={refetchUser}
+          />
+        ) : selectedProcessId ? (
           <ProcessDetailsPage
             processId={selectedProcessId}
             onClose={handleCloseProcess}
@@ -230,14 +237,6 @@ const AppContent: React.FC = () => {
         onSignOut={signOut}
         onProfile={handleAvatarClick}
         onPreferences={handlePreferences}
-      />
-
-      {/* Edit Profile Modal */}
-      <EditProfileModal
-        isOpen={isEditProfileOpen}
-        onClose={() => setIsEditProfileOpen(false)}
-        userProfile={userProfile}
-        onProfileUpdate={refetchUser}
       />
     </div>
   );
