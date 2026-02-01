@@ -14,13 +14,15 @@ import {
   ToggleLeft,
   ToggleRight,
   DollarSign,
-  Calendar
+  Calendar,
+  Shield
 } from 'lucide-react';
 import { useSODPATeamMembers } from '../../hooks/useSODPATeamMembers';
 import { useToast } from '../ui/ToastProvider';
 import { TeamMember, AllowanceUserType, TravelScope, AllowanceRate } from '../../types';
 import { MOCK_ALLOWANCE_RATES } from '../../constants';
 import AllowanceRateModal from '../AllowanceRateModal';
+import { ProfileManagementSettings } from './ProfileManagementSettings';
 
 // --- Sub-components for Settings Sections ---
 
@@ -530,7 +532,7 @@ const AllowanceTableSettings: React.FC<AllowanceTableSettingsProps> = ({
 
 // --- Main Panel ---
 
-type SettingsTab = 'GERAL' | 'USUARIOS' | 'SLA' | 'DIARIAS' | 'NOTIFICACOES';
+type SettingsTab = 'GERAL' | 'USUARIOS' | 'SLA' | 'DIARIAS' | 'PERFIS' | 'NOTIFICACOES';
 
 export function ConfiguracoesPanel() {
     const [activeTab, setActiveTab] = useState<SettingsTab>('GERAL');
@@ -574,6 +576,7 @@ export function ConfiguracoesPanel() {
     const menuItems = [
         { id: 'GERAL', label: 'Geral', icon: Settings },
         { id: 'USUARIOS', label: 'Usuários e Permissões', icon: Users },
+        { id: 'PERFIS', label: 'Gestão de Perfis', icon: Shield },
         { id: 'SLA', label: 'Prazos e SLA', icon: Clock },
         { id: 'DIARIAS', label: 'Tabela de Diárias', icon: DollarSign },
         { id: 'NOTIFICACOES', label: 'Notificações', icon: Bell },
@@ -611,6 +614,7 @@ export function ConfiguracoesPanel() {
             <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:p-8">
                 {activeTab === 'GERAL' && <GeneralSettings />}
                 {activeTab === 'USUARIOS' && <UserSettings />}
+                {activeTab === 'PERFIS' && <ProfileManagementSettings />}
                 {activeTab === 'SLA' && <SLASettings />}
                 {activeTab === 'DIARIAS' && (
                     <AllowanceTableSettings 

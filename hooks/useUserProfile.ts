@@ -10,6 +10,7 @@ export interface UserProfile {
   matricula?: string;
   cargo?: string;
   lotacao?: string;
+  municipio?: string;
   avatar_url?: string | null;
   telefone?: string;
   banco?: string;
@@ -83,6 +84,7 @@ export function useUserProfile(user: { id?: string; email?: string } | null): Us
           matricula: servidorData?.matricula || profileData?.matricula,
           cargo: servidorData?.cargo || profileData?.cargo,
           lotacao: servidorData?.lotacao || profileData?.lotacao,
+          municipio: servidorData?.municipio || profileData?.municipio,
           avatar_url: servidorData?.avatar_url || profileData?.avatar_url,
           telefone: servidorData?.telefone || profileData?.telefone,
           banco: servidorData?.banco || profileData?.banco,
