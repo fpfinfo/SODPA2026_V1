@@ -32,6 +32,7 @@ import { GestaoDiariasPanel } from './SODPA/GestaoDiariasPanel';
 import { GestaoPassagensPanel } from './SODPA/GestaoPassagensPanel';
 import { RelatoriosPanel } from './SODPA/RelatoriosPanel';
 import { ConfiguracoesPanel } from './SODPA/ConfiguracoesPanel';
+import { RequestWizard } from './SODPA/RequestWizard';
 
 interface DashboardSODPAProps {
   onOpenProcess?: (processId: string, tipo: 'DIARIA' | 'PASSAGEM') => void;
@@ -43,6 +44,7 @@ type PanelView = 'OVERVIEW' | 'INBOX' | 'MYDESK';
 export function DashboardSODPA({ onOpenProcess }: DashboardSODPAProps) {
   const [activeTab, setActiveTab] = useState<SODPATabView>('PAINEL');
   const [panelView, setPanelView] = useState<PanelView>('OVERVIEW');
+  const [showRequestWizard, setShowRequestWizard] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   
   const { 
@@ -366,7 +368,10 @@ export function DashboardSODPA({ onOpenProcess }: DashboardSODPAProps) {
                   <Filter className="h-4 w-4" />
                   Filtros
                 </button>
-                <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-sm font-medium text-white hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-600/20">
+                <button 
+                  onClick={() => setShowRequestWizard(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-sm font-medium text-white hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-600/20"
+                >
                   <Plus className="h-4 w-4" />
                   Novo Processo
                 </button>
@@ -379,6 +384,19 @@ export function DashboardSODPA({ onOpenProcess }: DashboardSODPAProps) {
         );
     }
   };
+
+  // If wizard is open, show it full-screen
+  if (showRequestWizard) {
+    return (
+      <RequestWizard 
+        onClose={() => setShowRequestWizard(false)}
+        onSuccess={() => {
+          setShowRequestWizard(false);
+          // Refresh data would go here
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">

@@ -15,6 +15,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../ui/ToastProvider';
 import { useSupridoProcesses, SupridoProcess } from '../../hooks/useSupridoProcesses';
+import { useSODPAMyRequests, useSODPAStats, SODPARequest } from '../../hooks/useSODPARequests';
 import NewRequestWizard from './NewRequestWizard';
 import AccountabilityModal from './AccountabilityModal';
 
@@ -79,6 +80,10 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
   const { showToast } = useToast();
   const { data: processos = [], isLoading, refetch } = useSupridoProcesses();
   
+  // SODPA requests (new table)
+  const { data: sodpaRequests = [], isLoading: isLoadingSodpa, refetch: refetchSodpa } = useSODPAMyRequests();
+  const { data: sodpaStats } = useSODPAStats();
+  
   // State-based navigation (no react-router needed)
   const [currentView, setCurrentView] = useState<SupridoView>('dashboard');
   const [selectedProcess, setSelectedProcess] = useState<SupridoProcess | null>(null);
@@ -121,20 +126,32 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
     }
   }, [forceView, onInternalViewChange]);
 
-  // Computed stats
+  // Computed stats - combine legacy and SODPA
   const stats = useMemo(() => {
-    const pending = processos.filter(p => 
+    // Legacy stats from processos
+    const legacyPending = processos.filter(p => 
       ['RASCUNHO', 'AGUARDANDO_ATESTO', 'ENVIADO_GESTOR'].includes(p.status)
     ).length;
-    const approved = processos.filter(p => 
+    const legacyApproved = processos.filter(p => 
       ['APROVADO', 'CREDITADO', 'CONCLUIDO'].includes(p.status)
     ).length;
-    const pendingPC = processos.filter(p => 
+    const legacyPendingPC = processos.filter(p => 
       p.status === 'CREDITADO' || p.status === 'AGUARDANDO_PRESTACAO_CONTAS'
     ).length;
     
-    return { pending, approved, pendingPC, total: processos.length };
-  }, [processos]);
+    // SODPA stats
+    const sodpaPending = sodpaStats?.pending || 0;
+    const sodpaApproved = sodpaStats?.approved || 0;
+    const sodpaPendingPC = sodpaStats?.pendingPC || 0;
+    const sodpaTotal = sodpaStats?.total || 0;
+    
+    return { 
+      pending: legacyPending + sodpaPending, 
+      approved: legacyApproved + sodpaApproved, 
+      pendingPC: legacyPendingPC + sodpaPendingPC, 
+      total: processos.length + sodpaTotal 
+    };
+  }, [processos, sodpaStats]);
 
   const navigateTo = (view: SupridoView) => {
     setCurrentView(view);
@@ -209,11 +226,11 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
           </button>
         </div>
         
-        {isLoading ? (
+        {(isLoading || isLoadingSodpa) ? (
           <div className="flex items-center justify-center py-8">
             <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${isMagistrate ? 'border-amber-600' : 'border-indigo-600'}`}></div>
           </div>
-        ) : processos.length === 0 ? (
+        ) : (processos.length === 0 && sodpaRequests.length === 0) ? (
           <div className="text-center py-8 text-slate-500">
             <FileText size={48} className="mx-auto mb-2 text-slate-300" />
             <p>Nenhuma solicitação encontrada</p>
@@ -226,7 +243,42 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {processos.slice(0, 5).map((processo) => (
+            {/* SODPA Requests (new) */}
+            {sodpaRequests.slice(0, 5).map((req) => (
+              <div 
+                key={req.id}
+                className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    req.status === 'APROVADO' ? 'bg-emerald-100 text-emerald-600' :
+                    req.status === 'ENVIADO' ? 'bg-blue-100 text-blue-600' :
+                    'bg-amber-100 text-amber-600'
+                  }`}>
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-800">{req.tipo === 'DIARIA' ? 'Diárias' : 'Passagem'} - {req.destino}</p>
+                    <p className="text-sm text-slate-500">{req.origem} → {req.destino} • {req.dias} dia{req.dias > 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    req.status === 'APROVADO' ? 'bg-emerald-100 text-emerald-700' :
+                    req.status === 'ENVIADO' ? 'bg-blue-100 text-blue-700' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>
+                    {req.status?.replace(/_/g, ' ')}
+                  </span>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {new Date(req.created_at).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              </div>
+            ))}
+            
+            {/* Legacy processes */}
+            {processos.slice(0, Math.max(0, 5 - sodpaRequests.length)).map((processo) => (
               <div 
                 key={processo.id}
                 className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
@@ -373,8 +425,8 @@ export const SupridoDashboard: React.FC<SupridoDashboardProps> = ({
           <NewRequestWizard 
             onComplete={() => {
               refetch();
+              refetchSodpa();
               navigateTo('dashboard');
-              showToast('Solicitação criada com sucesso!');
             }}
             onCancel={() => navigateTo('dashboard')}
           />
