@@ -77,7 +77,7 @@ export function CommandPalette({
 
         <Command.Group heading="Navegação Rápida" className="px-2 py-1.5 text-xs font-semibold text-slate-400 mb-2">
           <Command.Item 
-            onSelect={() => { onNavigate(AppRole.SUPRIDO); onOpenChange(false); }}
+            onSelect={() => { onNavigate(AppRole.USER); onOpenChange(false); }}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100 hover:text-blue-600 cursor-pointer transition-colors aria-selected:bg-blue-50 aria-selected:text-blue-600"
           >
             <LayoutDashboard className="w-4 h-4" />

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { JuriException, formatExceptionType, formatExceptionValue } from '../../../hooks/useExceptionDetection';
 
-type UserRole = 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'ORDENADOR' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
+type UserRole = 'USER' | 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'ORDENADOR' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
 type AuthorizationStatus = 'PENDING' | 'AWAITING_GESTOR' | 'AWAITING_SOSFU' | 'AWAITING_AJSEFIN' | 'AWAITING_ORDENADOR' | 'AUTHORIZED';
 
 interface ContextualExceptionBannerProps {
@@ -51,6 +51,7 @@ export const ContextualExceptionBanner: React.FC<ContextualExceptionBannerProps>
   // Define content based on role and status
   const getRoleContent = () => {
     switch (currentRole) {
+      case 'USER':  // USER é o mesmo que SUPRIDO (renomeado)
       case 'SUPRIDO':
         return {
           title: 'Atenção: Valores Acima dos Limites',

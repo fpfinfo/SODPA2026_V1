@@ -49,90 +49,137 @@ export function useUserProfile(user: { id?: string; email?: string } | null): Us
       const currentUserId = user.id;
       const userEmail = user.email;
 
-      // Parallel Data Fetching
-      const [servidorResponse, profileResponse] = await Promise.all([
-        // 1. Fetch from servidor_tj by email (only if email exists)
-        userEmail 
-          ? supabase
-              .from('servidores_tj')
-              .select('*')
-              .ilike('email', userEmail)
-              .eq('ativo', true)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-        
-        // 2. Fetch from profiles by ID
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentUserId)
-          .maybeSingle()
-      ]);
+      // Fetch from profiles by ID (single source of truth)
+      const profileResponse = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUserId)
+        .maybeSingle();
 
-      const servidorData = servidorResponse.data;
       const profileData = profileResponse.data;
 
-      // Build merged profile prioritizing servidores_tj data
-      if (servidorData || profileData) {
+      // Build merged profile using profiles data
+      if (profileData) {
         const mergedProfile: UserProfile = {
-          // Start with profile data if exists
-          ...(profileData || {}),
-          // Override with servidores_tj data (authoritative source)
-          id: currentUserId || profileData?.id,
-          nome: servidorData?.nome || profileData?.nome || 'Usuário',
-          email: servidorData?.email || userEmail || profileData?.email || '',
-          cpf: servidorData?.cpf || profileData?.cpf,
-          matricula: servidorData?.matricula || profileData?.matricula,
-          cargo: servidorData?.cargo || profileData?.cargo,
-          vinculo: servidorData?.vinculo || profileData?.vinculo,
-          lotacao: servidorData?.lotacao || profileData?.lotacao,
-          municipio: servidorData?.municipio || profileData?.municipio,
-          avatar_url: servidorData?.avatar_url || profileData?.avatar_url,
-          telefone: servidorData?.telefone || profileData?.telefone,
-          banco: servidorData?.banco || profileData?.banco,
-          agencia: servidorData?.agencia || profileData?.agencia,
-          conta_corrente: servidorData?.conta_corrente || profileData?.conta_corrente,
-          gestor_nome: servidorData?.gestor_nome || profileData?.gestor_nome,
-          gestor_email: servidorData?.gestor_email || profileData?.gestor_email,
-          role: profileData?.role || servidorData?.role || 'SUPRIDO',
-          signature_pin: profileData?.signature_pin,
-          _source: servidorData ? 'servidores_tj' : 'profiles',
+          ...profileData,
+          id: currentUserId || profileData.id,
+          nome: profileData.nome || 'Usuário',
+          email: userEmail || profileData.email || '',
+          cpf: profileData.cpf,
+          matricula: profileData.matricula,
+          cargo: profileData.cargo,
+          vinculo: profileData.vinculo,
+          lotacao: profileData.lotacao,
+          municipio: profileData.municipio,
+          avatar_url: profileData.avatar_url,
+          telefone: profileData.telefone,
+          banco: profileData.banco,
+          agencia: profileData.agencia,
+          conta_corrente: profileData.conta_corrente,
+          gestor_nome: profileData.gestor_nome,
+          gestor_email: profileData.gestor_email,
+          role: profileData.role || 'USER',
+          signature_pin: profileData.signature_pin,
+          _source: 'profiles',
         };
 
         setUserProfile(mergedProfile);
 
-        // Determine Initial Role with legacy role mapping
-        const rawRole = (profileData?.role || servidorData?.role)?.toUpperCase();
+        // ✅ CORREÇÃO: Buscar role do RBAC (user_roles), não de profiles.role
+        console.log('🔍 [DEBUG] Buscando role do RBAC para user:', currentUserId);
         
-        // Map legacy roles to valid AppRole values
+        const { data: userRoles, error: rolesError } = await supabase
+          .from('user_roles')
+          .select(`
+            role_id,
+            roles (
+              id,
+              name,
+              description
+            )
+          `)
+          .eq('user_id', currentUserId);
+
+        if (rolesError) {
+          console.error('❌ Erro ao buscar roles:', rolesError);
+        }
+
+        console.log('📊 [DEBUG] User roles encontradas:', userRoles);
+
+        // Determinar role principal (primeira role encontrada)
+        let primaryRoleName: string | null = null;
+        
+        if (userRoles && userRoles.length > 0) {
+          // Pegar a primeira role
+          const firstRole = userRoles[0].roles as any;
+          primaryRoleName = firstRole?.name || null;
+          console.log('✅ [DEBUG] Role principal do RBAC:', primaryRoleName);
+        } else {
+          console.warn('⚠️ [DEBUG] Nenhuma role RBAC encontrada, usando profiles.role como fallback');
+          primaryRoleName = profileData.role;
+        }
+
+        // Mapear nome da role para AppRole
+        const rawRole = primaryRoleName?.toUpperCase();
+        
+
+        console.log('🔍 [DEBUG] Profile Data:', {
+          profileData_role: profileData?.role,
+          rawRole,
+          email: userEmail
+        });
+        
+        
+        // Map RBAC role names AND legacy roles to valid AppRole values
         const legacyRoleMap: Record<string, AppRole> = {
-          // Direct matches (already valid)
-          'SUPRIDO': AppRole.SUPRIDO,
+          // ✅ RBAC Role Names (nomes reais da tabela roles)
+          'EQUIPE TÉCNICA SODPA': AppRole.SODPA,
+          'SECRETARIA DE FINANÇAS': AppRole.SEFIN,
+          'ASSESSORIA JURÍDICA': AppRole.AJSEFIN,
+          'GESTÃO DE PESSOAS': AppRole.SGP,
+          'PRESIDÊNCIA': AppRole.PRESIDENCIA,
+          'ADMINISTRADOR': AppRole.SODPA,  // Admin tem acesso a tudo, default SODPA
+          'SERVIDOR/MAGISTRADO': AppRole.USER,  // ✅ Servidores básicos são USER
+          
+          // Direct matches (sistema SODPA2026)
+          'USER': AppRole.USER,
+          'SUPRIDO': AppRole.USER,  // Compatibilidade legado
           'GESTOR': AppRole.GESTOR,
-          'SOSFU': AppRole.SOSFU,
           'SEFIN': AppRole.SEFIN,
           'AJSEFIN': AppRole.AJSEFIN,
           'SGP': AppRole.SGP,
           'SODPA': AppRole.SODPA,
           'PRESIDENCIA': AppRole.PRESIDENCIA,
-          // Legacy mappings for roles stored in old format
-          'CHEFE_SOSFU': AppRole.GESTOR,  // Chefe da SOSFU atua como Gestor
-          'CHEFE': AppRole.GESTOR,         // Chefes são gestores
-          'ORDENADOR': AppRole.SEFIN,      // Ordenadores atuam no módulo SEFIN
-          'MAGISTRADO': AppRole.GESTOR,    // Magistrados são gestores de comarca
-          'JUIZ': AppRole.GESTOR,          // Juízes são gestores de comarca
-          'ANALISTA': AppRole.SOSFU,       // Analistas genéricos vão para SOSFU
+          
+          // ❌ SOSFU removido - não faz parte do SODPA2026
+          // Legacy mappings para campos antigos → USER
+          'SOSFU': AppRole.USER,  // ✅ SOSFU legado → USER
+          'CHEFE_SOSFU': AppRole.GESTOR,
+          'CHEFE': AppRole.GESTOR,
+          'ORDENADOR': AppRole.SEFIN,
+          'MAGISTRADO': AppRole.GESTOR,
+          'JUIZ': AppRole.GESTOR,
+          'ANALISTA': AppRole.USER,  // ✅ ANALISTA legado → USER
         };
         
+        
         const mappedRole = rawRole ? legacyRoleMap[rawRole] : undefined;
-        console.log('[useUserProfile] DB Role:', profileData?.role, '-> Raw:', rawRole, '-> Mapped:', mappedRole);
+        console.log('✅ [useUserProfile] Role Mapping:', {
+          rbacRole: primaryRoleName,
+          profilesRole: profileData?.role,
+          rawRole,
+          mappedRole,
+          source: userRoles && userRoles.length > 0 ? 'RBAC' : 'profiles.role'
+        });
+        
         
         if (mappedRole) {
+            console.log('✅ Setting initialRole to:', mappedRole);
             setInitialRole(mappedRole);
         } else {
-            // Fallback: se o role do banco não é válido nem mapeável, usa SUPRIDO
-            console.warn('[useUserProfile] Invalid or missing role:', rawRole, ', defaulting to SUPRIDO');
-            setInitialRole(AppRole.SUPRIDO);
+            // Fallback: se não há role RBAC válido, usa USER (perfil padrão)
+            console.warn('⚠️ [useUserProfile] Invalid or missing role:', rawRole, ', defaulting to USER');
+            setInitialRole(AppRole.USER);
         }
 
       } else {

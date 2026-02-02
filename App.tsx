@@ -44,7 +44,7 @@ const BRASAO_TJPA_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/obj
 // Main App Content (shown when authenticated)
 const AppContent: React.FC = () => {
   const { user, signOut } = useAuth();
-  const [activeRole, setActiveRole] = useState<AppRole>(AppRole.SUPRIDO);
+  const [activeRole, setActiveRole] = useState<AppRole>(AppRole.USER);
   const [supridoViewOverride, setSupridoViewOverride] = useState<string | null>(null);
   const [sosfuForceSettings, setSosfuForceSettings] = useState(false);
   const [previousActiveRole, setPreviousActiveRole] = useState<AppRole | null>(null); // Stores role before profile navigation
@@ -68,21 +68,14 @@ const AppContent: React.FC = () => {
        
        console.log('[App] Initial Role from hook:', initialRole, '| Path:', path, '| Search:', search);
        
-       // Só força SUPRIDO se o role do usuário for SUPRIDO ou se for uma ação específica de confirmação
-       const isSupridoAction = search.includes('action=confirm') || search.includes('action=pc_correction');
-       const shouldForceSuprido = path.includes('/suprido') && (initialRole === AppRole.SUPRIDO || isSupridoAction);
+       // SEMPRE respeitar o role do banco de dados
+       console.log('[App] Setting active role to:', initialRole);
+       setActiveRole(initialRole);
        
-       if (shouldForceSuprido && initialRole === AppRole.SUPRIDO) {
-          console.log('[App] Forcing SUPRIDO due to URL path/search for SUPRIDO user');
-          setActiveRole(AppRole.SUPRIDO);
-       } else {
-          // Respeitar o role do banco de dados
-          console.log('[App] Setting active role to:', initialRole);
-          setActiveRole(initialRole);
-          // Limpar a URL se o usuário não é SUPRIDO
-          if (path.includes('/suprido') && initialRole !== AppRole.SUPRIDO) {
-            window.history.replaceState({}, '', '/');
-          }
+       // Limpar URLs inconsistentes com o role do usuário
+       if (path.includes('/suprido') && initialRole !== AppRole.USER) {
+         console.log('[App] Clearing /suprido path for non-USER user');
+         window.history.replaceState({}, '', '/');
        }
     }
   }, [initialRole]);
@@ -93,11 +86,11 @@ const AppContent: React.FC = () => {
   };
 
   // Check if user is currently viewing the SOSFU module (not just if their role is SOSFU)
-  const isInSosfuModule = ![AppRole.SUPRIDO, AppRole.GESTOR, AppRole.SEFIN, AppRole.AJSEFIN, AppRole.SGP, AppRole.SODPA].includes(activeRole);
+  const isInSosfuModule = ![AppRole.USER, AppRole.GESTOR, AppRole.SEFIN, AppRole.AJSEFIN, AppRole.SGP, AppRole.SODPA].includes(activeRole);
 
   const handlePreferences = () => {
-    // Se estiver no módulo SUPRIDO, abre as preferências/perfil
-    if (activeRole === AppRole.SUPRIDO) {
+    // Se estiver no módulo USER, abre as preferências/perfil
+    if (activeRole === AppRole.USER) {
       setSupridoViewOverride('PROFILE');
     }
     // Se estiver no módulo SOSFU (qualquer membro da equipe), abre as configurações do sistema
@@ -113,7 +106,7 @@ const AppContent: React.FC = () => {
       return;
     }
     // If we came from another module, restore it
-    if (previousActiveRole && previousActiveRole !== AppRole.SUPRIDO) {
+    if (previousActiveRole && previousActiveRole !== AppRole.USER) {
        setActiveRole(previousActiveRole);
        setPreviousActiveRole(null);
     }
@@ -180,12 +173,12 @@ const AppContent: React.FC = () => {
                         returnToRole === AppRole.SEFIN ? 'SEFIN' :
                         returnToRole === AppRole.AJSEFIN ? 'AJSEFIN' : 
                         returnToRole === AppRole.SODPA ? 'SODPA' : 
-                        returnToRole === AppRole.SUPRIDO ? 'SUPRIDO' : 
+                        returnToRole === AppRole.USER ? 'USER' : 
                         returnToRole === AppRole.PRESIDENCIA ? 'PRESIDENCIA' : 'SOSFU'}
           />
         ) : (
         <>
-        {activeRole === AppRole.SUPRIDO && (
+        {activeRole === AppRole.USER && (
           <SupridoDashboard 
             forceView={supridoViewOverride} 
             onInternalViewChange={() => setSupridoViewOverride(null)} 

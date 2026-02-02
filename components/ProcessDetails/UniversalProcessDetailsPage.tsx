@@ -65,7 +65,7 @@ interface ProcessDetailsPageProps {
   currentUserId?: string;
   
   // Role of the user viewing the process (for contextual banners)
-  viewerRole?: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
+  viewerRole?: 'USER' | 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
   
   // Action capabilities (role-dependent)
   canTramitar?: boolean;
@@ -201,7 +201,8 @@ export const ProcessDetailsPage: React.FC<ProcessDetailsPageProps> = ({
   // Filter tabs based on visibleTabs prop (default: show all)
   // CRÍTICO: SUPRIDO não deve ver as abas "Execução da Despesa" e "Análise Técnica"
   const hiddenTabsForRole: Record<string, TabType[]> = {
-    'SUPRIDO': ['execution', 'analysis'],
+    'USER': ['execution', 'analysis'],  // USER é o mesmo que SUPRIDO (renomeado)
+    'SUPRIDO': ['execution', 'analysis'],  // Compatibilidade legado
   };
   
   const tabs = (() => {

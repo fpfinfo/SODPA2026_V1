@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Settings, 
   Users, 
@@ -15,9 +15,13 @@ import {
   ToggleRight,
   DollarSign,
   Calendar,
-  Shield
+  Shield,
+  Search,
+  X,
+  Loader2
 } from 'lucide-react';
 import { useSODPATeamMembers } from '../../hooks/useSODPATeamMembers';
+import { useRBAC, UserWithRoles } from '../../hooks/useRBAC';
 import { useToast } from '../ui/ToastProvider';
 import { TeamMember, AllowanceUserType, TravelScope, AllowanceRate } from '../../types';
 import { MOCK_ALLOWANCE_RATES } from '../../constants';
@@ -109,47 +113,107 @@ const GeneralSettings = () => {
     );
 };
 
-// 2. USUÁRIOS E PERMISSÕES (CRUD)
+// 2. USUÁRIOS E PERMISSÕES (CRUD) - Busca usuários do Supabase
 const UserSettings = () => {
-    const { members, loading, addMember, updateMember, toggleStatus } = useSODPATeamMembers();
+    const { members, loading: membersLoading, addMember, updateMember, toggleStatus, removeMember } = useSODPATeamMembers();
+    const { usersWithRoles, loading: rbacLoading } = useRBAC();
     const { showToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingMember, setEditingMember] = useState<Partial<TeamMember> | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedUser, setSelectedUser] = useState<UserWithRoles | null>(null);
 
-    // Form Stats
+    // Form State
     const [formData, setFormData] = useState({
-        nome: '',
         userId: '',
         email: '',
         funcao: 'ANALISTA',
         setor: 'SODPA'
     });
 
+    // Filter users that aren't already team members
+    const availableUsers = useMemo(() => {
+        const memberIds = new Set(members.map(m => m.email));
+        return usersWithRoles.filter(u => !memberIds.has(u.email));
+    }, [usersWithRoles, members]);
+
+    // Filter users based on search
+    const filteredUsers = useMemo(() => {
+        if (!searchTerm) return availableUsers.slice(0, 10);
+        const term = searchTerm.toLowerCase();
+        return availableUsers.filter(u => 
+            u.nome?.toLowerCase().includes(term) ||
+            u.email?.toLowerCase().includes(term) ||
+            u.matricula?.includes(term)
+        ).slice(0, 20);
+    }, [availableUsers, searchTerm]);
+
     const handleEdit = (member: any) => {
         setEditingMember(member);
         setFormData({
-            nome: member.nome,
-            userId: member.id, // using id as userId placeholder
+            userId: member.id,
             email: member.email,
             funcao: member.funcao,
             setor: member.setor || 'SODPA'
         });
+        setSelectedUser(null);
+        setSearchTerm('');
         setIsModalOpen(true);
     };
 
     const handleAddNew = () => {
         setEditingMember(null);
-        setFormData({ nome: '', userId: '', email: '', funcao: 'ANALISTA', setor: 'SODPA' });
+        setFormData({ userId: '', email: '', funcao: 'ANALISTA', setor: 'SODPA' });
+        setSelectedUser(null);
+        setSearchTerm('');
         setIsModalOpen(true);
+    };
+
+    const handleRemove = async (memberId: string, memberName: string) => {
+        if (!removeMember) {
+            showToast({ type: 'error', title: 'Erro', message: 'Função de remover não disponível' });
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Tem certeza que deseja remover ${memberName} da equipe SODPA?\n\n` +
+            `O usuário será removido da lista.`
+        );
+
+        if (!confirmed) return;
+
+        const result = await removeMember(memberId);
+
+        if (result.success) {
+            showToast({ type: 'success', title: 'Usuário Removido', message: `${memberName} foi removido da equipe.` });
+        } else {
+            showToast({ type: 'error', title: 'Erro ao Remover', message: result.error?.message || 'Falha ao remover.' });
+        }
+    };
+
+    const handleSelectUser = (user: UserWithRoles) => {
+        setSelectedUser(user);
+        setFormData({
+            ...formData,
+            userId: user.id,
+            email: user.email
+        });
+        setSearchTerm('');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (!editingMember && !selectedUser) {
+            showToast({ type: 'error', title: 'Erro', message: 'Selecione um usuário.' });
+            return;
+        }
+
         try {
             if (editingMember && editingMember.id) {
                 // Update
                 const res = await updateMember(editingMember.id, {
-                    nome: formData.nome,
+                    nome: selectedUser?.nome || editingMember.nome || '',
                     email: formData.email,
                     funcao: formData.funcao
                 });
@@ -157,24 +221,45 @@ const UserSettings = () => {
                 else throw res.error;
             } else {
                 // Create
-                // Check if addMember exists (it should based on recent update)
-                // Assuming addMember signature: (data: Omit<TeamMember, 'id'>) => ...
-                if (addMember) {
+                if (addMember && selectedUser) {
+                     console.log('🔵 [ConfiguracoesPanel] Chamando addMember com:', {
+                        nome: selectedUser.nome,
+                        email: selectedUser.email,
+                        funcao: formData.funcao,
+                        setor: formData.setor
+                     });
+                     
                      const res = await addMember({
-                        nome: formData.nome,
-                        email: formData.email,
+                        nome: selectedUser.nome,
+                        email: selectedUser.email,
                         funcao: formData.funcao,
                         setor: formData.setor,
-                        active: true, // Type mismatch potential if 'ativo' vs 'active' in types. Assuming types.ts has 'ativo' based on hook.
-                        // We will map appropriately if needed. Hook uses 'ativo' in DB insert.
+                        ativo: true,  // ✅ Corrigido: ativo (não active)
                     } as any);
-                    if(res.success) showToast({ type: 'success', title: 'Usuário Criado', message: 'Novo membro adicionado à equipe.' });
-                    else throw res.error;
+                    
+                    console.log('📊 [ConfiguracoesPanel] Resultado addMember:', res);
+                    
+                    if(res.success) {
+                        showToast({ 
+                            type: 'success', 
+                            title: 'Usuário Adicionado', 
+                            message: `${selectedUser.nome} foi adicionado à equipe SODPA.` 
+                        });
+                    } else {
+                        throw res.error;
+                    }
                 }
             }
             setIsModalOpen(false);
+            setSelectedUser(null);
+            setSearchTerm('');
         } catch (err: any) {
-             showToast({ type: 'error', title: 'Erro', message: err.message || 'Falha ao salvar usuário.' });
+             console.error('❌ [ConfiguracoesPanel] Erro ao salvar:', err);
+             showToast({ 
+                type: 'error', 
+                title: 'Erro ao Adicionar Usuário', 
+                message: err.message || 'Falha ao salvar usuário. Verifique o console para mais detalhes.' 
+            });
         }
     };
 
@@ -188,6 +273,8 @@ const UserSettings = () => {
             });
         }
     };
+
+    const loading = membersLoading || rbacLoading;
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -242,12 +329,18 @@ const UserSettings = () => {
                                         {member.ativo ? 'Ativo' : 'Inativo'}
                                     </button>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
                                     <button 
                                         onClick={() => handleEdit(member)}
                                         className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
                                     >
                                         Editar
+                                    </button>
+                                    <button 
+                                        onClick={() => handleRemove(member.id, member.nome)}
+                                        className="text-red-600 hover:text-red-800 text-sm font-medium hover:underline"
+                                    >
+                                        Remover
                                     </button>
                                 </td>
                             </tr>
@@ -256,31 +349,98 @@ const UserSettings = () => {
                 </table>
             </div>
 
-            {/* Simple Modal for Add/Edit */}
+            {/* Modal Modernizado com Busca de Usuário */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md animate-in zoom-in-95 duration-200">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">{editingMember ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">{editingMember ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+                            <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                                <X size={20} className="text-gray-500" />
+                            </button>
+                        </div>
+                        
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
-                                <input 
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                                    value={formData.nome}
-                                    onChange={e => setFormData({...formData, nome: e.target.value})}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Email Institucional</label>
-                                <input 
-                                    type="email"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                                    value={formData.email}
-                                    onChange={e => setFormData({...formData, email: e.target.value})}
-                                    required
-                                />
-                            </div>
+                            {/* Busca de Usuário - apenas para adicionar novo */}
+                            {!editingMember && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Buscar Servidor</label>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        <input 
+                                            type="text"
+                                            placeholder="Nome, matrícula ou e-mail..."
+                                            value={searchTerm}
+                                            onChange={e => setSearchTerm(e.target.value)}
+                                            disabled={!!selectedUser}
+                                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100 disabled:text-gray-500"
+                                        />
+                                    </div>
+                                    {searchTerm && !selectedUser && (
+                                        <div className="mt-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y">
+                                            {rbacLoading ? (
+                                                <div className="p-4 text-center text-gray-500 flex items-center justify-center gap-2">
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                    Carregando...
+                                                </div>
+                                            ) : filteredUsers.length > 0 ? (
+                                                filteredUsers.map(user => (
+                                                    <button
+                                                        key={user.id}
+                                                        type="button"
+                                                        onClick={() => handleSelectUser(user)}
+                                                        className="w-full p-3 text-left hover:bg-gray-50 flex items-center gap-3"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm">
+                                                            {user.nome?.charAt(0) || '?'}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-medium text-gray-900 truncate">{user.nome}</div>
+                                                            <div className="text-xs text-gray-500 truncate">{user.email} • Mat. {user.matricula}</div>
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="p-4 text-center text-gray-500 text-sm">Nenhum servidor encontrado</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Usuário Selecionado */}
+                            {selectedUser && !editingMember && (
+                                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold">
+                                        {selectedUser.nome?.charAt(0)}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-medium text-gray-900">{selectedUser.nome}</div>
+                                        <div className="text-xs text-gray-600">{selectedUser.email}</div>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setSelectedUser(null)}
+                                        className="p-1 hover:bg-blue-100 rounded"
+                                    >
+                                        <X size={16} className="text-blue-600" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Email (readonly quando selecionado) */}
+                            {(selectedUser || editingMember) && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Institucional</label>
+                                    <input 
+                                        type="email"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" 
+                                        value={formData.email}
+                                        disabled
+                                    />
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Função</label>
                                 <select 
@@ -295,9 +455,16 @@ const UserSettings = () => {
                                     <option value="AUDIT CONSUMPTION">Audit Consumption</option>
                                 </select>
                             </div>
+                            
                             <div className="flex justify-end gap-2 pt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
+                                <button 
+                                    type="submit" 
+                                    disabled={!editingMember && !selectedUser}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Salvar
+                                </button>
                             </div>
                         </form>
                     </div>

@@ -24,10 +24,10 @@ export function useSODPATeamMembers() {
     setError(null);
 
     try {
-      // Fetch SODPA team members from servidores_tj
+      // Fetch SODPA team members from profiles
       const { data: servidores, error: servidoresError } = await supabase
-        .from('servidores_tj')
-        .select('id, user_id, nome, email, funcao, setor, avatar_url, capacidade_diaria, ativo')
+        .from('profiles')
+        .select('id, email, nome, cargo, setor, avatar_url, capacidade_diaria, ativo')
         .eq('setor', 'SODPA')
         .eq('ativo', true)
         .order('nome');
@@ -41,14 +41,14 @@ export function useSODPATeamMembers() {
           const { data: diariasData, count: diariasCount } = await supabase
             .from('diarias')
             .select('created_at', { count: 'exact' })
-            .eq('assigned_to_id', s.user_id || s.id)
+            .eq('assigned_to_id', s.id)
             .not('status', 'in', '("PAGA","CANCELADA")');
 
           // Count passagens assigned (not completed)
           const { data: passagensData, count: passagensCount } = await supabase
             .from('passagens')
             .select('created_at', { count: 'exact' })
-            .eq('assigned_to_id', s.user_id || s.id)
+            .eq('assigned_to_id', s.id)
             .not('status', 'in', '("UTILIZADA","CANCELADA")');
 
           // Calculate SLA overdue (5 business days = ~7 calendar days)
@@ -74,7 +74,7 @@ export function useSODPATeamMembers() {
             id: s.id,
             nome: s.nome,
             email: s.email,
-            funcao: s.funcao || 'ANALISTA',
+            funcao: s.cargo || 'ANALISTA',  // cargo vem do DB, funcao é o campo do tipo
             avatarUrl: s.avatar_url,
             capacidadeDiaria: capacidade,
             taskCount: totalTasks,
@@ -118,7 +118,7 @@ export function useSODPATeamMembers() {
   // Update member capacity
   const updateCapacity = useCallback(async (memberId: string, newCapacity: number) => {
     const { error } = await supabase
-      .from('servidores_tj')
+      .from('profiles')
       .update({ capacidade_diaria: newCapacity })
       .eq('id', memberId);
 
@@ -126,23 +126,51 @@ export function useSODPATeamMembers() {
     await fetchTeamMembers();
   }, [fetchTeamMembers]);
 
-  // Add new member
+  // Add existing user to SODPA team (UPDATE, not INSERT)
   const addMember = useCallback(async (data: Omit<TeamMember, 'id'>) => {
     try {
-      const { error } = await supabase
-        .from('servidores_tj')
-        .insert([{
-          ...data,
+      console.log('🔵 [useSODPATeamMembers] Iniciando addMember:', {
+        email: data.email,
+        nome: data.nome,
+        funcao: data.funcao,
+        setor: data.setor
+      });
+
+      // The user already exists in profiles, we just update their setor
+      const { data: result, error, count } = await supabase
+        .from('profiles')
+        .update({
+          cargo: data.funcao,  // funcao do tipo → cargo no DB
           setor: 'SODPA',
           ativo: true,
-          // user_id would typically be handled here or via trigger
-        }]);
+        })
+        .eq('email', data.email)  // Find by email
+        .select();  // Return updated row(s)
 
-      if (error) throw error;
+      console.log('📊 [useSODPATeamMembers] Resultado do UPDATE:', {
+        result,
+        error,
+        count,
+        rowsAffected: result?.length || 0
+      });
+
+      if (error) {
+        console.error('❌ [useSODPATeamMembers] Erro no UPDATE:', error);
+        throw error;
+      }
+
+      if (!result || result.length === 0) {
+        const msg = `Usuário com email "${data.email}" não encontrado no banco de dados.`;
+        console.error('⚠️ [useSODPATeamMembers]', msg);
+        throw new Error(msg);
+      }
+
+      console.log('✅ [useSODPATeamMembers] Usuário atualizado com sucesso:', result[0]);
+      
       await fetchTeamMembers();
-      return { success: true };
+      return { success: true, data: result[0] };
     } catch (err) {
-      console.error('Error adding member:', err);
+      console.error('💥 [useSODPATeamMembers] Error adding member:', err);
       return { success: false, error: err };
     }
   }, [fetchTeamMembers]);
@@ -150,9 +178,16 @@ export function useSODPATeamMembers() {
   // Update member
   const updateMember = useCallback(async (id: string, data: Partial<TeamMember>) => {
     try {
+      // Map funcao to cargo for database
+      const dbData = {
+        ...data,
+        cargo: data.funcao,  // funcao do tipo → cargo no DB
+      };
+      delete dbData.funcao;  // Remove funcao antes de enviar ao DB
+      
       const { error } = await supabase
-        .from('servidores_tj')
-        .update(data)
+        .from('profiles')
+        .update(dbData)
         .eq('id', id);
 
       if (error) throw error;
@@ -164,11 +199,39 @@ export function useSODPATeamMembers() {
     }
   }, [fetchTeamMembers]);
 
+  // Remove member from team (reset setor)
+  const removeMember = useCallback(async (id: string) => {
+    try {
+      console.log('🗑️ [useSODPATeamMembers] Removendo membro da equipe:', id);
+      
+      // Reset setor para null (ou outro valor default)
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          setor: null,  // Remove da equipe
+          cargo: null   // Limpa cargo também
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('❌ Erro ao remover membro:', error);
+        throw error;
+      }
+      
+      console.log('✅ Membro removido da equipe SODPA');
+      await fetchTeamMembers();
+      return { success: true };
+    } catch (err) {
+      console.error('💥 Error removing member:', err);
+      return { success: false, error: err };
+    }
+  }, [fetchTeamMembers]);
+
   // Toggle Status
   const toggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
-        .from('servidores_tj')
+        .from('profiles')
         .update({ ativo: !currentStatus })
         .eq('id', id);
 
@@ -191,6 +254,7 @@ export function useSODPATeamMembers() {
     updateCapacity,
     addMember,
     updateMember,
-    toggleStatus
+    toggleStatus,
+    removeMember  // ✅ Nova função
   };
 }

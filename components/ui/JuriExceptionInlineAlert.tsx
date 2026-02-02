@@ -8,7 +8,7 @@ interface JuriExceptionInlineAlertProps {
   lancheValue?: number;
   diasAteEvento?: number | null;
   diasAtraso?: number | null; // For PC fora do prazo
-  userRole: 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
+  userRole: 'USER' | 'SUPRIDO' | 'GESTOR' | 'SOSFU' | 'AJSEFIN' | 'SEFIN' | 'SODPA' | 'SGP' | 'PRESIDENCIA';
 }
 
 // Limits configuration

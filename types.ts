@@ -1,5 +1,5 @@
 export enum AppRole {
-  SUPRIDO = 'SUPRIDO',
+  USER = 'USER',  // Perfil padrão do sistema (anteriormente SUPRIDO)
   GESTOR = 'GESTOR',
   SOSFU = 'SOSFU',
   SEFIN = 'SEFIN',
